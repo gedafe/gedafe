@@ -686,6 +686,15 @@ sub DB_FetchListSelect($$) {
 			if (defined $g{db_tables}{$v}{meta_sort}) {
 				$query .= ", $v.meta_sort";
 			}
+			else {
+				# if sorting on a non unique field,
+				# then the order of the record is not
+				# guaranteed -> this can be confusing
+				# while scrolling.
+				# try to put order by sorting additionally
+				# with first field, assumed to be the ID
+				$query .= ", $fields[0]";
+			}
 		} elsif (defined $g{db_tables}{$v}{meta_sort}) {
 			$query .= " ORDER BY $v.meta_sort";
 		}
