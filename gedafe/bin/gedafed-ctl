@@ -2,9 +2,9 @@
 
 BIN=/usr/local/gedafe/bin
 DAEMONCTL=$BIN/daemon-ctl
-GPW3FD=$BIN/gedafed
+GEDAFED=$BIN/gedafed
 
-test -f $GPW3FD || exit 0
+test -f $GEDAFED || exit 0
 test -f $DAEMONCTL || exit 0
 
-$DAEMONCTL $1 gedafed $GPW3FD
+$DAEMONCTL $1 gedafed $GEDAFED
