@@ -172,9 +172,9 @@ field. The following attributes are defined:
 
 =item widget
 
-Use this special widget for the edit form. At the moment only I<area> can be
-specified, which makes Gedafe select a TEXTAREA widget for this field, such that
-longer amounts of text can be entered.
+Use this special widget for the edit form. I<area> makes Gedafe select a
+TEXTAREA widget for this field, such that longer amounts of text can be
+entered and I<readonly> specifies a read-only widget.
 
 =item copy
 
