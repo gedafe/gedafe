@@ -1,3 +1,8 @@
+2001-05-21
+----------
+* fix problem with the last DBD::Pg version (0.98), reported by
+  David Joerg <joerg@iamexwi.unibe.ch>
+
 2001-05-16
 ----------
 * released 1.0.2
