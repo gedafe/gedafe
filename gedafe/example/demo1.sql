@@ -58,7 +58,9 @@ INSERT INTO meta_fields VALUES ('customer_address', 'area');
 -- combo-box
 DROP VIEW customer_combo;
 CREATE VIEW customer_combo AS
-	SELECT customer_id AS id, customer_name AS text FROM customer;
+	SELECT customer_id AS id,
+		customer_id || ' -- ' || customer_name AS text
+	FROM customer;
 GRANT SELECT ON customer_combo TO PUBLIC ;
 
 
@@ -88,20 +90,9 @@ INSERT INTO meta_fields VALUES ('product_description', 'area');
 DROP VIEW product_combo;
 CREATE VIEW product_combo AS
 	SELECT product_hid AS id,
-		product_description AS text
+		product_hid || ' -- ' || product_description AS text
 	FROM product;
 GRANT SELECT ON product_combo TO PUBLIC ;
-
--- hid2id and back
-DROP FUNCTION product_hid2id(CHAR(5));
-CREATE FUNCTION product_hid2id(CHAR(5)) returns INT4
-	AS 'SELECT product_id FROM product WHERE product_hid = $1'
-	LANGUAGE 'sql';
-DROP FUNCTION product_id2hid(INT4);
-CREATE FUNCTION product_id2hid(INT4) returns CHAR(5)
-	AS 'SELECT product_hid FROM product WHERE product_id = $1'
-	LANGUAGE 'sql';
-
 
 --#######
 -- Order
@@ -144,16 +135,6 @@ CREATE VIEW orders_list AS
 		product_id = orders_product;
 GRANT SELECT ON orders_list TO PUBLIC;
 
-COMMENT ON TABLE orders_list IS 'Orders';
-COMMENT ON COLUMN orders_list.orders_id IS 'ID';
-COMMENT ON COLUMN orders_list.orders_date IS 'Date';
-COMMENT ON COLUMN orders_list.customer_name IS 'Customer';
-COMMENT ON COLUMN orders_list.product_hid IS 'Product';
-COMMENT ON COLUMN orders_list.product_description IS 'Product Description';
-COMMENT ON COLUMN orders_list.orders_qty IS 'Quantity';
-COMMENT ON COLUMN orders_list.orders_shipped IS 'Shipped';
-
-
 --###############################
 -- Report: Due Product Shipments
 --###############################
@@ -167,7 +148,5 @@ CREATE VIEW due_shipments_rep AS
 
 COMMENT ON TABLE due_shipments_rep IS 'Due Product Shipments';
 COMMENT ON COLUMN due_shipments_rep.orders_total IS 'Orders';
-COMMENT ON COLUMN due_shipments_rep.product_hid IS 'Product';
-COMMENT ON COLUMN due_shipments_rep.product_description IS 'Description';
 
 GRANT SELECT ON due_shipments_rep TO PUBLIC;
