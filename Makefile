@@ -4,13 +4,11 @@ SHELL=/bin/sh
 
 MAJOR  = 1
 MINOR  = 2
-MMINOR = 0pre1
+MMINOR = 0pre7
 VERSION = $(MAJOR).$(MINOR).$(MMINOR)
 
 GNUTAR = gtar
 TARFILE = gedafe-$(VERSION).tar.gz
-
-release: release-tag tarball
 
 tarball: doc
 	cvs2cl.pl
@@ -19,13 +17,15 @@ tarball: doc
 	$(GNUTAR) --mode=g-s -czvf pub/$(TARFILE) gedafe-$(VERSION)
 	rm -rf gedafe-$(VERSION)
 	
+release: release-tag tarball
+
 release-tag:
 	cvs tag v$(MAJOR)_$(MINOR)_$(MMINOR)
 
 release-tag-force:
 	cvs tag -F v$(MAJOR)_$(MINOR)_$(MMINOR)
 
-doc: doc/gedafe-sql.txt doc/gedafe-user.txt doc/cpptemplate.txt
+doc: doc/gedafe-sql.txt doc/gedafe-user.txt doc/cpptemplate.txt doc/gedafe-pearls.txt
 
 doc/cpptemplate.txt:
 	pod2man --release=0.3 --center=gedafe lib/perl/Text/CPPTemplate.pm >pod2txt.tmp
