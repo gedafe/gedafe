@@ -4,6 +4,11 @@
 
 (arrows indicate actions that you should make when upgrading)
 ------------------------------------------------------------------
+HEAD    (2004-03-10)
+	Checked in agreed upon fix to schema code with 
+	robust defaults for schema and schema search path
+			Johannes
+------------------------------------------------------------------
 HEAD    (2004-03-09)
 	Fixed minor warnings in DB.pm and GUI.pm 
 			Johannes

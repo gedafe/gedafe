@@ -120,16 +120,28 @@ sub DB_Init($$)
 
 	# set schema search path
 	if($g{db_database}{version} >= 7.2) {
-		# Set Schema search path
-		my $query="SET SEARCH_PATH TO ";
+	    # Set Schema search path
+	    my $query="SET SEARCH_PATH TO ";
+	    if ( defined $g{conf}{schema}){
+
 		if (defined $g{conf}{schema_search_path})   {
 			$query .=  ($g{conf}{schema_search_path}. ";");
-		} elsif (defined $g{conf}{schema})   {
-			$query .= "'" . ($g{conf}{schema} . "';");
-		} else {
-			$query .=" '\$user', 'public';";
+		} else { # Schema Search path set to default schema
+			$query .= "'". $g{conf}{schema} . "';"  ;
 		}
-		$dbh->do($query);
+	    } else {	# No default Schema defined	
+
+		$g{conf}{schema}='public';
+		$query .=" '\$user', 'public';";
+
+		if ( defined $g{conf}{schema_search_path})   {
+		    print STDERR "DB::DB_Init::Schema search path dropped\n"; 
+		    print STDERR "DB::DB_Init:: Error: No schema parameter ";
+		    print STDERR "in Call of Start()\n";
+		    print STDERR "DB::DB_Init:: Check cgi script\n";
+ 		}
+	    }
+	    $dbh->do($query);
 	}
 
 	return 1;
@@ -212,12 +224,18 @@ END
 		if($data->[0] =~ /^meta|(_list|_combo)$/) {
 			$tables{$data->[0]}{hide} = 1;
 		}
-		if($database->{version} >= 7.2 and defined $g{conf}{schema}){
+		if($database->{version} >= 7.2 ){
+		    if (defined $g{conf}{schema}){
 			# Hide Tables from other schemas
 			if ($data->[1] ne $g{conf}{schema}){
 				$tables{$data->[0]}{hide} = 1;
 			}
-		}
+		    } else { # undefined Schema defaults to public
+			if ($data->[1] ne 'public'){
+				$tables{$data->[0]}{hide} = 1;
+			}
+		    }
+		} 
 		if($data->[0] =~ /_rep$/) {
 			$tables{$data->[0]}{report} = 1;
 		}
