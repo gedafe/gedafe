@@ -91,7 +91,7 @@ INSERT INTO meta_fields VALUES ('product', 'product_description', 'widget', 'are
 -- combo-box
 DROP VIEW product_combo;
 CREATE VIEW product_combo AS
-	SELECT product_hid AS id,
+	SELECT product_id AS id,
 		product_hid || ' -- ' || product_description AS text
 	FROM product;
 GRANT SELECT ON product_combo TO PUBLIC ;
