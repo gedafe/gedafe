@@ -12,17 +12,11 @@ use vars qw(@ISA @EXPORT_OK %g %s);
 
 # %g  -> global data
 # %u  -> user data
-# %s  -> session data
 
 require Exporter;
 @ISA       = qw(Exporter);
-@EXPORT_OK = qw(%g *u %s Global_InitSession Global_InitUser);
+@EXPORT_OK = qw(%g *u Global_InitUser);
 
-
-sub Global_InitSession()
-{
-	%s = ();
-}
 
 sub Global_InitUser($)
 {

@@ -1,3 +1,9 @@
+2001-02-08
+----------
+* minor internal restructuration
+* errors are now mostly reported on the web instead of stderr
+  (apache's error_log). this uses a new template called 'error.html'
+
 2001-01-27
 ----------
 * searches match now substrings and are case insensitive

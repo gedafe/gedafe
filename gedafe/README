@@ -1,7 +1,7 @@
 
 
         ============================================
-        Gedafe (the Generic Database Frontend) 1.0.0
+        Gedafe (the Generic Database Frontend) 1.0.1
         ============================================
 
 
@@ -27,11 +27,14 @@ Versioning Scheme
     (major.minor.minorminor) and stable/unstable marked by the minor
     number being even (stable) or odd (unstable).
 
+    The file UPGRADE contains upgrade instructions that you should
+    carefully read before upgrading Gedafe (for minor version changes too).
+
 
 Homepage
 --------
 
-    http://isg.ee.ethz.ch/tools/gedafe
+    http://isg.ee.ethz.ch/tools/gedafe/
 
 
 Mailing List
@@ -70,5 +73,6 @@ Copyright
 Authors
 -------
 
-    Tobias Oetiker <oetiker@ee.ethz.ch> and
-    David Schweikert <dws@ee.ethz.ch>
+    Tobias Oetiker <oetiker@ee.ethz.ch>,
+    David Schweikert <dws@ee.ethz.ch> and
+    Fritz Zaucker <zaucker@ee.ethz.ch>

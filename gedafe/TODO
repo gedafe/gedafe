@@ -33,3 +33,9 @@ Big features
 - make nicer templates
 - multi-level combos
 - editable views
+
+Internal changes
+----------------
+
+- move GUI_Header, GUI_Footer, etc. to Layout.pm
+- move GUI_CheckFormID to Util.pm

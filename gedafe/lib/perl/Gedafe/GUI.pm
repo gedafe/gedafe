@@ -8,7 +8,17 @@ package Gedafe::GUI;
 use strict;
 use Gedafe::Global qw(%g);
 use Gedafe::DB;
-use Gedafe::Util;
+use Gedafe::Util qw(
+	ConnectToTicketsDaemon
+	MakeURL
+	MyURL
+	Template
+	Error
+	DropUnique
+	UniqueFormStart
+	UniqueFormEnd
+	NextRefresh
+);
 
 use POSIX;
 
@@ -19,26 +29,12 @@ require Exporter;
 	GUI_Entry
 	GUI_List
 	GUI_ListRep
-	GUI_Form
-	GUI_xForm
 	GUI_CheckFormID
 	GUI_PostEdit
 	GUI_Edit
 	GUI_Delete
 	GUI_DB_Error
-	GUI_DB_Error_Form
-	GUI_NextRefresh
 );
-
-sub rand_ascii_32
-{
-	return sprintf "%04x%04x", rand()*(1<<16), rand()*(1<<16);
-}
-
-sub GUI_NextRefresh(;$)
-{
-	return rand_ascii_32;
-}
 
 sub GUI_DB2HTML($$)
 {
@@ -70,7 +66,7 @@ sub GUI_InitTemplateArgs($$)
 	my $q = shift;
 	my $args = shift;
 
-	my $refresh = GUI_NextRefresh($q);
+	my $refresh = NextRefresh();
 
 	$args->{DOCUMENTATION_URL}=$g{conf}{documentation_url};
 	$args->{THEME}=$q->url_param('theme');
@@ -187,75 +183,12 @@ sub GUI_Edit_Error($$$$$$)
 	exit;
 }
 
-sub GUI_DB_Error($$)
-{
-	my $str = shift;
-	my $url = shift;
-
-	print Template({
-		PAGE => 'db_error',
-		ELEMENT => 'db_error',
-		ERROR => $str,
-		NEXT_URL => $url,
-	});
-	exit;
-}
-
-sub GUI_Form($)
-{
-	my $action = shift;
-	print "<FORM ACTION=\"$action\" METHOD=\"POST\">\n";
-}
-
-sub GUI_GetUnique
-{
-	# unique_id
-	my $socket = ConnectToTicketsDaemon();
-	print $socket "SITE $g{conf}{app_site} $g{conf}{app_path}\n";
-	<$socket>;
-	print $socket "GETUNIQUE\n";
-	$_ = <$socket>;
-	close($socket);
-	if(! /^([\w-]+)$/) {
-		die "Couldn't understand ticket daemon reply: $_";
-	}
-	return $1;
-}
-
-sub GUI_DropUnique($)
-{
-	my $unique_id = shift;
-	if(defined $unique_id) {
-		my $socket = ConnectToTicketsDaemon();
-		print $socket "SITE $g{conf}{app_site} $g{conf}{app_path}\n";
-		<$socket>;
-		print $socket "DROPUNIQUE $unique_id\n";
-		$_ = <$socket>;
-		close($socket);
-		if(!/^OK$/) {
-			return 0;
-		}
-	}
-	return 1;
-}
-
-sub GUI_xForm($;$)
-{
-	my $form_url = shift;
-	my $next_url = shift || $form_url;
-
-	my $form_id = GUI_GetUnique;
-
-	print "\n<INPUT TYPE=\"hidden\" NAME=\"form_id\" VALUE=\"$form_id\">\n";
-	print "<INPUT TYPE=\"hidden\" NAME=\"form_url\" VALUE=\"$form_url\">\n";
-	print "<INPUT TYPE=\"hidden\" NAME=\"next_url\" VALUE=\"$next_url\">\n";
-	print "</FORM>\n";
-}
-
+# fixme: move to Util
 sub GUI_CheckFormID($$)
 {
+	my $s = shift;
 	my $user = shift;
-	my $q = shift;
+	my $q = $s->{cgi};
 
 	my $next_url = $q->param('next_url');
 	my %template_args = (
@@ -265,7 +198,7 @@ sub GUI_CheckFormID($$)
 		NEXT_URL => $next_url,
 	);
 
-	if(!GUI_DropUnique($q->param('form_id'))) {
+	if(!DropUnique($s, $q->param('form_id'))) {
 		print $q->header;
 		GUI_InitTemplateArgs($q, \%template_args);
 		GUI_Header(\%template_args);
@@ -278,11 +211,12 @@ sub GUI_CheckFormID($$)
 
 sub GUI_Entry($$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $user = shift;
 	my $dbh = shift;
 
-	my $refresh = GUI_NextRefresh($q);
+	my $refresh = NextRefresh();
 
 	my %template_args = (
 		USER => $user,
@@ -338,8 +272,9 @@ sub GUI_Entry($$$)
 
 sub GUI_FilterFirst($$$$)
 {
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $dbh = shift;
-	my $q = shift;
 	my $view = shift;
 	my $template_args = shift;
 	my $myurl = MyURL($q);
@@ -350,7 +285,7 @@ sub GUI_FilterFirst($$$$)
 	if(defined $filterfirst_field)
 	{
 		if(not defined $g{db_fields}{$view}{$filterfirst_field}{ref_combo}) {
-			GUI_DB_Error("combo not found for $filterfirst_field.", $myurl);
+			Error($s, 'combo not found for $filterfirst_field.');
 		}
 		else {
 			my $filterfirst_combo = GUI_MakeCombo($dbh, $view, $filterfirst_field, "combo_filterfirst", $filterfirst_value);
@@ -442,7 +377,8 @@ sub GUI_Search($$$)
 
 sub GUI_List($$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $user = shift;
 	my $dbh = shift;
 	my $myurl = MyURL($q);
@@ -455,7 +391,7 @@ sub GUI_List($$$)
 	my $can_edit = ($acl =~ /w/);
 	my $can_delete = ($acl =~ /w/);
 
-	my $next_refresh = GUI_NextRefresh($q);
+	my $next_refresh = NextRefresh();
 
 	my %template_args = (
 		USER => $user,
@@ -488,7 +424,7 @@ sub GUI_List($$$)
 	GUI_Header(\%template_args);
 
 	# filterfirst
-	my ($filterfirst_field, $filterfirst_value) =  GUI_FilterFirst($dbh, $q, $table, \%template_args);
+	my ($filterfirst_field, $filterfirst_value) =  GUI_FilterFirst($s, $dbh, $table, \%template_args);
 
 	# search
 	my ($search_field, $search_value) = GUI_Search($q, $view, \%template_args);
@@ -669,7 +605,7 @@ sub GUI_List($$$)
 	print Template(\%template_args);
 
 	if(defined $error) {
-		GUI_DB_Error($error,$myurl);
+		Error($s, $error);
 	}
 
 	# buttons
@@ -694,7 +630,8 @@ sub GUI_List($$$)
 
 sub GUI_ListRep($$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $user = shift;
 	my $dbh = shift;
 	my $myurl = MyURL($q);
@@ -725,7 +662,7 @@ sub GUI_ListRep($$$)
 	GUI_Header(\%template_args);
 
 	# filterfirst
-	my ($filterfirst_field, $filterfirst_value) =  GUI_FilterFirst($dbh, $q, $view, \%template_args);
+	my ($filterfirst_field, $filterfirst_value) =  GUI_FilterFirst($s, $dbh, $view, \%template_args);
 
 	# search
 	my ($search_field, $search_value) = GUI_Search($q, $view, \%template_args);
@@ -821,7 +758,7 @@ sub GUI_ListRep($$$)
 	print Template(\%template_args);
 
 	if(defined $error) {
-		GUI_DB_Error($error,$myurl);
+		Error($s, $error);
 	}
 
 	# buttons
@@ -890,7 +827,8 @@ sub GUI_Str2Hash($$)
 
 sub GUI_PostEdit($$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $user = shift;
 	my $dbh = shift;
 
@@ -905,14 +843,18 @@ sub GUI_PostEdit($$$)
 	if($action eq 'delete') {
 		if(!DB_DeleteRecord($dbh,$table,$q->param('id'))) {
 			my %template_args = (
-				PAGE => 'dberror',
+				PAGE => 'db_error',
 				USER => $user,
 				TITLE => 'Database Error'
 			);
 			GUI_InitTemplateArgs($q, \%template_args);
 			GUI_Header(\%template_args);
-
 			GUI_DB_Error($dbh->errstr, MyURL($q));
+			
+			$template_args{ELEMENT}='db_error';
+			$template_args{ERROR}=$dbh->errstr;
+			$template_args{NEXT_URL}=MyURL($q);
+			print Template(\%template_args);
 
 			GUI_Footer(\%template_args);
 		}
@@ -957,7 +899,8 @@ sub GUI_PostEdit($$$)
 
 sub GUI_Edit($$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $user = shift;
 	my $dbh = shift;
 	my $action = $q->url_param('action');
@@ -971,8 +914,7 @@ sub GUI_Edit($$$)
 	}
 
 	if(not exists $g{db_tables}{$table}) {
-		print "<p>Error: no such table ($table).\n";
-		exit;
+		Error($s, "Error: no such table ($table).");
 	}
 
 	my $title = $g{db_tables}{$table}{desc};
@@ -988,7 +930,7 @@ sub GUI_Edit($$$)
 		REEDIT => $reedit,
 	);
 	
-	my $form_url = MakeURL(MyURL($q), { refresh => GUI_NextRefresh($q) });
+	my $form_url = MakeURL(MyURL($q), { refresh => NextRefresh() });
 	my $next_url;
 	my $cancel_url = MakeURL($form_url, {
 		action => 'list',
@@ -1011,7 +953,7 @@ sub GUI_Edit($$$)
 	GUI_Header(\%template_args);
 
 	# FORM
-	GUI_Form($next_url);
+	UniqueFormStart($next_url);
 	print "<INPUT TYPE=\"hidden\" NAME=\"post_action\" VALUE=\"$action\">\n";
 
 	# Initialise values
@@ -1058,11 +1000,6 @@ sub GUI_Edit($$$)
 
 		my $value = exists $values{$field} ? $values{$field} : '';
 		my $inputelem = GUI_EditField($dbh,$table,$field,$value);
-		if(not defined $inputelem) {
-			GUI_xForm($form_url, $next_url);
-			GUI_DB_Error($dbh->errstr, $form_url);
-			return;
-		}
 
 		$template_args{ELEMENT} = 'editfield';
 		$template_args{FIELD} = $field;
@@ -1083,7 +1020,7 @@ sub GUI_Edit($$$)
 	$template_args{CANCEL_URL} = $cancel_url;
 	print Template(\%template_args);
 
-	GUI_xForm($form_url, $next_url);
+	UniqueFormEnd($s, $form_url, $next_url);
 	GUI_Footer(\%template_args);
 }
 
@@ -1202,7 +1139,8 @@ sub GUI_EditField($$$$)
 
 sub GUI_Delete($$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $user = shift;
 	my $dbh = shift;
 	my $table = $q->url_param('table');
@@ -1220,14 +1158,14 @@ sub GUI_Delete($$$)
 
 	GUI_InitTemplateArgs($q, \%template_args);
 	GUI_Header(\%template_args);
-	GUI_Form($next_url);
+	UniqueFormStart($next_url);
 
 	$template_args{ELEMENT}='delete';
 	print Template(\%template_args);
 
 	print "<INPUT TYPE=\"hidden\" NAME=\"post_action\" VALUE=\"delete\">\n";
 	print "<INPUT TYPE=\"hidden\" NAME=\"id\" VALUE=\"$id\">\n";
-	GUI_xForm($next_url, $next_url);
+	UniqueFormEnd($s, $next_url, $next_url);
 	GUI_Footer(\%template_args);
 }
 
