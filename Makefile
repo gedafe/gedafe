@@ -1,6 +1,6 @@
 MAJOR  = 0
 MINOR  = 9
-MMINOR = 7
+MMINOR = 8
 VERSION = $(MAJOR).$(MINOR).$(MMINOR)
 
 TAR = gedafe-$(VERSION).tar.gz

@@ -1,42 +1,49 @@
 Tobias Oetiker and David Schweikert are proud to announce:
 
-
-        ============================================
-        Gedafe (the Generic Database Frontend) 1.0.0
-        ============================================
+                _        __            _   ___   ___  
+  __ _  ___  __| | __ _ / _| ___      / | / _ \ / _ \ 
+ / _` |/ _ \/ _` |/ _` | |_ / _ \_____| || | | | | | |
+| (_| |  __/ (_| | (_| |  _|  __/_____| || |_| | |_| |
+ \__, |\___|\__,_|\__,_|_|  \___|     |_(_)___(_)___/ 
+ |___/             
+          #### Gedafe (the Generic Database Frontend) 1.0.0 ####
 
 
 Introduction
 ------------
 
-    Gedafe (the Generic Datbase Frontend) is a web-based database
-    frontend that is database-application independent. That means that
-    the (perl) code doesn't contain any information about what tables
-    are present in the database, how the data is organized or how the
-    forms should be made.
+    Gedafe (the Generic Datbase Frontend) is an appliction independant
+    web frontend for databases. This means that the frontend doesn't
+    contain any information about what structure and contens of the
+    database.
 
-    The idea is to put all the application logic in the database along
-    with meta-information on how to present the data and then use a
-    generic frontend that gathers that information and uses it to
-    build the interface presented to the user. The developement time
-    is greatly reduced, since you only have to develop the application
-    at the database level.
+    The idea is to put all the application logic into the database,
+    along with meta-information on how to present the data and then to
+    use a generic frontend that gathers this information and uses it
+    to build the user interface. This aproach greatly reduces
+    developement time since you only have to develop the application
+    at the database level and the web frontend comes for free.
 
-    Gedafe does also use a flexible templating system, such that you
-    can completely customize the look of the user interface and "deep
-    linking" (i.e. you can bookmark any viewed page).
+    And there is more:
+  
+    * Gedafe also uses a flexible templating system. It allows you
+      customize the look of the user interface to large degree.
 
-    At the moment Gedafe works only with PostgreSQL. Note that this is
-    not a database-administration frontend, but a user-interface
-    frontend.
+    * Gedafe generated interfaces also supports "deep linking" this
+      means that you can bookmark every page as it is presented.
+
+    * At the moment Gedafe works only with PostgreSQL. But the
+      structure of the application does not depend on PostgresSQL.
+
+    * Gedafe is *NOT* yet another database-administration frontend
+      with table editing ability. It is a real user interface.
 
 
 Release Notes
 -------------
 
-    This is the first public version. The program has been used internally
-    for three months without problems.
-
+    This is the first public version. The program has been used
+    internally in production for several months already.
 
 Availability
 ------------
