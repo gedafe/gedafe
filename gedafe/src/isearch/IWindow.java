@@ -52,7 +52,7 @@ public class IWindow extends Dialog implements IDataListener{
 	
 	String colname;
 	for(int i =0;i<fields.size();i++){
-	    colname=stripTable((String)fields.elementAt(i));
+	    colname=(String)fields.elementAt(i);
 	    
 	    ITextField itf = new ITextField(colname);
 	    itf.addKeyListener(new al());
@@ -113,30 +113,18 @@ public class IWindow extends Dialog implements IDataListener{
 	return (oldid);
     }
 
-    public String stripTable(String colname){
-	if(colname.indexOf("_")!=-1)
-		colname=colname.substring(
-					  colname.indexOf("_")+1,
-					  colname.length()
-					  );
-	
-	return colname;
-    }
-
     public void scan(){
 	rows.removeAll();
 
 	Component[] c = p.getComponents();
-	String prefix = ((String)fields.elementAt(0));
-	prefix = prefix.substring(0,prefix.indexOf("_")+1);
 	String postfix="";
 	for(int i = 0;i<c.length;i++){
 	    if(c[i] instanceof ITextField){
 		ITextField tmp = (ITextField)c[i];
-		String name = prefix+tmp.name;
+		String column = tmp.column;
 		String value = tmp.getText();
 		if(value.length()!=0){
-		    postfix +="&field_"+name+"="+UrlEncode(value);
+		    postfix +="&field_"+column+"="+UrlEncode(value);
 		}    
 	    }
 	}
@@ -225,7 +213,7 @@ public class IWindow extends Dialog implements IDataListener{
 
 		ITextField tmp = (ITextField)c[i];
 		for(int j=0;j<fields.size();j++){
-		   if(tmp.name.equals(stripTable((String)fields.elementAt(j)))){
+		   if(tmp.column.equals((String)fields.elementAt(j))){
 		       tf[j] = tmp;
 		       tv[j] = tmp.getText().toUpperCase();
 		    }
@@ -256,6 +244,10 @@ public class IWindow extends Dialog implements IDataListener{
 
     public void parse(){
 	StringTokenizer lines = new StringTokenizer(data,"\n");
+	if(!lines.hasMoreTokens()){
+	    System.out.println("data empy: "+data);
+	    return;
+	}
 	String line = lines.nextToken();
 	//contains fieldslist.
 	//System.out.println("Fieldlist: "+line);

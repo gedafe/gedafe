@@ -1433,7 +1433,10 @@ sub GUI_DumpTable($$$){
 	my $data;
 	my $first = 1;
 
-	my @fields_list = @{$g{db_fields_list}{$table}};
+	my $view = defined $g{db_tables}{"${table}_list"} ?
+			"${table}_list" : $table;
+
+	my @fields_list = @{$g{db_fields_list}{$view}};
 	for (@fields_list){
 	  if(not $first){
 	    $data.="\t";

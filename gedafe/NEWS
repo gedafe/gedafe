@@ -6,6 +6,12 @@
 
 1.2.0
 -----
+* blobs (files) can now be inserted into bytea columns if you have
+  Postgresql >= 7.2
+* Referencing large tables can now be done trough a java applet instead
+  of a html select widget. This makes large (>100 rows or a few kb)
+  tables more easy to use. See documentation for details.
+* dates can now be entered with a special date widget.
 * data can now be scanned for tokens resembling web objects (e.g. e-mail
   addresses, http urls), and automatically marked up to be hyper links;
   set the 'markup' value in meta_fields for the desired column
@@ -21,7 +27,7 @@
   overhead.
 
 * If you have the Text::CSV_XS Perl module installed (available from CPAN),
-  gedafe automatically detect it, and give the option of exporting data
+  gedafe automatically detects it, and gives the option of exporting data
   either in CSV format (comma-separated-values), or in tab-delimited format.
   CSV format is useful for data with embedded newlines characters.
 
