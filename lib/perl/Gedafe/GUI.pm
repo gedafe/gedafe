@@ -449,13 +449,13 @@ sub GUI_List($$$)
 	my $list = DB_FetchList($s, \%spec);
 	
 	# top buttons
-	GUI_ListButtons($s, $list, 'list', 'top');
+	GUI_ListButtons($s, $list, $g{db_tables}{$table}{report} ? 'listrep' : 'list', 'top');
 
 	# display table
 	GUI_ListTable($s, $list, 'list');
 
 	# bottom buttons
-	GUI_ListButtons($s, $list, 'list', 'bottom');
+	GUI_ListButtons($s, $list, $g{db_tables}{$table}{report} ? 'listrep' : 'list', 'bottom');
 
 	# footer
 	GUI_Footer(\%template_args);
