@@ -1,0 +1,116 @@
+{ 
+  my $debug = 0;
+  my $comment = <<'end';
+
+
+	This file was automaticaly created by Parse::RecDescent 
+	from the grammar file 'SearchGrammar' in the gedafe/src directory.
+	Any modifications to the parser should be made in there.
+	To compile a new parser from that grammar use this statement:
+	
+	perl -MParse::RecDescent - SearchGrammar Gedafe::SearchParser
+	
+	and then move te created SearchParser.pm to the apropriate 
+	gedafe lib/perl/Gedafe directory.
+
+	For further querstions try freek@zindel.nl 
+	or gedafe-dev@list.ee.ethz.ch
+
+
+end
+}
+
+startnode: searchquery {
+      print "startnode\n" if($debug);
+      $return = $item[1];
+}
+
+searchquery: expression 
+| rvalue etail(s?) eofile 
+    { 
+	$return = {type=>"expression",op=>'like',left=>'##ALL COLUMNS##',right=>$item[1]};
+	my $right;
+	for(@{$item[2]}){
+	    $right = {type=>"expression",op=>$_->{op},left=>$_->{left},right=>$_->{right}};
+	    $return = {type=>"exbinary",op=>$_->{binop},left=>$return,right=>$right};
+	}
+    }
+
+| where /.*/
+{
+    $return = {type=>'where',clause=>$item[2]};
+}
+
+     
+where: 'where' | 'WHERE'
+
+rvalue: rform rtail(s?) {
+    print "$item[0]\n" if($debug);
+    $return =  {type=>"rvalue",form=>$item[1]};
+    my $right;
+    for(@{$item[2]}){
+	    $right = {type=>'rvalue', form=>$_->{form}};
+	    $return = {type=>"binary",op=>$_->{op},left=>$return,right=>$right};
+    }
+}
+
+rtail: binop(?) rform ...!eop {
+    print "$item[0]\n" if($debug);
+
+    #print "rtail $item[1] $item[2]\n";
+    my $operator = "or";
+    if($item[1][0]){
+	$operator = $item[1][0];
+    }
+    $return = {type=>'rtail',op=>$operator,form=>$item[2]};
+}
+    
+binop: 'and'|'AND'|'or'|'OR' {
+     print "binop $item[1]\n" if($debug);
+    $return =  $item[1];
+}    
+ 
+rform: not(?) rstring
+{
+    my $not = 0;
+    if($item[1][0]){
+	$not = 1;
+    }
+    $return = {not=>$not,value=>$item[2]};
+}
+
+
+not: 'NOT' | 'not'
+
+rstring: /[a-zA-Z0-9_@]+/ | /"([^"]+)"/ {$return = $1;} 
+   
+expression: indicator eop rvalue etail(s?){
+    print "Expression $item[1] ,$item[2]\n" if($debug);
+    $return = {type=>'expression',op=>$item[2],left=>$item[1],right=>$item[3]};
+    my $right;
+    for(@{$item[4]}){
+	$right = {type=>"expression",op=>$_->{op},left=>$_->{left},right=>$_->{right}};
+	$return = {type=>"exbinary",op=>$_->{binop},left=>$return,right=>$right};
+    }
+}
+
+
+etail:  binop indicator eop rvalue{
+    print "E-tail $item[1] ,$item[2], $item[3]\n" if($debug);
+    $return = {type=>'etail',binop=>$item[1],op=>$item[3],left=>$item[2],right=>$item[4]}; 
+}
+
+indicator : /[0-9]+/ | /[a-zA-Z0-9_]+/ 
+
+eop:  '==' {$return = '=';}
+| '>=' {$return = '>=';}
+| '<=' {$return = '<=';}
+| '~*' {$return = '~*';}
+| '=~' {$return = '=~';}
+|'>' {$return = '>';} 
+| '<' {$return = '<';}
+| '=' {$return = 'like';}
+| 'like' {$return = 'like';}
+
+
+eofile: /^\z/
