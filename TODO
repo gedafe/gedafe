@@ -20,6 +20,9 @@ Small features
   not use two pages
 - edit/delete on the left (selectable with a meta attribute, wide tables make
   the buttons difficult to access)
+- meta_color field to select the color of the record in the list view (see
+  mailing list)
+- edit mask (patch by Johannes Poehlmann) see mailing list
 
 Big features
 ------------
