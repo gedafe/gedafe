@@ -2512,9 +2512,9 @@ sub GUI_Oyster($)
 sub GUI_MakeMNCombo($$$$$)
 {
 	
-	my ($s, $dbh, $combo_view, $input_name, $value) = @_;
-	my $name = "${input_name}_mncombo";
-	my $virtual_field = $input_name;
+	my ($s, $dbh, $combo_view, $mnfield_name, $value) = @_;
+	my $name = "${mnfield_name}_mncombo";
+	my $virtual_field = $mnfield_name;
 	$virtual_field =~ s/^field_//;
 	
 	my $q = $s->{cgi};
@@ -2523,76 +2523,47 @@ sub GUI_MakeMNCombo($$$$$)
 	$value =~ s/^\s+//;
 	$value =~ s/\s+$//;
 
-	my $str;
+	my @available_list = undef;		
+	if(not defined DB_GetMNCombo($s,$combo_view,\@available_list,$virtual_field,' not in '))  {
+		return undef;
+	}
 
-	my @acombo;
-	my @bcombo;
-	
-	if(not defined DB_GetMNCombo($s,$combo_view,\@acombo,$virtual_field,' not in '))  {
+	my @selected_list = undef;
+	if(not defined DB_GetMNCombo($s,$combo_view,\@selected_list,$virtual_field,' in ')) {
 		return undef;
 	}
-	if(not defined DB_GetMNCombo($s,$combo_view,\@bcombo,$virtual_field,' in ')) {
-		return undef;
-	}
-	
-	$str .= "<table id=\"mncombo\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"width: 650px;\">\n";
-	$str .= "<tr><td>";
-	$str .= "<table><tr><td>";
-	$str .= "<INPUT TYPE=button NAME=\"direction\" VALUE=\"Up\" onClick=\"moveUp(document.editform.$input_name);\"/>";
-	$str .= "</td></tr><tr><td>";
-	$str .= "<INPUT TYPE=button NAME=\"direction\" VALUE=\"Dn\" onClick=\"moveDown(document.editform.$input_name);\"/>";
-	$str .= "</td></tr></table>";
-	$str .= "</td><td valign=\"top\" style=\"width: 300px;\">\n";
-	
-	$str .= "Already Selected:<br>\n";
-	$str .= "<select name=\"$input_name\" size=\"5\" style=\"width: 300px;\" ";
-	$str .= "onDblClick=\"move(document.editform.$input_name,document.editform.$input_name$s->{mncombo});";
-	$str .= "sortSelect(document.editform.$input_name$s->{mncombo},compareText);\" ";
-	$str .= "multiple>\n";
-	
-	foreach(@bcombo) {
+    
+	my $selected_html ="";
+	foreach(@selected_list) {
 		my $id = $_->[0];
 		$id=~s/^\s+//; $id=~s/\s+$//;
 		my $text = $_->[1];
-		if($value eq $id) {
-			$str .= "<OPTION SELECTED VALUE=\"$id\">$text</OPTION>\n";
-		}else {
-			$str .= "<OPTION  VALUE=\"$id\" >$text</OPTION>\n";
+		if($id ne ''){
+			$selected_html .= "<OPTION  VALUE=\"$id\" >$text</OPTION>\n";
 		}
 	}
-	$str .= "</select>\n";
 	
-	$str .= "</td><td valign=\"middle\" align=\"center\" style=\"width:  50;\">\n";
-	$str .= "<INPUT TYPE=\"button\" VALUE=\"-->\" ";
-	$str .= "onClick=\"move(document.editform.$input_name,document.editform.$input_name$s->{mncombo});";
-	$str .= "sortSelect(document.editform.$input_name$s->{mncombo},compareText);\" /><br/>";
-	$str .= "<INPUT TYPE=\"button\" VALUE=\"<--\" onClick=\"move(document.editform.$input_name$s->{mncombo},document.editform.$input_name);\"/>";
-	$str .= "</td><td  valign=\"top\" style=\"width: 300;\">\n";
-
-	$str .= "New to Choose:<br>\n";
-	$str .= "<select name=\"$input_name$s->{mncombo}\" size=\"5\" style=\"width: 300;\" ";
-	$str .= "onDblClick=\"move(document.editform.$input_name$s->{mncombo},document.editform.$input_name);\" ";
-	$str .= "onChange=\"this.form.filtercombobox$s->{mncombo}.value=";
-	$str .= "this.$input_name$s->{mncombo}";
-	$str .= "[this.$input_name$s->{mncombo}.selectedIndex].value\">\n";
-	
-	foreach(@acombo) {
+	my $available_html ="";
+	foreach(@available_list) {
 		my $id = $_->[0];
 		$id=~s/^\s+//; $id=~s/\s+$//;
 		my $text = $_->[1];
-		if($value eq $id) {
-			$str .= "<OPTION SELECTED VALUE=\"$id\">$text</OPTION>\n";
-		}else {
-			$str .= "<OPTION VALUE=\"$id\">$text</OPTION>\n";
+		if($id ne ''){
+			$available_html .= "<OPTION  VALUE=\"$id\" >$text</OPTION>\n";
 		}
 	}
-	$str .= "</SELECT><br>\n";
-	$str .= "<INPUT TYPE=\"text\" VALUE=\"\" NAME=\"filtercombobox$s->{mncombo}\" ";
-	$str .= "onKeyUp=\"findInWord(this,this.form.$input_name$s->{mncombo},'text',true);\">";
-	$str .= "</td></tr>\n";
-	$str .= "</tr>\n";
-	$str .= "</table>\n";
-	return $str;
+	
+	my %template_args = (
+                PAGE => 'mncombo_widget',
+                ALREADY_SELECTED => "$mnfield_name",
+                NEW_TO_CHOOSE => "$mnfield_name$s->{mncombo}",
+		COMBO_COUNT => $s->{mncombo},
+		NEW_TO_CHOOSE_LIST => $available_html,
+		ALREADY_SELECTED_LIST => $selected_html
+	);
+   
+	Template({ELEMENT=>'mncombo_widget'});
+        return Template(\%template_args);
 }
 
 sub _GUI_GetAllFields($){
