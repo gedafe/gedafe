@@ -196,6 +196,16 @@ object oriented perl modules which first display a data input screen and
 then run a report off the database based on the entires given at the data
 entry screen. See F<gedafe-pearls.pod> for more information.
 
+=item schema
+
+defines the current schema, i.e. the schema we want to work in.
+You do not see tables in other schemas.
+
+=item "schema_search_path"
+
+specifies a search path i.e. defines the schemas
+where we want to find tables in.
+
 =back
 
 =head2 The gedafed Daemon
@@ -277,6 +287,44 @@ description of the syntax and how the templates are stored in files. See also
 F<gedafe-templates.txt> for a description of what elements are used with what
 variables.
 
+=head2 Postgres Schema support
+
+It is possible to use schema support if Postgres is Version 7.3 or 
+newer. This is done with 2 optional config parameters for Start.pm. 
+(It has to be verified if Postgres versions < 7.3 run with this
+patch)
+
+These values are:
+
+=over 10
+
+=item "schema" 
+
+defines the current schema, i.e. the schema we want to work in. 
+You do not see tables in other schemas. 
+
+=item "schema_search_path" 
+
+=back
+
+specifies a search path i.e. defines the schemas
+where we want to find tables in. 
+
+When setting both options, you only get links for tables in "your" 
+schema BUT you can access all tables within the search path by their 
+names as if they were in the current schema.
+
+This allows you to reorder your tables in different schemas
+without changing views and select statements.
+Be careful with the syntax: Schemas must be included in
+single quotes and separated by commas!
+
+CAVEAT: This feature is quite experimental. Never put 2 tables with
+the same name in two schemas (inside your search path), as the results
+can be hard to predict. Also always put I<'public'> in your schema search
+path. Put the tables I<meta_fields> and I<eta_tables> in the I<'public'> 
+schema. 
+ 
 =head2 Hidden features
 
 =over 4
