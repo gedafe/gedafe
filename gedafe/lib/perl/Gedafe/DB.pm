@@ -1036,6 +1036,16 @@ sub DB_PrepareData($$)
 	if($_ eq '') {
 		$_ = undef;
 	}
+       # correct decimal commas to decimal points. This is a hack 
+       # that should be made configurable. Also 
+       # remove blanks and other non-numeric characters 			
+       if ($type eq 'numeric' ){
+
+             s/[.,]([\d\s]+)$/p\1/;
+             s/[,.]//g ;
+             s/p/./;
+	     s/[-;_#\/\\|\s]//g
+       }
 
 	return $_;
 }
