@@ -26,6 +26,7 @@ use Gedafe::DB qw(
 	DB_DumpJSITable
 	DB_FetchReferencedId
 	DB_Connect
+	DB_Format
 );
 
 use Gedafe::Util qw(
@@ -1386,7 +1387,7 @@ sub GUI_WidgetRead($$$)
 	  $value = GUI_DecodeDate($value,lc($warg->{'format'})); 
 
 	}
-	if($w eq 'file'){
+	elsif($w eq 'file'){
 		my $file = $value;
 		my $deletefile = $q->param("file_delete_$input_name");
 		if($deletefile) {
@@ -1415,7 +1416,7 @@ sub GUI_WidgetRead($$$)
 			}
 		}
 	}
-	if($w eq 'pluginfile'){
+	elsif($w eq 'pluginfile'){
 		my $file = $value;
 		if($file) {
 			my $filename = scalar $file;
@@ -1437,12 +1438,21 @@ sub GUI_WidgetRead($$$)
 			}
 		}
 	}
-
-	if($w eq 'hid' or $w eq 'hidcombo' or $w eq 'hidisearch' or $w eq 'hjsisearch') {
+	elsif($w eq 'hid' or $w eq 'hidcombo' or $w eq 'hidisearch' or $w eq 'hjsisearch') {
 		if(defined $value and $value !~ /^\s*$/) {
 			$value=DB_HID2ID($dbh,$warg->{'ref'},$value);
 		}
 	}
+	elsif($w eq 'format_number') {
+		$value = DB_Format('char_to_number', $warg->{template}, $value);
+	}
+	elsif($w eq 'format_date') {
+		$value = DB_Format('char_to_date', $warg->{template}, $value);
+	}
+	elsif($w eq 'format_timestamp') {
+		$value = DB_Format('char_to_timestamp', $warg->{template}, $value);
+	}
+
 	# if it's a combo and no value was specified in the text field...
 	if($w eq 'idcombo' or $w eq 'hidcombo' or $w eq 'combo') {
 		if(not defined $value or $value =~ /^\s*$/) {
@@ -2178,7 +2188,8 @@ sub GUI_WidgetWrite($$$$)
 	elsif($w eq 'readonly') {
 		return $value || '&nbsp;';
 	}
-	elsif($w eq 'text') {
+	elsif($w eq 'text')
+	{
 		my $size = defined $warg->{size} ? $warg->{size} : '20';
 		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"$size\" VALUE=\"".$escval."\">";
 	}
@@ -2290,13 +2301,27 @@ sub GUI_WidgetWrite($$$$)
 		$out .= "<br>Enter filename to update.<br><INPUT TYPE=\"file\" NAME=\"$input_name\">\n";
 		return $out;
 	}
-	if($w eq 'localdate'){
+	elsif($w eq 'localdate'){
 		my $format = lc($warg->{'format'});
 		$value = GUI_FormatDate($value,$format);
 		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"10\" VALUE=\"".$value."\">";
 	}
 	elsif($w eq 'date') {
 		return GUI_WidgetWrite_Date($input_name, $warg, $value);
+	}
+	elsif($w eq 'format_number' or $w eq 'format_date' or $w eq 'format_timestamp') {
+		if($w eq 'format_number') {
+			$value = DB_Format('number_to_char', $warg->{template}, $value);
+		}
+		elsif($w eq 'format_date') {
+			$value = DB_Format('date_to_char', $warg->{template}, $value);
+		}
+		elsif($w eq 'format_timestamp') {
+			$value = DB_Format('timestamp_to_char', $warg->{template}, $value);
+		}
+
+		my $size = defined $warg->{size} ? $warg->{size} : '20';
+		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"$size\" VALUE=\"".$escval."\">";
 	}
 
 	return "Unknown widget: $w";
