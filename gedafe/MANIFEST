@@ -2,10 +2,10 @@ COPYING
 README
 bin/daemon-ctl
 bin/gedafed
-bin/gpw3fd-ctl
-doc/gpw3f-sql.pod
-doc/gpw3f-templates.txt
-doc/gpw3f-user.pod
+bin/gedafed-ctl
+doc/gedafe-sql.pod
+doc/gedafe-templates.txt
+doc/gedafe-user.pod
 example/images/bookmark.gif
 example/images/delete.gif
 example/images/edit.gif
@@ -21,7 +21,6 @@ example/templates/edit_buttons.html
 example/templates/edit_error.html
 example/templates/edit_header3.html
 example/templates/editfield.html
-example/templates/compact
 example/templates/compact/header2.html
 example/templates/compact/listrep_buttons.html
 example/templates/compact/header_table.html
@@ -58,3 +57,4 @@ lib/perl/Gedafe/Global.pm
 lib/perl/Gedafe/Start.pm
 lib/perl/Gedafe/Util.pm
 lib/perl/Text/CPPTemplate.pm
+Makefile
