@@ -170,7 +170,17 @@ sub DB_ReadTables($$)
 	# 7.1: views have relkind 'v'
 
 	# tables
-	$query = <<'END';
+	if($database->{version} >= 7.3) {
+	$query = <<END;
+SELECT c.relname
+FROM pg_class c, pg_namespace n
+WHERE (c.relkind = 'r' OR c.relkind = 'v')
+AND   (c.relname !~ '^pg_')
+AND   (c.relnamespace = n.oid) 
+AND   (n.nspname != 'information_schema')
+END
+	} else {
+	$query = <<END;
 SELECT c.relname
 FROM pg_class c
 WHERE (c.relkind = 'r' OR c.relkind = 'v')
@@ -302,6 +312,7 @@ sub DB_ReadTableAcls($$)
 	while ($data = $sth->fetchrow_arrayref()) {
 		next unless defined $data->[0];
 		next unless defined $data->[1];
+		next unless defined $tables->{$data->[0]};
 		my $acldef = $data->[1];
 		$acldef =~ s/^{(.*)}$/$1/;
 		my @acldef = split(',', $acldef);
