@@ -857,9 +857,8 @@ sub GUI_Export($$$)
 			my $field_name = $g{db_fields_list}{$view}[$i];
 			my $field_type = $g{db_fields}{$view}{$field_name}{type};
 			my $str = GUI_DB2HTML($d, $field_type);
-			$str =~ s/\\/\\\\/g;
-			$str =~ s/,/\\,/g;
-			print $str;
+			$str =~ s/"/""/g;
+			print "\"$str\"";
 			print ',' unless $i >= $lasti;
 			$i++;
 		}
