@@ -89,7 +89,7 @@ Example:
  COMMENT ON TABLE customer IS 'Customers';
  COMMENT ON COLUMN customer.customer_hid 'C Number';
 
-=head1 PRESENTATION
+=head1 VIEWS FOR PRESENTATION
 
 =head2 Presentation View
 
@@ -138,6 +138,50 @@ comment, but the name of the list field is identical to the field in
 its parent table, then the COMMENT from the parent table field will be
 used. The same is true if the list field name matches the name of any
 other commented table field in the database.
+
+=head2 The Combo-box
+
+When editing fields that are a reference to a row in another table it
+is useful to have some help in filling out the field. Best is to
+provide a list of all possible values. The widget used to present this
+information to the user is called combo-box. In order to make this
+possible, each table which gets referenced by another table must be
+accompanied by a special view called I<table>B<*_combo>. This view
+must have two columns one called B<id> and one called B<text>. The
+B<id> column contains the value a user might want to enter in the
+field containing the reference. If the table has an I<table>B<_hid>
+column then B<id> values must be taken from there instead of the
+standard I<table>B<_id> column. The reasoning behind this is that even
+if there is no combo-box, the user should be able to enter references
+using I<table>B<_hid> values whenever possible. In order not to create
+an incongruence the combo-box must then also provide the
+I<table>B<_hid>.
+
+If you want to order the contents of the combo-box, then this can be
+done using an extra B<meta_sort> column as explained below. By
+default, combo-boxes get sorted by the contents of their B<text>
+column.
+
+Example:
+ 
+ CREATE VIEW gender_combo AS
+    SELECT gender_hid  AS id, 
+           gender_name AS text 
+    FROM gender;
+
+ CREATE VIEW proj_combo AS
+    SELECT proj_id                               AS id, 
+           proj_name || ', ' || pers_hid         AS text,
+           proj_popularity(proj_id) || proj_name AS meta_sort 
+    FROM proj, pers 
+    WHERE proj_pers=pers_id and proj_active=true;
+
+The last example uses a custom function proj_popularity() which
+calculates a project popularity value which is then used as sort key
+in order to get the most popular projects first in the combo
+box. Again, this is not computationally cheap.
+
+=head1 META INFORMATION
 
 =head2 The B<meta_tables> Table
 
@@ -203,38 +247,14 @@ attributes are defined:
 
 =item widget
 
-Options: ['area','readonly','isearch','date(from=2000,to=2005)']
+Override Gedafe's automatically selected widget (element in the edit form to
+enter the value of a field). A widget definition is written like this:
 
-Use this special widget for the edit form. I<area> makes Gedafe select a
-TEXTAREA widget for this field, such that longer amounts of text can be
-entered and I<readonly> specifies a read-only widget.
+ widgetname(param1=val1,param2=val2,...)
 
-I<isearch> as a widget for a column that references another table specifies
-a interactive record selecting applet. The applet is designed to replace
-comboboxes on tables with many records where the combobox would become 
-impracticaly large.
-Because the isearch applet searches in all columns of the referenced table 
-it ignores the table*_combo views, instead it use the original table or ,if 
-present, the table*_list view. Also note that the values of bytea columns 
-are translated to yield only the filename instead of the raw content.
-
-The isearch applet will only download a search resultset that is smaller 
-than 20kb to make sure that long waits are avoided. The progress of the 
-download is displayed with a blue bar progress indicator. 
-When the resultset is to large the user has the option to narrow down the
-search criteria by entering more characters to column search values and 
-then rescanning the resultspace by pressing the the 'scan' button. 
-Once a resultset is loaded entering characters to column search values
-immeadiately (interactivly) selects matching records.
-
-Please also note that for this applet to work you need to have a browser 
-that supports java, javascript and liveconnect. 
-(Mozilla, Netscape and IE will do fine)
-
-The I<date> widget on date columns generates a pulldown list to enter
-dates. The I<from> and I<to> fields specify the the range for the year
-list.
-
+If no parameters are specified, then the parens can be omitted. See chapter
+L<EDIT WIDGETS> for a description of all available widgets and the available
+parameters.
 
 =item copy
 
@@ -274,47 +294,69 @@ In that case, the alignment is "RIGHT" NOWRAP.
  
 =back
 
-=head2 The Combo-box
+=head1 EDIT WIDGETS
 
-When editing fields that are a reference to a row in another table it
-is useful to have some help in filling out the field. Best is to
-provide a list of all possible values. The widget used to present this
-information to the user is called combo-box. In order to make this
-possible, each table which gets referenced by another table must be
-accompanied by a special view called I<table>B<*_combo>. This view
-must have two columns one called B<id> and one called B<text>. The
-B<id> column contains the value a user might want to enter in the
-field containing the reference. If the table has an I<table>B<_hid>
-column then B<id> values must be taken from there instead of the
-standard I<table>B<_id> column. The reasoning behind this is that even
-if there is no combo-box, the user should be able to enter references
-using I<table>B<_hid> values whenever possible. In order not to create
-an incongruence the combo-box must then also provide the
-I<table>B<_hid>.
+=over 8
 
-If you want to order the contents of the combo-box, then this can be
-done using an extra B<meta_sort> column as explained above. By
-default, combo-boxes get sorted by the contents of their B<text>
-column.
+=item readonly
 
-Example:
- 
- CREATE VIEW gender_combo AS
-    SELECT gender_hid  AS id, 
-           gender_name AS text 
-    FROM gender;
+read-only text
 
- CREATE VIEW proj_combo AS
-    SELECT proj_id                               AS id, 
-           proj_name || ', ' || pers_hid         AS text,
-           proj_popularity(proj_id) || proj_name AS meta_sort 
-    FROM proj, pers 
-    WHERE proj_pers=pers_id and proj_active=true;
+=item text
 
-The last example uses a custom function proj_popularity() which
-calculates a project popularity value which is then used as sort key
-in order to get the most popular projects first in the combo
-box. Again, this is not computationally cheap.
+Text field. The optional argument I<size> specifies the width of the text field
+in characters (default: 20).
+
+=item area
+
+Use a C<TEXTAREA> widget for this field, such that longer amounts of text
+can be entered.
+
+=item date
+
+The I<date> widget on date columns generates a pulldown list to enter
+dates. The I<from> and I<to> parameters specify the the range for the year
+list.
+
+=item idcombo
+
+Text-entry, followed by a combo-box to select (text-entry has higher priority).
+The mandatory parameter I<combo> specifies the name of the view to use to fetch
+the contents of the combo-box. See L<The Combo-box> for a description of how to
+write views for combo-boxes.
+
+=item hidcombo
+
+Like C<idcombo>, but the text field references the C<hid> in the referenced
+table. Additionally to I<combo>, the mandatory parameter I<ref> specifies the
+name of the referenced table (so that the C<hid> can be converted to C<id>).
+
+=item isearch
+
+I<isearch> as a widget for a column that references another table specifies
+a interactive record selecting applet. The applet is designed to replace
+comboboxes on tables with many records where the combobox would become 
+impracticaly large.
+
+Because the isearch applet searches in all columns of the referenced table 
+it ignores the table*_combo views, instead it use the original table or ,if 
+present, the table*_list view. Also note that the values of bytea columns 
+are translated to yield only the filename instead of the raw content.
+
+The isearch applet will only download a search resultset that is smaller 
+than 20kb to make sure that long waits are avoided. The progress of the 
+download is displayed with a blue bar progress indicator. 
+When the resultset is to large the user has the option to narrow down the
+search criteria by entering more characters to column search values and 
+then rescanning the resultspace by pressing the the 'scan' button. 
+Once a resultset is loaded entering characters to column search values
+immeadiately (interactivly) selects matching records.
+
+Please also note that for this applet to work you need to have a browser 
+that supports java, javascript and liveconnect. 
+(Mozilla, Netscape and IE will do fine)
+
+=back
 
 =head1 REPORTS
 
@@ -353,7 +395,7 @@ provides information for using this data with Perl and PHP.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000,2001 ISG / D-ELEK / ETH Zurich, All rights reserved.
+Copyright (c) 2000-2003 ETH Zurich, All rights reserved.
 
 =head1 LICENSE
 
@@ -373,8 +415,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 =head1 AUTHOR
 
-Tobias Oetiker E<lt>oetiker@ee.ethz.chE<gt>
-
-David Schweikert E<lt>dws@ee.ethz.chE<gt>
-
-Fritz Zaucker E<lt>zaucker@ee.ethz.chE<gt>
+S<Tobias Oetiker E<lt>oetiker@ee.ethz.chE<gt>>,
+S<David Schweikert E<lt>dws@ee.ethz.chE<gt>>,
+S<Fritz Zaucker E<lt>zaucker@ee.ethz.chE<gt>>,
+S<Adi Fairbank E<lt>adi@adirak.orgE<gt>>,
+S<Freek Zindel E<lt>freek@zindel.nlE<gt>>
