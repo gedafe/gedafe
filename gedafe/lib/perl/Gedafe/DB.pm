@@ -555,6 +555,8 @@ sub DB_FetchList($$$$;%)
 				$query .= " WHERE $search_field = '$search_value'";
 			}
 			elsif($type eq 'bool') {
+				$search_value = 1 if $search_value =~ /^ysjt/i;
+				$search_value = 0 if $search_value =~ /^nf/i;
 				$query .= " WHERE $search_field = '$search_value'";
 			}
 			else {
