@@ -1290,7 +1290,7 @@ sub GUI_WidgetRead($$$)
 		die "file2fs_dir ($g{conf}{file2fs_dir}) does not point to a directory\n"
 		    unless -d $g{conf}{file2fs_dir};
 		
-		# if delte is active or if a new file is supplied
+		# if delete is active or if a new file is supplied
 		if ($q->param("file_delete_$input_name") or $upload){
 			unlink $root."/".$currentfile if -f $root."/".$currentfile;
 			$value = undef;
@@ -1298,6 +1298,10 @@ sub GUI_WidgetRead($$$)
 		
 		if ($upload){
 			# make sure the target directory exists
+			# ifa folks do not want real filenames for uploaded files they consider it a security risk
+			# build a name based on table_field_id.ext
+			my $ext = $upload =~ /.([^.\S]+)\s*$/ ? $1 : '.bin'
+			$upload = time().".".$ext;
 			my $targetdir = '/';
 			for ( split /\//, $warg->{'uploadpath'} ){
 				next if $_ eq '..';
