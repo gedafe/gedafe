@@ -211,6 +211,12 @@ mini-applications while concentrating on the task at hand rather than the
 gotcha's of html-based software engineering.
 See F<gedafe-oysters.pod> for more information.
 
+=item file2fs_dir
+
+If you use the file2fs widet for uploading files you have to specify the
+root directory for the uploads otherwhise uploads will be disabled. See the
+file2fs widget for more information.
+
 =item schema
 
 See "Schema Support"
