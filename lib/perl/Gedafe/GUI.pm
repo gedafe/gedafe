@@ -528,11 +528,21 @@ sub GUI_ListTable($$$)
 							     });
 			    $d = qq{<A HREF="$bloburl" TARGET="_blank">$d</A>};
 			}
+			my $align = $g{db_fields}{$list->{spec}->{table}}{$name}{align};
+			if(!$align){
+			  if($d =~ /^[\d\.]+$/){
+			    $align = '"RIGHT" NOWRAP';
+			  }else{
+			    $align = '"LEFT"';			    
+			  }
+			}
+			$template_args{ALIGN}=$align;
 			$template_args{ELEMENT}='td';
 			$template_args{DATA}=$d;
 			$template_args{MARKUP}=GUI_HTMLMarkup($d) if $d and $g{db_fields}{$list->{spec}->{table}}{$name}{markup};
 			print Template(\%template_args);
 			delete $template_args{DATA};
+			delete $template_args{ALIGN};
 			delete $template_args{MARKUP};
 		        $column_number++;
 		}

@@ -260,6 +260,18 @@ and http URLs).  If found, an additional template variable MARKUP will
 be defined in template element 'td' which contains appropriate HTML
 markup of the web object.
 
+=item align
+
+In listings of table content, this field overrides the alignment of
+the column. The contents of this field is put directly in the alignment
+section of the <td> tag. It is therefor good practice to put double
+quotes around left,right and center. e.g.: "LEFT" "RIGHT" "CENTER".
+
+When not specified the alignment defaults to "LEFT" unless
+the data contains only dots and digits, in that case it defaults to
+"RIGHT" NOWRAP.
+
+ 
 =back
 
 =head2 The Combo-box

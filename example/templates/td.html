@@ -4,11 +4,7 @@
 #else
     "#f0f0f3"
 #endif
-#if ##FIELDTYPE## = numeric
-    \ ALIGN="RIGHT" NOWRAP
-#elif ##DATA## ~ ^\d
-    \ ALIGN="RIGHT" NOWRAP
-#endif
+ALIGN=##ALIGN##
 >
 #ifdef MARKUP
     ##MARKUP##
