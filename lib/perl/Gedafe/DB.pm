@@ -1714,12 +1714,15 @@ my %DB_Format_functions = (
 );
 sub DB_Format($$$$) {
 	my ($dbh,$function,$template,$data) = @_;
-	return undef if !defined $data or $data =~ /^\s*$/;
+	return '' if !defined $data or $data =~ /^\s*$/;
 	my $func = $DB_Format_functions{$function}[0] or die;
 	my $type = $DB_Format_functions{$function}[1] or die;
 	my $q = "SELECT $func(cast (? as $type),?)";
 	my $sth = $dbh->prepare_cached($q) or die $dbh->errstr;
-	$sth->execute($data,$template) or die $sth->errstr;
+	$sth->execute($data,$template) or do {
+		$g{db_error}=$sth->errstr;
+		return undef;
+	};
 	my $d = $sth->fetchrow_arrayref();
 	die $sth->errstr if $sth->err;
 	return $d->[0];
