@@ -639,8 +639,8 @@ sub GUI_ReadSearchSpec($)
 	#   field => field_name,
 	#   value => full_line,
 	#   parsed => [
-	#                 { join_op => '',    neg => 0, op => '',      'bla' ],
-	#                 { join_op => 'AND', neg => 0, op => 'ILIKE', 'foo' ],
+	#                 { join_op => '',    neg => 0, op => '',  'bla' ],
+	#                 { join_op => 'AND', neg => 0, op => '>', 'foo' ],
 	#                  ...
 	#             ]
 	# }
