@@ -161,13 +161,6 @@ END
 	}
 	$sth->finish;
 
-	# find out combo boxes
-	for my $table (keys %tables) {
-		if($table =~ /^(.*)_combo$/ and defined $tables{$1}) {
-			$tables{$1}{combo}=1;
-		}
-	}
-
 	# read table comments as descriptions
 	if($database->{version} >= 7.2) {
 		$query = <<'END';
@@ -340,12 +333,13 @@ sub DB_Widget($$)
 			my $r  = $f->{reference};
 			my $rt = $g{db_tables}{$r};
 			defined $rt or die "table $f->{reference}, referenced from $f->{table}:$f->{field}, not found.\n";
-			if(defined($rt->{combo})) {
+			my $combo = "${r}_combo";
+			if(defined $g{db_tables}{$combo}) {
 				if(defined $fields->{$r}{"${r}_hid"}) {
 					# Combo with HID
-					return "hidcombo(ref=$r)";
+					return "hidcombo(combo=$combo,ref=$r)";
 				}
-				return "idcombo(ref=$r)";
+				return "idcombo(combo=$combo)";
 			}
 			if(defined $fields->{$r}{"${r}_hid"}) {
 				# Plain with HID
@@ -388,14 +382,18 @@ sub DB_ParseWidget($)
 	}
 
 	# verify
-	if($type eq 'idcombo' or $type eq 'hidcombo' or $type eq 'hidisearch') {
+	if($type eq 'idcombo' or $type eq 'hidcombo') {
+		defined $args{'combo'} or
+			die "widget $widget: mandatory argument 'combo' not defined";
+	}
+	if($type eq 'hidcombo' or $type eq 'hidisearch') {
 		my $r = $args{'ref'};
-		defined $r or die "widget $widget: mandatory argument 'ref' not defined";
-		defined $g{db_tables}{$r} or die "widget $widget: no such table: $r";
-		if($type eq 'hidcombo' or $type eq 'hidisearch') {
-			defined $g{db_fields}{$r}{"${r}_hid"} or
-				die "widget $widget: table $r has no HID";
-		}
+		defined $r or
+			die "widget $widget: mandatory argument 'ref' not defined";
+		defined $g{db_tables}{$r} or
+			die "widget $widget: no such table: $r";
+		defined $g{db_fields}{$r}{"${r}_hid"} or
+			die "widget $widget: table $r has no HID";
 	}
 
 	return ($type, \%args);
@@ -1033,12 +1031,11 @@ sub DB_UpdateRecord($$$)
 sub DB_GetCombo($$$)
 {
 	my $dbh = shift;
-	my $table = shift;
-	my $combo = shift;
+	my $combo_view = shift;
+	my $combo_data = shift;
 
-	my $comboname = "${table}_combo";
-	my $query = "SELECT id, text FROM $comboname";
-	if(defined $g{db_tables}{$comboname}{meta_sort}) {
+	my $query = "SELECT id, text FROM $combo_view";
+	if(defined $g{db_tables}{$combo_view}{meta_sort}) {
 		$query .= " ORDER BY meta_sort";
 	}
 	else {
@@ -1050,7 +1047,7 @@ sub DB_GetCombo($$$)
 	while($data = $sth->fetchrow_arrayref()) {
 		$data->[0]='' unless defined $data->[0];
 		$data->[1]='' unless defined $data->[1];
-		push @$combo, [$data->[0], $data->[1]];
+		push @$combo_data, [$data->[0], $data->[1]];
 	}
 	die $sth->errstr if $sth->err;
 
