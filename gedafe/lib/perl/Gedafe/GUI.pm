@@ -1300,7 +1300,7 @@ sub GUI_WidgetRead($$$)
 			# make sure the target directory exists
 			# ifa folks do not want real filenames for uploaded files they consider it a security risk
 			# build a name based on table_field_id.ext
-			my $ext = ( $upload =~ /\.([^.\S]+)\s*$/) ? $1 : '.bin';
+			my $ext = ( $upload =~ /\.([^.\s]+)\s*$/) ? $1 : '.bin';
 			$upload = time().".".$ext;
 			my $targetdir = '/';
 			for ( split /\//, $warg->{'uploadpath'} ){
