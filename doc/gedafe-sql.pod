@@ -445,6 +445,8 @@ Change the order of the fields in the edit screen. Gedafe reads the order of
 the fields from the table definition and assignes a ordering value to each field. The
 first field gets 1 the second 2 and so on. This value can be overriden with the 'order' attribute.
 Use floating values to move your fields around without having to change everything.
+Note that the *_id field is normally first and does not show up in edit view anyway, take this into account
+when counting.
 
 =item widget
 
