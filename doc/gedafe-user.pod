@@ -220,6 +220,12 @@ See "Schema Support"
 
 See "Schema Support"
 
+=item "traditional_search"
+
+When set to 1 upholds the traditional way of searching even when
+Parse::RecDescent is present on the system. See also: gedafe-search.pod
+
+
 =item edit_buttons_left 
 
 If set to 1, the buttons for edit, clone and delete are shown on
