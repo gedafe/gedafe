@@ -18,6 +18,7 @@ Small features
 - TUTORIAL ?
 - meta_fields: combo
 - meta_database, default_hide
+- drop naming rule (table_field)
 
 Big features
 ------------
