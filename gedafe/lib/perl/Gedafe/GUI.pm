@@ -22,7 +22,6 @@ use Gedafe::Util qw(
 	MakeURL
 	MyURL
 	Template
-	Error
 	DropUnique
 	UniqueFormStart
 	UniqueFormEnd
@@ -299,7 +298,7 @@ sub GUI_FilterFirst($$$$)
 	if(defined $filterfirst_field)
 	{
 		if(not defined $g{db_fields}{$view}{$filterfirst_field}{ref_combo}) {
-			Error($s, 'combo not found for $filterfirst_field.');
+			die "combo not found for $filterfirst_field";
 		}
 		else {
 			my $filterfirst_combo = GUI_MakeCombo($dbh, $view, $filterfirst_field, "combo_filterfirst", $filterfirst_value);
@@ -419,7 +418,7 @@ sub GUI_List($$$)
 
 	# does the view/table exist?
 	if(not defined $g{db_fields_list}{$view}) {
-		Error($s, "no such table: $view\n");
+		die "no such table: $view\n";
 	}
 
 	my %template_args = (
@@ -508,8 +507,7 @@ sub GUI_List($$$)
 	my $data;
 	my $fetched = 0;
 	my $fetchamount = $q->url_param('list_rows') || $g{conf}{list_rows};
-	my $error=undef;
-	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,\$error,
+	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,
 		-descending => $descending,
 		-orderby => $orderby,
 		-limit => $fetchamount+1,
@@ -618,10 +616,6 @@ sub GUI_List($$$)
 	$template_args{ELEMENT}='xtable';
 	print Template(\%template_args);
 
-	if(defined $error) {
-		Error($s, $error);
-	}
-
 	# buttons
 	my $nextoffset = $fetched == $fetchamount+1 ? $offset+$fetchamount : $offset;
 	my $prevoffset = $offset-$fetchamount; if($prevoffset<=0) { $prevoffset=''; }
@@ -725,8 +719,7 @@ sub GUI_ListRep($$$)
 	my $data;
 	my $fetched = 0;
 	my $fetchamount = $q->url_param('listrep_rows') || $q->url_param('list_rows') || $g{conf}{list_rows};
-	my $error=undef;
-	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,\$error,
+	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,
 		-descending => $descending,
 		-orderby => $orderby,
 		-limit => $fetchamount+1,
@@ -770,10 +763,6 @@ sub GUI_ListRep($$$)
 
 	$template_args{ELEMENT}='xtable';
 	print Template(\%template_args);
-
-	if(defined $error) {
-		Error($s, $error);
-	}
 
 	# buttons
 	my $nextoffset = $fetched == $fetchamount+1 ? $offset+$fetchamount : $offset;
@@ -867,10 +856,10 @@ sub GUI_PostEdit($$$)
 			);
 			GUI_InitTemplateArgs($q, \%template_args);
 			GUI_Header($s, \%template_args);
-			GUI_DB_Error($dbh->errstr, MyURL($q));
+			GUI_DB_Error($g{db_error}, MyURL($q));
 			
 			$template_args{ELEMENT}='db_error';
-			$template_args{ERROR}=$dbh->errstr;
+			$template_args{ERROR}=$g{db_error};
 			$template_args{NEXT_URL}=MyURL($q);
 			print Template(\%template_args);
 
@@ -899,18 +888,16 @@ sub GUI_PostEdit($$$)
 	}
 
 	if($action eq 'add') {
-		my $err;
-		if(!DB_AddRecord($dbh,$table,\%record,\$err)) {
+		if(!DB_AddRecord($dbh,$table,\%record)) {
 			my $data = GUI_Hash2Str(\%record);
-			GUI_Edit_Error($s, $user, $err, $q->param('form_url'), $data, $action);
+			GUI_Edit_Error($s, $user, $g{db_error}, $q->param('form_url'), $data, $action);
 		}
 	}
 	elsif($action eq 'edit') {
 		$record{id} = $q->param('id');
-		my $err;
-		if(!DB_UpdateRecord($dbh,$table,\%record,\$err)) {
+		if(!DB_UpdateRecord($dbh,$table,\%record)) {
 			my $data = GUI_Hash2Str(\%record);
-			GUI_Edit_Error($s, $user, $err, $q->param('form_url'), $data, $action);
+			GUI_Edit_Error($s, $user, $g{db_error}, $q->param('form_url'), $data, $action);
 		}
 	}
 }
@@ -932,7 +919,7 @@ sub GUI_Edit($$$)
 	}
 
 	if(not exists $g{db_tables}{$table}) {
-		Error($s, "Error: no such table ($table).");
+		die "Error: no such table ($table)";
 	}
 
 	my $title = $g{db_tables}{$table}{desc};
@@ -1017,7 +1004,7 @@ sub GUI_Edit($$$)
 		if($field eq "${table}_id") { next; }
 
 		my $value = exists $values{$field} ? $values{$field} : '';
-		my $inputelem = GUI_EditField($dbh,$table,$field,$value);
+		my $inputelem = GUI_EditField($s,$dbh,$table,$field,$value);
 
 		$template_args{ELEMENT} = 'editfield';
 		$template_args{FIELD} = $field;
@@ -1082,6 +1069,7 @@ sub GUI_MakeCombo($$$$$)
 
 sub GUI_EditField($$$$)
 {
+	my $s = shift;
 	my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
