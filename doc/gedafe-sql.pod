@@ -14,7 +14,7 @@ follow certain rules.
 
 It is also important to note that Gedafe does not impose any
 restrictions on to what a user can do with a database (this is what
-all front-ends should do but alas ...) All consistency and permission
+all front-ends should do but alas ...). All consistency and permission
 rules must be checked on the back-end side of the database. PostgreSQL
 offers excellent support for this kind of checks through referential
 integrity constraints, rules, triggers and stored procedures.
@@ -23,7 +23,7 @@ integrity constraints, rules, triggers and stored procedures.
 
 =head2 Unique Field Names
 
-Each field in the user defined tables has a unique name. This
+Each field in the user defined tables must have a unique name. This
 simplifies writing queries because there is no need for fully
 qualified field naming.  The unique names have to be built by
 appending the field name to the table name with an underscore.
