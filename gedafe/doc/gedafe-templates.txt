@@ -188,6 +188,7 @@ stdfooter =
 		> editfield
 			- LABEL
 			- INPUT
+			- TWOCOL (alternating 0 and 1 for each field)
 	> editform_footer
 	=stdfooter
 

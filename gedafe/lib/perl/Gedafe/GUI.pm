@@ -1068,6 +1068,7 @@ sub GUI_Edit($$$)
 	print Template(\%template_args);
 
 	my $field;
+	my $n;
 	foreach $field (@fields_list) {
 		if($field eq "${table}_id") { next; }
 
@@ -1084,7 +1085,9 @@ sub GUI_Edit($$$)
 		$template_args{FIELD} = $field;
 		$template_args{LABEL} = $fields->{$field}{desc};
 		$template_args{INPUT} = $inputelem,
+		$template_args{TWOCOL} = $n%2;
 		print Template(\%template_args);
+		$n++;
 	}
 	delete $template_args{FIELD};
 	delete $template_args{LABEL};
