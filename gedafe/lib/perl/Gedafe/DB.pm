@@ -28,6 +28,7 @@ require Exporter;
 	DB_HID2ID
 );
 
+sub DB_ReadVersion($);
 sub DB_ReadDatabase($);
 sub DB_ReadTables($);
 sub DB_ReadTableAcls($$);
@@ -86,6 +87,14 @@ sub DB_ReadDatabase($)
 	my ($sth, $query, $data);
 	my %database = ();
 
+	# version
+	$query = "SELECT version()";
+	$sth = $dbh->prepare($query);
+	$sth->execute() or die $sth->errstr;
+	$data = $sth->fetchrow_arrayref() or die $sth->errstr;
+	$data->[0] =~ /PostgreSQL (7\.\d+\.\d+)/ or die "unknown database version: $data->[0]\n";
+	$database{version}=$1;
+
 	# database oid
 	my $oid;
 	$query = "SELECT oid FROM pg_database WHERE datname = '$dbh->{Name}'";
@@ -117,7 +126,7 @@ sub DB_ReadTables($)
 	$query = <<'END';
 SELECT c.relname
 FROM pg_class c
-WHERE c.relkind = 'r'
+WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND c.relname !~ '^pg_'
 END
 	$sth = $dbh->prepare($query) or die $dbh->errstr;
@@ -138,7 +147,7 @@ END
 	$query = <<'END';
 SELECT c.relname, d.description 
 FROM pg_class c, pg_description d
-WHERE c.relkind = 'r'
+WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND c.relname !~ '^pg_'
 AND c.relname !~ '(^meta_|_combo$)'
 AND c.oid = d.objoid
@@ -179,7 +188,9 @@ END
 	$sth->finish;
 	
 	# combo
-	$query = "SELECT 1 FROM pg_class c WHERE c.relkind = 'r' AND c.relname = ?";
+	# 7.0: views have relkind 'r'
+	# 7.1: views have relkind 'v'
+	$query = "SELECT 1 FROM pg_class c WHERE (c.relkind = 'r' OR c.relkind='v') AND c.relname = ?";
 	$sth = $dbh->prepare($query);
 	for $table (keys %tables) {
 		$sth->execute("${table}_combo");
@@ -243,7 +254,7 @@ sub DB_ReadTableAcls($$)
 	$sth->finish;
 
 	# acls
-	$query = "SELECT relname, relacl FROM pg_class WHERE relkind = 'r' AND relname !~ '^pg_'";
+	$query = "SELECT c.relname, c.relacl FROM pg_class c WHERE (c.relkind = 'r' OR c.relkind='v') AND relname !~ '^pg_'";
 	$sth = $dbh->prepare($query) or die $dbh->errstr;
 	$sth->execute() or die $sth->errstr;
 	while ($data = $sth->fetchrow_arrayref()) {
