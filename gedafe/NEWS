@@ -4,6 +4,14 @@
 
 (arrows indicate actions that you should make when upgrading)
 ------------------------------------------------------------------
+HEAD    (2004-06-23)
+
+   *    Cosmetic Changes to schema support: The Schema links are now 
+	sorted alphabetically and Uppercase.
+		Johannes
+
+-------------------------------------------------------------------
+
 HEAD    (2004-05-24)
 
    *    Parsed searching was removed in favour of 'stacked' 
