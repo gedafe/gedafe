@@ -320,7 +320,7 @@ sub DB_Widget($$)
 {
 	my ($fields, $f) = @_;
 
-	if($f->{widget} eq 'isearch'){
+	if(defined $f->{widget} and $f->{widget} eq 'isearch'){
 	  my $r  = $f->{reference};
 	  my $rt = $g{db_tables}{$r};
 	  defined $rt or die "table $f->{reference}, referenced from $f->{table}:$f->{field}, not found.\n";
@@ -574,16 +574,16 @@ sub DB_GetDefault($$$)
 
 	$query = "SELECT ".$query;
 	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
-	print "<!-- Executing: $query -->\n";
+	#print "<!-- Executing: $query -->\n";
 	$sth->execute() or die $sth->errstr;
 	my $d = $sth->fetchrow_arrayref();
 	my $default = $d->[0];
 	$sth->finish;
 
-	if($g{db_fields}{$table}{$field}{ref_hid}) {
-		my $ref = $g{db_fields}{$table}{$field}{reference};
-		$default = DB_ID2HID($dbh, $ref, $default);
-	}
+	#if($g{db_fields}{$table}{$field}{ref_hid}) {
+	#	my $ref = $g{db_fields}{$table}{$field}{reference};
+	#	$default = DB_ID2HID($dbh, $ref, $default);
+	#}
 
 	return $default;
 }
@@ -698,7 +698,8 @@ sub DB_FetchListSelect($$) {
 		} elsif (defined $g{db_tables}{$v}{meta_sort}) {
 			$query .= " ORDER BY $v.meta_sort";
 		}
-		if (defined $spec->{limit} and !$spec->{export}) {
+		if (defined $spec->{limit} and $spec->{limit} != -1 and !$spec->{export})
+		{
 			$query .= " LIMIT $spec->{limit}";
 		}
 		if (defined $spec->{offset} and !$spec->{countrows}) {
@@ -807,13 +808,11 @@ sub DB_GetRecord($$$$)
 		die ($sth->err ? $sth->errstr : "Record not found ($query)\n");
 
 	# transorm raw data into record
-	my %dbdata = ();
 	my $i=0;
 	for(@fields_list) {
-		$dbdata{$_} = $data->[$i];
+		$record->{$_} = $data->[$i];
 		$i++;
 	}
-	DB_DB2Record($dbh, $table, \%dbdata, $record);
 	
 	return 1;
 }
@@ -883,30 +882,6 @@ sub DB_PrepareData($$)
 	return $_;
 }
 
-sub DB_DB2Record($$$$)
-{
-	my $dbh = shift;
-	my $table = shift;
-	my $dbdata = shift;
-	my $record = shift;
-
-	my $fields = $g{db_fields}{$table};
-	my @fields_list = @{$g{db_fields_list}{$table}};
-
-	my $f;
-	for $f (@fields_list) {
-		my $type = $fields->{$f}{type};
-		my $data = $dbdata->{$f};
-		
-		if(defined $fields->{$f}{ref_hid}) {
-			# convert ID reference to HID
-			$data = DB_ID2HID($dbh, $fields->{$f}{reference}, $data);
-		}
-
-		$record->{$f} = $data;
-	}
-}
-
 sub DB_Record2DB($$$$)
 {
 	my $dbh = shift;
@@ -923,10 +898,6 @@ sub DB_Record2DB($$$$)
 		my $data = $record->{$f};
 
 		$data = DB_PrepareData($data, $type);
-		if(defined $fields->{$f}{ref_hid}) {
-			# convert HID reference to ID
-			$data = DB_HID2ID($dbh, $fields->{$f}{reference}, $data);
-		}
 
 		$dbdata->{$f} = $data;
 	}
@@ -959,7 +930,7 @@ sub DB_ExecQuery($$$$$){
 	$datatypes{$_} = $g{db_fields}{$table}{$_}{type};
     }
 
-    print "<!-- Executing: $query -->\n";
+    #print "<!-- Executing: $query -->\n";
 
     my $sth = $dbh->prepare($query) or die $dbh->errstr;
     
@@ -980,7 +951,9 @@ sub DB_ExecQuery($$$$$){
 	# report nicely the error
 	$g{db_error}=$sth->errstr; return undef;
     };
-    $res == 1 or die "Number of rows affected is not 1! ($res)";
+    if($res ne 1 and $res ne '0E0') {
+        die "Number of rows affected is not 1! ($res)";
+    }
     return 1;
 }
 
@@ -1083,7 +1056,7 @@ sub DB_DeleteRecord($$$)
 
 	my $query = "DELETE FROM $table WHERE ${table}_id = $id";
 
-	print "<!-- Executing: $query -->\n";
+	#print "<!-- Executing: $query -->\n";
 	my $sth = $dbh->prepare($query) or die $dbh->errstr;
 	$sth->execute() or do {
 		# report nicely the error
