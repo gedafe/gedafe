@@ -1,5 +1,5 @@
 # Gedafe, the Generic Database Frontend
-# copyright (c) 2000, ETH Zurich
+# copyright (c) 2000,2001 ETH Zurich
 # see http://isg.ee.ethz.ch/tools/gedafe
 
 # released under the GNU General Public License
@@ -12,25 +12,30 @@ require Exporter;
 @ISA       = qw(Exporter);
 @EXPORT    = qw(Start);
 
-use CGI;
-#CGI->compile(':all');
-#use CGI::Carp; 
+use CGI 2.00 qw(-compile :cgi);
 
-use Gedafe::Auth;
-use Gedafe::Global qw(%g %s *u Global_InitSession Global_InitUser);
-use Gedafe::GUI;
-use Gedafe::Util;
-
+use Gedafe::Auth qw(AuthConnect);
+use Gedafe::Global qw(%g);
+use Gedafe::GUI qw(
+	GUI_Entry
+	GUI_List
+	GUI_ListRep
+	GUI_CheckFormID
+	GUI_PostEdit
+	GUI_Edit
+	GUI_Delete
+);
+use Gedafe::Util qw(MakeURL MyURL InitTemplate Template Error NextRefresh);
 
 sub Start(%)
 {
 	my %conf = @_;
 
-	Global_InitSession();
-
 	my $q = new CGI;
 	my $user = '';
 	my $cookie;
+
+	my %s = ( cgi => $q);
 
 	if(defined $q->url_param('reload')) {
 		%g = ();
@@ -41,8 +46,7 @@ sub Start(%)
 		# defaults
 		$g{conf} = {
 			list_rows  => 10,
-			admin_user => 'admin',
-			tickets_socket => '/tmp/.gpw3fd.sock',
+			tickets_socket => '/tmp/.gedafed.sock',
 		};
 
 		# init config
@@ -51,22 +55,25 @@ sub Start(%)
 		}
 
 		# test mandatory arguments
-		my @mandatory = ('templates', 'app_site','app_path');
+		my @mandatory = ('templates', 'db_datasource');
 		for my $m (@mandatory) {
 			defined $g{conf}{$m} or
 				die "ERROR: '$m' named argument must be defined in Start.\n";
 		}
-
-		# app_url
-		$g{conf}{app_url} = "http://$g{conf}{app_site}$g{conf}{app_path}";
 	}
+
+	
+	$q->url(-absolute=>1) =~ /(.*)\/([^\/]*)/;
+	$s{url} = $q->url();
+	$s{path} = $1; $s{script} = $2;
+	$s{ticket_name} = "Ticket_$2"; $s{ticket_name} =~ s/\./_/g;
 
 	my $expires = defined $q->url_param('refresh') ? '+5m' : '-1d';
 
 	InitTemplate("$g{conf}{templates}",".html");
 
 	if(defined $q->url_param('reload')) {
-		my $next_refresh=GUI_NextRefresh();
+		my $next_refresh=NextRefresh();
 		print $q->header(-expires=>'-1d');
 		print Template({
 			PAGE => 'reload',
@@ -77,25 +84,12 @@ sub Start(%)
 		exit;
 	}
 
-	if($q->url() !~ "^$g{conf}{app_url}") {
-		print $q->header(-expires=>$expires);
-		print Template({
-			PAGE => 'wrong_url',
-			ELEMENT => 'wrong_url',
-			CORRECTURL => "$g{conf}{app_url}",
-		});
-		exit;
-	}
+	GUI_CheckFormID(\%s, $user);
 
-	GUI_CheckFormID($user, $q);
-
-	my $dbh = AuthConnect($q, \$user, \$cookie) or do {
-		print "\nCouldn't connect to database or database error.\n";
-		exit;
+	my $dbh = AuthConnect(\%s, \$user, \$cookie) or do {
+		Error(\%s, "Couldn't connect to database or database error.");
 	};
 
-	Global_InitUser($user);
-	
 	my $action = $q->url_param('action') || '';
 	if($action eq 'edit' or $action eq 'add' or $action eq 'delete') {
 		# cache forms...
@@ -113,26 +107,25 @@ sub Start(%)
 	} else {
 		print $q->header(-expires=>$expires,-cookie=>$cookie);
 	}
-#	print "<p><FONT SIZE=2>DEBUG: user=$user</FONT>\n";
+	$s{http_header_sent}=1;
 
-	GUI_PostEdit($q, $user, $dbh);
+	GUI_PostEdit(\%s, $user, $dbh);
 
 	if($action eq 'list') {
-		GUI_List($q, $user, $dbh);
+		GUI_List(\%s, $user, $dbh);
 	}
 	elsif($action eq 'listrep') {
-		GUI_ListRep($q, $user, $dbh);
+		GUI_ListRep(\%s, $user, $dbh);
 	}
 	elsif($action eq 'edit' or $action eq 'add' or $action eq 'reedit') {
-		GUI_Edit($q, $user, $dbh);
+		GUI_Edit(\%s, $user, $dbh);
 	}
 	elsif($action eq 'delete') {
-		GUI_Delete($q, $user, $dbh);
+		GUI_Delete(\%s, $user, $dbh);
 	}
 	else {
-		GUI_Entry($q, $user, $dbh);
+		GUI_Entry(\%s, $user, $dbh);
 	}
-
 
 	$dbh->disconnect;
 }

@@ -1,92 +1,79 @@
 
-        ==========================================
-          Gedafe (generic database frontend) 1.0 
-        ==========================================
-         by David Schweikert <dws@ee.ethz.ch> and
-            Tobias Oetiker   <oetiker@ee.ethz.ch>
-        
-           IT Support Group, D-ELEK / ETH Zurich
-        ==========================================
+
+        ============================================
+        Gedafe (the Generic Database Frontend) 1.0.1
+        ============================================
 
 
-Introduction
-------------
+Documentation
+-------------
 
-Gedafe (Generic PostgreSQL Web Frontend) is a web-based database
-frontend that is database-application independent. That means
-that the (perl) code doesn't contain any information about what
-tables are present in the database, how the data is organized or
-how the forms should be made.
+    Gedafe comes with two main documentation files:
 
-This is made by using the high sofistication of PostgreSQL that
-permits to define not only the format of the various tables for
-the data but also how they should be used. It is for example
-possible to define in the database the relational constraints,
-such that the database integrity, independently from the
-frontend used, is guaranteed.
-
-The added advantage of this "application in the database"
-approach is that we have to write one time the code to handle
-for example a form for adding a record though a form, then it
-works for every table in the database. Gedafe gathers information
-about the database at startup and generates the whole interface
-dynamically.
-
-Finally, it is much more easier to write new database
-applications: you just have to define a new database. No need to
-touch the perl code.
+    doc/gedafe-user.txt   explains how to install and use gedafe
+    doc/gedafe-sql.txt    explains how to setup a gedafe app in postgresql
+    doc/cpptemplate.txt   documentation for the templating system
 
 
-Features
+Examples
 --------
 
-Gedafe has the following "special" features:
-
-*   Generic frontend to the database. No need to change the CGI
-    script when developing a new database application.
-
-*   The authentication is done only at the database-level, is
-    transparent to the requested URL (after a login you get the
-    page you requested initially) and uses cookies that expire
-    server-side.
-
-*   Almost no HTML is used in the code. External little files
-    containing the HTML are used as template. That makes for an
-    easily changeable look.
-
-*   POST is used only for data that modifies the database. Every
-    view is encoded in the URL, which makes them storable as
-    bookmarks.
-
-*   After a form to enter for example a new record you arrive
-    directly at the list view where you were before that form.
-    No intermediate pages are used when possible.
-
-*   Double form protection. It is not possible to submit
-    erroneously two times the same form. Because of the fact
-    that no intermediate pages are used, often views are the
-    result of a POST request, which is automatically resent on
-    some netscape versions when a reload is made. Without a
-    double form protection, the data would be entered two times
-    in the database.
-
-Installation
-------------
-
-Read doc/gedafe-user.pod and doc/gedafe-sql.pod
+    See example/README.
 
 
-Availability
-------------
+Versioning Scheme
+-----------------
 
-Gedafe is released under the GNU General Public License, see COPYING.
+    Gedafe uses a linux-style versioning, i.e. three number versions
+    (major.minor.minorminor) and stable/unstable marked by the minor
+    number being even (stable) or odd (unstable).
 
-Get Gedafe at its homepage: http://isg.ee.ethz.ch/tools/gedafe/
+    The file UPGRADE contains upgrade instructions that you should
+    carefully read before upgrading Gedafe (for minor version changes too).
+
+
+Homepage
+--------
+
+    http://isg.ee.ethz.ch/tools/gedafe/
 
 
 Mailing List
 ------------
+   
+   Subscribe: send an e-mail to gedafe-request@list.ee.ethz.ch with
+              subject "subscribe".
 
-Subscribe: send an e-mail to listar@ee.ethz.ch with subject "subscribe gedafe".
+   Archives:  http://www.ee.ethz.ch/~slist/gedafe/
 
-Archives: http://www.ee.ethz.ch/~slist/gedafe/
+
+License
+-------
+
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License as
+    published by the Free Software Foundation; either version 2 of the
+    License, or (at your option) any later version.
+    
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    General Public License for more details.
+    
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+Copyright
+---------
+
+    Copyright (c) 2000,2001 ETH Zurich, All rights reserved.
+
+
+Authors
+-------
+
+    Tobias Oetiker <oetiker@ee.ethz.ch>,
+    David Schweikert <dws@ee.ethz.ch> and
+    Fritz Zaucker <zaucker@ee.ethz.ch>

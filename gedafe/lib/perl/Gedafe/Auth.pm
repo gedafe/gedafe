@@ -1,29 +1,35 @@
 # Gedafe, the Generic Database Frontend
-# copyright (c) 2000, ETH Zurich
+# copyright (c) 2000,2001 ETH Zurich
 # see http://isg.ee.ethz.ch/tools/gedafe
 
 # released under the GNU General Public License
 
 package Gedafe::Auth;
 use strict;
-use Gedafe::Util;
+use Gedafe::Util qw(
+	ConnectToTicketsDaemon
+	MakeURL
+	MyURL
+	Template
+	UniqueFormStart
+	UniqueFormEnd
+	NextRefresh
+);
 use Gedafe::Global qw(%g);
-use Gedafe::DB;
-use Gedafe::GUI;
+use Gedafe::DB qw(DB_Connect);
 
-use vars qw(@ISA @EXPORT);
+use vars qw(@ISA @EXPORT_OK);
 require Exporter;
 @ISA       = qw(Exporter);
-@EXPORT    = qw(AuthConnect);
+@EXPORT_OK = qw(AuthConnect);
 
-# authentication
-
-sub Auth_GetTicket($$$) {
+sub Auth_GetTicket($$$$) {
+	my $s = shift;
 	my $ticket = shift;
 	my $user = shift;
 	my $pass = shift;
-	my $socket = ConnectToTicketsDaemon();
-	print $socket "SITE $g{conf}{app_site} $g{conf}{app_path}\n";
+	my $socket = ConnectToTicketsDaemon($s);
+	print $socket "SITE $s->{url}\n";
 	<$socket>;
 	print $socket "GET $ticket\n";
 	$_ = <$socket>;
@@ -37,21 +43,23 @@ sub Auth_GetTicket($$$) {
 	return 1;
 }
 
-sub Auth_ClearTicket($) {
+sub Auth_ClearTicket($$) {
+	my $s = shift;
 	my $ticket = shift;
-	my $socket = ConnectToTicketsDaemon();
-	print $socket "SITE $g{conf}{app_site} $g{conf}{app_path}\n";
+	my $socket = ConnectToTicketsDaemon($s);
+	print $socket "SITE $s->{url}\n";
 	<$socket>;
 	print $socket "CLEAR $ticket\n";
 	<$socket>;
 	close($socket);
 }
 
-sub Auth_SetTicket($$) {
+sub Auth_SetTicket($$$) {
+	my $s = shift;
 	my $user = shift;
 	my $pass = shift;
-	my $socket = ConnectToTicketsDaemon();
-	print $socket "SITE $g{conf}{app_site} $g{conf}{app_path}\n";
+	my $socket = ConnectToTicketsDaemon($s);
+	print $socket "SITE $s->{url}\n";
 	<$socket>;
 	print $socket "SET $user $pass\n";
 	my $ticket = <$socket>;
@@ -62,17 +70,21 @@ sub Auth_SetTicket($$) {
 
 sub Auth_Login($)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 
 	print $q->header;
+	$s->{http_header_sent}=1;
 	print Template({ PAGE => 'login', ELEMENT => 'header' });
 	my $form_url = $q->param('form_url') || MyURL($q);
 	my $next_url = $q->param('next_url') ||
 		MakeURL(MyURL($q), {
 			logout=>'',
-			refresh=>GUI_NextRefresh($q),
+			refresh=>NextRefresh(),
 		});
-	GUI_Form($next_url);
+	$s->{header_sent}=1;
+
+	UniqueFormStart($next_url);
 
 	print Template({ PAGE => 'login', ELEMENT => 'login' });
 
@@ -83,7 +95,7 @@ sub Auth_Login($)
 			$q->param($_) . "\">\n";
 	}
 
-	GUI_xForm($form_url, $next_url);
+	UniqueFormEnd($s, $form_url, $next_url);
 
 	print Template({ PAGE => 'login', ELEMENT => 'footer' });
 
@@ -91,7 +103,8 @@ sub Auth_Login($)
 }
 
 sub AuthConnect($$$) {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $user = shift;
 	my $cookie = shift;
 
@@ -100,14 +113,14 @@ sub AuthConnect($$$) {
 
 	# logout
 	if($q->url_param('logout')) {
-		my $ticket = $q->cookie(-name=>'Ticket');
-		Auth_ClearTicket($ticket) if $ticket;
-		Auth_Login($q);
+		my $ticket = $q->cookie(-name=>$s->{ticket_name});
+		Auth_ClearTicket($s, $ticket) if $ticket;
+		Auth_Login($s);
 	}
 
 	# check Ticket
-	my $c = $q->cookie(-name=>'Ticket');
-	if(defined $c and Auth_GetTicket($c, $user, \$pass)) {
+	my $c = $q->cookie(-name=>$s->{ticket_name});
+	if(defined $c and Auth_GetTicket($s, $c, $user, \$pass)) {
 		# ticket authentication successfull
 		return DB_Connect($$user, $pass);
 	}
@@ -121,9 +134,10 @@ sub AuthConnect($$$) {
 
 		if(defined ($dbh = DB_Connect($$user, $pass))) {
 			# user/pass authentication successfull
-			my $ticket=Auth_SetTicket($$user, $pass);
-			my $domain="$g{conf}{app_site}"; $domain =~ s/:.*$//;
-			$$cookie=$q->cookie(-name=>'Ticket', -value=>$ticket);
+			my $ticket=Auth_SetTicket($s, $$user, $pass);
+			print STDERR "path=$s->{path}\n";
+			$$cookie=$q->cookie(-name=>$s->{ticket_name},
+				-value=>$ticket, -path=>$s->{path});
 			return $dbh;
 		}
 		else {
@@ -138,7 +152,7 @@ sub AuthConnect($$$) {
 	}
 
 	# no login, no ticket -> login
-	Auth_Login($q);
+	Auth_Login($s);
 }
 
 1;

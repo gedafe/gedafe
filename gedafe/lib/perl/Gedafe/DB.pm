@@ -1,5 +1,5 @@
 # Gedafe, the Generic Database Frontend
-# copyright (c) 2000, ETH Zurich
+# copyright (c) 2000,2001 ETH Zurich
 # see http://isg.ee.ethz.ch/tools/gedafe
 
 # released under the GNU General Public License
@@ -7,18 +7,15 @@
 package Gedafe::DB;
 use strict;
 
-#use Data::Dumper;
 use Gedafe::Global qw(%g);
 
 use DBI;
 use DBD::Pg;
 
-# use DBI;# done in start.pl
-
-use vars qw(@ISA @EXPORT);
+use vars qw(@ISA @EXPORT_OK);
 require Exporter;
 @ISA       = qw(Exporter);
-@EXPORT    = qw(
+@EXPORT_OK = qw(
 	DB_Connect
 	DB_FetchList
 	DB_GetRecord
@@ -31,6 +28,11 @@ require Exporter;
 	DB_HID2ID
 );
 
+sub DB_ReadDatabase($);
+sub DB_ReadTables($);
+sub DB_ReadTableAcls($$);
+sub DB_ReadFields($$);
+
 sub DB_Init($$)
 {
 	my $user = shift;
@@ -38,250 +40,193 @@ sub DB_Init($$)
 	my $dbh = DBI->connect_cached("$g{conf}{db_datasource}", $user, $pass) or return undef;
 	my $sth;
 
-	# tmp vars
-	my $query;
-	my $data;
-	my $table;
-	my $field;
+	my ($table, $field);
 
-#AND not exists (select 1 from pg_views where viewname = c.relname)
+	# read database
+	$g{db_database} = DB_ReadDatabase($dbh);
+
+	# read tables
+	$g{db_tables} = DB_ReadTables($dbh);
+	defined $g{db_tables} or return undef;
+	$g{db_editable_tables_list} = [];
+	$g{db_report_views} = [];
+	for $table (sort { $g{db_tables}{$a}{desc} cmp
+		$g{db_tables}{$b}{desc} } keys %{$g{db_tables}})
+	{
+		if($g{db_tables}{$table}{editable}) {
+			push @{$g{db_editable_tables_list}}, $table;
+		}
+		if($g{db_tables}{$table}{report}) {
+			push @{$g{db_report_views}}, $table;
+		}
+	}
+
+	# table acls
+	DB_ReadTableAcls($dbh, $g{db_tables}) or return undef;
+
+	# read fields
+	$g{db_fields} = DB_ReadFields($dbh, $g{db_tables});
+	defined $g{db_fields} or return undef;
+	# order fields
+	for $table (keys %{$g{db_tables}}) {
+		for $field (
+			sort { $g{db_fields}{$table}{$a}{order} <=>
+				$g{db_fields}{$table}{$b}{order}}
+			keys %{$g{db_fields}{$table}} )
+		{
+			push @{$g{db_fields_list}{$table}}, $field;
+		}
+	}
+
+	return 1;
+}
+
+sub DB_ReadDatabase($)
+{
+	my $dbh = shift;
+	my ($sth, $query, $data);
+	my %database = ();
+
+	# database oid
+	my $oid;
+	$query = "SELECT oid FROM pg_database WHERE datname = '$dbh->{Name}'";
+	$sth = $dbh->prepare($query);
+	$sth->execute() or return undef;
+	$data = $sth->fetchrow_arrayref();
+	$oid = $data->[0];
+	$sth->finish;
+
+	# read table comments as descriptions
+	$query = "SELECT description FROM pg_description WHERE objoid = $oid";
+	$sth = $dbh->prepare($query);
+	$sth->execute() or return undef;
+	$data = $sth->fetchrow_arrayref();
+	if($data) {
+		$database{desc} = $data->[0];
+	}
+	else {
+		$database{desc} = $dbh->{Name};
+	}
+	$sth->finish;
+
+	return \%database;
+}
+
+sub DB_ReadTables($)
+{
+	my $dbh = shift;
+	my %tables = ();
+
+	my ($query, $sth, $data, $table);
+
+	# combo
+	# 7.0: views have relkind 'r'
+	# 7.1: views have relkind 'v'
 
 	# tables
-	$g{db_tables} = {};
 	$query = <<'END';
 SELECT c.relname
 FROM pg_class c
-WHERE c.relkind = 'r'
+WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND c.relname !~ '^pg_'
 END
 	$sth = $dbh->prepare($query) or return undef;
-	#print "<!-- Executing: $query -->\n";
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
-		$g{db_tables}{$data->[0]} = {};
+		$tables{$data->[0]} = { };
+		next if $data->[0] =~ /(^meta_|(_combo|_list)$)/;
+		if($data->[0] =~ /_rep$/) {
+			$tables{$data->[0]}{report} = 1;
+		}
+		else {
+			$tables{$data->[0]}{editable} = 1;
+		}
 	}
 	$sth->finish;
 
-	# descriptions + db_editable_tables_list
+	# read table comments as descriptions
 	$query = <<'END';
 SELECT c.relname, d.description 
 FROM pg_class c, pg_description d
-WHERE c.relkind = 'r'
+WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND c.relname !~ '^pg_'
-AND c.relname !~ '(^meta_|(_combo|_list|_rep)$)'
+AND c.relname !~ '(^meta_|_combo$)'
 AND c.oid = d.objoid
 ORDER BY d.description
 END
-	$g{db_editable_tables_list} = [];
 	$sth = $dbh->prepare($query) or return undef;
-	#print "<!-- Executing: $query -->\n";
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
-		push @{$g{db_editable_tables_list}}, "$data->[0]";
-		$g{db_tables}{$data->[0]}{desc} = $data->[1];
+		$tables{$data->[0]}{desc} = $data->[1];
 	}
 	$sth->finish;
 
-	# reports
-	$query = <<'END';
-SELECT c.relname, d.description
-FROM pg_class c, pg_description d
-WHERE c.relkind = 'r'
-AND c.relname !~ '^pg_'
-AND c.relname ~ '_rep$'
-AND c.oid = d.objoid
-ORDER BY d.description
-END
-	$g{db_report_views} = [];
-	$sth = $dbh->prepare($query) or return undef;
-	#print "<!-- Executing: $query -->\n";
-	$sth->execute() or return undef;
-	while ($data = $sth->fetchrow_arrayref()) {
-		push @{$g{db_report_views}}, "$data->[0]";
-		$g{db_tables}{$data->[0]}{desc} = $data->[1];
-	}
-	$sth->finish;
-
-	# meta tables
-	$query = 'SELECT meta_tables_table, meta_tables_filterfirst, meta_tables_hide FROM meta_tables';
-	$sth = $dbh->prepare($query) or return undef;
-	#print "<!-- Executing: $query -->\n";
-	$sth->execute() or return undef;
-	while ($data = $sth->fetchrow_arrayref()) {
-		next if not defined $g{db_tables}{$data->[0]};
-		$g{db_tables}{$data->[0]}{filterfirst} = $data->[1];
-		if($data->[2]) { @{$g{db_editable_tables_list}} = grep {$_ ne $data->[0]} @{$g{db_editable_tables_list}}; }
-	}
-	$sth->finish;
-
-	# fields
-	$query = <<'END';
-SELECT a.attname, t.typname, a.attnum, a.atthasdef
-FROM pg_class c, pg_attribute a, pg_type t
-WHERE c.relname = ? AND a.attnum > 0
-AND a.attrelid = c.oid AND a.atttypid = t.oid
-ORDER BY a.attnum
-END
-	$g{db_fields} = {};
-	$g{db_fields_list} = {};
-	$sth = $dbh->prepare($query);
-	foreach $table (keys %{$g{db_tables}}) {
-		#next if $table =~ /(^meta_|_combo$)/;
-		#print "<!-- Executing: $query with $table -->\n";
-		$sth->execute($table) or return undef;
-		while ($data = $sth->fetchrow_arrayref()) {
-			if($data->[0] eq 'meta_sort') {
-				$g{db_tables}{$table}{meta_sort}=1;
-			}
-			else {
-				push @{$g{db_fields_list}{$table}}, $data->[0];
-				$g{db_fields}{$table}{$data->[0]} = {
-					type => $data->[1],
-					desc => $data->[0],
-					attnum => $data->[2],
-					atthasdef => $data->[3],
-				};
-			}
-		}
-	}
-	$sth->finish;
-
-	# field descriptions
-	$query = <<'END';
-SELECT a.attname, d.description
-FROM pg_class c, pg_attribute a, pg_description d
-WHERE c.relname = ? AND a.attnum > 0
-AND a.attrelid = c.oid
-AND a.oid = d.objoid
-END
-	$sth = $dbh->prepare($query);
-	foreach $table (keys %{$g{db_tables}}) {
-		$sth->execute($table) or return undef;
-		while ($data = $sth->fetchrow_arrayref()) {
-			$g{db_fields}{$table}{$data->[0]}{desc}=$data->[1];
-		}
-	}
-	$sth->finish;
-
-	# defaults
-	$query = <<'END';
-SELECT d.adsrc FROM pg_attrdef d, pg_class c WHERE
-c.relname = ? AND c.oid = d.adrelid AND d.adnum = ?;
-END
-	$sth = $dbh->prepare($query);
-	foreach $table (keys %{$g{db_tables}}) {
-		foreach $field (@{$g{db_fields_list}{$table}}) {
-			if(! $g{db_fields}{$table}{$field}{atthasdef}) { next; }
-			$sth->execute($table, $g{db_fields}{$table}{$field}{attnum}) or return undef;
-			my $d = $sth->fetchrow_arrayref();
-			$g{db_fields}{$table}{$field}{default} = $d->[0];
-			$sth->finish;
-		}
-	}
-
-	# meta fields
-	my %meta_fields;
-	#$query = 'SELECT meta_fields_field, meta_fields_widget, meta_fields_copy FROM meta_fields';
-	$query = 'SELECT * FROM meta_fields';
-	$sth = $dbh->prepare($query) or return undef;
-	$sth->execute() or return undef;
-	while ($data = $sth->fetchrow_hashref()) {
-		my $field = $data->{meta_fields_field};
-		if(defined $data->{meta_fields_widget}) {
-			my $d = $data->{meta_fields_widget};
-			$d =~ s/^\s+//; $d=~s/\s+$//;
-			$meta_fields{$field}{widget} = $d;
-		}
-		if(defined $data->{meta_fields_copy}) {
-			$meta_fields{$field}{copy} = $data->{meta_fields_copy};
+	# set not-defined table descriptions
+	for $table (keys %tables) {
+		next if defined $tables{$table}{desc};
+		if(exists $tables{"${table}_list"} and defined
+			$tables{"${table}_list"}{desc})
+		{
+			$tables{$table}{desc} = $tables{"${table}_list"}{desc};
 		}
 		else {
-			$meta_fields{$field}{copy} = 0;
-		}
-		if(defined $data->{meta_fields_sortfunc}) {
-			my $d = $data->{meta_fields_sortfunc};
-			$d =~ s/^\s+//; $d=~s/\s+$//;
-			$meta_fields{$field}{sortfunc} = $d;
+			$tables{$table}{desc} = $table;
 		}
 	}
-	$sth->finish;
 
-
-	# foreign-key constraints (REFERENCES)
-	$query = <<'END';
-SELECT tgargs from pg_trigger, pg_proc where pg_trigger.tgfoid=pg_proc.oid AND pg_trigger.tgname
-LIKE 'RI_ConstraintTrigger%' AND pg_proc.proname = 'RI_FKey_check_ins'
-END
-	$sth = $dbh->prepare($query);
+	# meta_tables
+	$query = 'SELECT meta_tables_table, meta_tables_attribute, meta_tables_value FROM meta_tables';
+	$sth = $dbh->prepare($query) or return undef;
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
-		my @d = split(/\\000/,$$data[0]);
-		$meta_fields{$d[4]}{reference} = $d[2];
+		next if not defined $tables{$data->[0]};
+		my $attr = lc($data->[1]);
+		$tables{$data->[0]}{meta}{$attr}=$data->[2];
+		if($attr eq 'hide' and $data->[2]) {
+			delete $tables{$data->[0]}{editable};
+		}
 	}
 	$sth->finish;
-
-#	print "\n";
-#	print Dumper(\%meta_fields);
-
-	# combo
-	$query = <<'END';
-SELECT 1
-FROM pg_class c
-WHERE c.relkind = 'r'
-AND c.relname = ?
-END
+	
+	$query = "SELECT 1 FROM pg_class c WHERE (c.relkind = 'r' OR c.relkind='v') AND c.relname = ?";
 	$sth = $dbh->prepare($query);
-	foreach $table (keys %{$g{db_tables}}) {
-		#print "<!-- Executing: $query with ${table}_combo -->\n";
+	for $table (keys %tables) {
 		$sth->execute("${table}_combo");
 		if($sth->rows==0) { next; }
-		$g{db_tables}{$table}{combo}=1;
+		$tables{$table}{combo}=1;
 	}
 	$sth->finish;
 
-	# hid
-	foreach $table (keys %{$g{db_tables}}) {
-		if(exists $g{db_fields}{$table}{"${table}_hid"}) {
-			$g{db_tables}{$table}->{hid} = 1;
-		}
-	}
+	return \%tables;
+}
 
-	# go through every table and field and fill-in:
-	# - table information in reference fields
-	# - meta information from meta_fields
-	table: foreach $table (keys %{$g{db_tables}}) {
-		field: foreach $field (@{$g{db_fields_list}{$table}}) {
-			my $f = $g{db_fields}{$table}{$field};
-			if(defined $meta_fields{$field}) {
-				my $m = $meta_fields{$field};
-				$f->{widget}    = $m->{widget}    if exists $m->{widget};
-				$f->{reference} = $m->{reference} if exists $m->{reference};
-				$f->{copy}      = $m->{copy}      if exists $m->{copy};
-				$f->{sortfunc}  = $m->{sortfunc}  if exists $m->{sortfunc};
-			}
-			if(! exists $f->{reference}) {
-				next field;
-			}
-			my $ref = $f->{reference};
-			if(! exists $g{db_tables}{$ref}) {
-				next field;
-			}
-			my $rt = $g{db_tables}{$ref};
-
-			if(exists $rt->{combo}) {
-				$f->{ref_combo} = 1;
-			}
-			if(exists $rt->{hid}) {
-				$f->{ref_hid} = 1;
-			}
-		}
+sub DB_MergeAcls($$)
+{
+	my $a = shift;
+	my $b = shift;
+	$a = '' unless defined $a;
+	$b = '' unless defined $a;
+	my %acls = ();
+	for(split('',$a)) {
+		$acls{$_}=1;
 	}
+	for(split('',$b)) {
+		$acls{$_}=1;
+	}
+	return join('',keys %acls);
+}
+
+sub DB_ReadTableAcls($$)
+{
+	my $dbh = shift;
+	my $tables = shift;
+
+	my ($query, $sth, $data, $table);
 
 	# users
 	my %db_users;
 	$query = 'SELECT usename, usesysid FROM pg_user';
 	$sth = $dbh->prepare($query) or return undef;
-	#print "<!-- Executing: $query -->\n";
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
 		$db_users{$data->[1]} = $data->[0];
@@ -292,13 +237,12 @@ END
 	my %db_groups;
 	$query = 'SELECT groname, grolist FROM pg_group';
 	$sth = $dbh->prepare($query) or return undef;
-	#print "<!-- Executing: $query -->\n";
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
-		my $g = $data->[1];
-		if(defined $g) {
-			$g =~ s/^{(.*)}$/$1/;
-			my @g = split /,/, $g;
+		my $group = $data->[1];
+		if(defined $group) {
+			$group =~ s/^{(.*)}$/$1/;
+			my @g = split /,/, $group;
 			$db_groups{$data->[0]} = [@db_users{@g}];
 		}
 		else {
@@ -310,46 +254,190 @@ END
 	# acls
 	$query = "SELECT relname, relacl FROM pg_class WHERE relkind = 'r' AND relname !~ '^pg_'";
 	$sth = $dbh->prepare($query) or return undef;
-	#print "<!-- Executing: $query -->\n";
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
-		if(not defined $data->[0]) { next; }
-		if(not defined $data->[1]) { next; }
+		next unless defined $data->[0];
+		next unless defined $data->[1];
 		my $acldef = $data->[1];
 		$acldef =~ s/^{(.*)}$/$1/;
 		my @acldef = split(',', $acldef);
 		map { s/^"(.*)"$/$1/ } @acldef;
-		my %acl_level = ();
-		acl: foreach(@acldef) {
+		acl: for(@acldef) {
 			/(.*)=(.*)/;
 			my $who = $1; my $what = $2;
 			if($who eq '') {
-				foreach(values %db_users) {
-					if(not defined $acl_level{$_}) {
-						$g{db_tables}{$data->[0]}{acls}{$_} = $what;
-						$acl_level{$_} = 1;
-					}
+				for(values %db_users) {
+					$tables->{$data->[0]}{acls}{$_} =
+						DB_MergeAcls($tables->{$data->[0]}{acls}{$_}, $what);
 				}
 			}
 			elsif($who =~ /^group (.*)$/) {
-				foreach(@{$db_groups{$1}}) {
-					if(not defined $acl_level{$_} or $acl_level{$_} < 2) {
-						$g{db_tables}{$data->[0]}{acls}{$_} = $what;
-						$acl_level{$_} = 2;
-					}
+				for(@{$db_groups{$1}}) {
+					$tables->{$data->[0]}{acls}{$_} =
+						DB_MergeAcls($tables->{$data->[0]}{acls}{$_}, $what);
 				}
 			}
 			else {
-				$g{db_tables}{$data->[0]}{acls}{$who} = $what;
+				$tables->{$data->[0]}{acls}{$who} =
+					DB_MergeAcls($tables->{$data->[0]}{acls}{$who}, $what);
+			}
+		}
+	}
+
+	$sth->finish;
+
+	return 1;
+}
+
+sub DB_ReadFields($$)
+{
+	my $dbh = shift;
+	my $tables = shift;
+
+	my ($query, $sth, $data, $table, $field);
+	my %fields = ();
+
+	# fields
+	$query = <<'END';
+SELECT a.attname, t.typname, a.attnum, a.atthasdef, a.atttypmod
+FROM pg_class c, pg_attribute a, pg_type t
+WHERE c.relname = ? AND a.attnum > 0
+AND a.attrelid = c.oid AND a.atttypid = t.oid
+ORDER BY a.attnum
+END
+	$sth = $dbh->prepare($query);
+	for $table (keys %$tables) {
+		$sth->execute($table) or return undef;
+		my $order = 1;
+		while ($data = $sth->fetchrow_arrayref()) {
+			if($data->[0] eq 'meta_sort') {
+				$tables->{$table}{meta_sort}=1;
+			}
+			else {
+				$fields{$table}{$data->[0]} = {
+					order => $order++,
+					type => $data->[1],
+					attnum => $data->[2],
+					atthasdef => $data->[3],
+                                        atttypmod => $data->[4] 
+				};
 			}
 		}
 	}
 	$sth->finish;
 
-#	print "\n";
-#	print Dumper($g{db_tables});
+	my %field_descs = ();
 
-#	$dbh->disconnect;
+	# read field comments as descriptions
+	$query = <<'END';
+SELECT a.attname, d.description
+FROM pg_class c, pg_attribute a, pg_description d
+WHERE c.relname = ? AND a.attnum > 0
+AND a.attrelid = c.oid
+AND a.oid = d.objoid
+END
+	$sth = $dbh->prepare($query);
+	for $table (keys %$tables) {
+		$sth->execute($table) or return undef;
+		while ($data = $sth->fetchrow_arrayref()) {
+			$fields{$table}{$data->[0]}{desc}=$data->[1];
+			$field_descs{$data->[0]} = $data->[1];
+		}
+	}
+	$sth->finish;
+
+	# set not-defined field descriptions
+	for $table (keys %$tables) {
+		for $field (keys %{$fields{$table}}) {
+			my $f = $fields{$table}{$field};
+			if(not defined $f->{desc}) {
+				if(defined $field_descs{$field}) {
+					$f->{desc} = $field_descs{$field};
+				}
+				else {
+					$f->{desc} = $field;
+				}
+			}
+		}
+	}
+
+	# defaults
+	$query = <<'END';
+SELECT d.adsrc FROM pg_attrdef d, pg_class c WHERE
+c.relname = ? AND c.oid = d.adrelid AND d.adnum = ?;
+END
+	$sth = $dbh->prepare($query);
+	for $table (keys %$tables) {
+		for $field (keys %{$fields{$table}}) {
+			if(! $fields{$table}{$field}{atthasdef}) { next; }
+			$sth->execute($table, $fields{$table}{$field}{attnum}) or return undef;
+			my $d = $sth->fetchrow_arrayref();
+			$fields{$table}{$field}{default} = $d->[0];
+			$sth->finish;
+		}
+	}
+
+	# meta fields
+	my %meta_fields = ();
+	$query = <<'END';
+SELECT meta_fields_table, meta_fields_field, meta_fields_attribute,
+meta_fields_value FROM meta_fields
+END
+	$sth = $dbh->prepare($query) or return undef;
+	$sth->execute() or return undef;
+	while ($data = $sth->fetchrow_arrayref()) {
+		$meta_fields{$data->[0]}{$data->[1]}{lc($data->[2])} = $data->[3];
+	}
+	$sth->finish;
+
+	# foreign-key constraints (REFERENCES)
+	$query = <<'END';
+SELECT tgargs from pg_trigger, pg_proc where pg_trigger.tgfoid=pg_proc.oid AND pg_trigger.tgname
+LIKE 'RI_ConstraintTrigger%' AND pg_proc.proname = 'RI_FKey_check_ins'
+END
+	$sth = $dbh->prepare($query);
+	$sth->execute() or return undef;
+	while ($data = $sth->fetchrow_arrayref()) {
+		my @d = split(/(?:\000|\\000)/,$$data[0]); # DBD::Pg 0.95: \\000, DBD::Pg 0.98: \000
+		$meta_fields{$d[1]}{$d[4]}{reference} = $d[2];
+	}
+	$sth->finish;
+
+	# go through every table and field and fill-in:
+	# - table information in reference fields
+	# - meta information from meta_fields
+	table: for $table (keys %$tables) {
+		field: for $field (keys %{$fields{$table}}) {
+			my $f = $fields{$table}{$field};
+			my $m = undef;
+			if(defined $meta_fields{$table}) {
+				$m = $meta_fields{$table}{$field};
+			}
+			if(defined $m) {
+				$f->{widget}    = $m->{widget}    if exists $m->{widget};
+				$f->{reference} = $m->{reference} if exists $m->{reference};
+				$f->{copy}      = $m->{copy}      if exists $m->{copy};
+				$f->{sortfunc}  = $m->{sortfunc}  if exists $m->{sortfunc};
+			}
+			if(! exists $f->{reference}) {
+				next field;
+			}
+			my $ref = $f->{reference};
+			if(! exists $tables->{$ref}) {
+				next field;
+			}
+			my $rt = $tables->{$ref};
+
+			if(exists $rt->{combo}) {
+				$f->{ref_combo} = 1;
+			}
+			if(exists $fields{$ref}{"${ref}_hid"}) {
+				$f->{ref_hid} = 1;
+			}
+		}
+	}
+
+	return \%fields;
 }
 
 sub DB_Connect($$) {
@@ -375,19 +463,18 @@ sub DB_GetDefault($$$)
 	my $query = $g{db_fields}{$table}{$field}{default};
 	return undef unless defined $query;
 
-	if($g{db_fields}{$table}{$field}{ref_hid}) {
-		my $ref = $g{db_fields}{$table}{$field}{reference};
-		$query = "${ref}_id2hid($query)";
-	}
-
 	$query = "SELECT ".$query;
-
 	my $sth = $dbh->prepare_cached($query) or return undef;
 	print "<!-- Executing: $query -->\n";
 	$sth->execute() or return undef;
 	my $d = $sth->fetchrow_arrayref();
 	my $default = $d->[0];
 	$sth->finish or return undef;
+
+	if($g{db_fields}{$table}{$field}{ref_hid}) {
+		my $ref = $g{db_fields}{$table}{$field}{reference};
+		$default = DB_ID2HID($dbh, $ref, $default);
+	}
 
 	return $default;
 }
@@ -423,6 +510,7 @@ sub DB_FetchList($$$$;%)
 		my $query = "SELECT ";
 		$query .= join(', ',@fields);
 		$query .= " FROM $table";
+		my $searching=0;
 		if(defined $search_field and defined $search_value
 			and $search_field ne '' and $search_value ne '')
 		{
@@ -434,14 +522,18 @@ sub DB_FetchList($$$$;%)
 				$query .= " WHERE $search_field = '$search_value'";
 			}
 			else {
-				$query .= " WHERE $search_field ~ '$search_value'";
+				$query .= " WHERE $search_field ~* '.*$search_value.*'";
 			}
-			if(defined $filter_field and defined $filter_value) {
-				$query .= " AND";
-			}
+			$searching=1;
 		}
 		if(defined $filter_field and defined $filter_value) {
-			$query .= " WHERE $filter_field = '$filter_value'";
+			if($searching) {
+				$query .= ' AND';
+			}
+			else {
+				$query .= ' WHERE';
+			}
+			$query .= " $filter_field = '$filter_value'";
 		}
 		if(defined $orderby and $orderby ne '') {
 			if(defined $g{db_fields}{$table}{$orderby}{sortfunc}) {
@@ -483,7 +575,7 @@ sub DB_FetchList($$$$;%)
 	my $i=0;
 	for $f (@fields) {
 		my $type = $g{db_fields}{$table}{$f}{type};
-		push @html_data, DB_DB2HTML($data->[$i],$type);
+		push @html_data, $data->[$i];
 		$i++;
 	}
 
@@ -517,7 +609,7 @@ sub DB_GetRecord($$$$)
 	# transorm raw data into record
 	my %dbdata = ();
 	my $i=0;
-	foreach(@fields_list) {
+	for(@fields_list) {
 		$dbdata{$_} = $data->[$i];
 		$i++;
 	}
@@ -526,56 +618,39 @@ sub DB_GetRecord($$$$)
 	return 1;
 }
 
-sub DB_ID2HID($$$$)
+sub DB_ID2HID($$$)
 {
 	my $dbh = shift;
 	my $table = shift;
-	my $field = shift;
-	my $data = shift;
+	my $id = shift;
 
-	if((not defined $data) or  ($data eq '') or (not defined $g{db_fields}{$table}{$field}{ref_hid})) { return $data; }
-	my $ref = $g{db_fields}{$table}{$field}{reference};
-	my $q = "SELECT ${ref}_id2hid('$data')";
+	return unless defined $id and $id ne '';
+	my $q = "SELECT ${table}_hid FROM ${table} WHERE ${table}_id = '$id'";
 	my $sth = $dbh->prepare_cached($q) or return undef;
 	$sth->execute or return undef;
 	my $d = $sth->fetchrow_arrayref();
 	$sth->finish;
+
 	return $d->[0];
 }
 
-sub DB_HID2ID($$$$)
+sub DB_HID2ID($$$)
 {
 	my $dbh = shift;
 	my $table = shift;
-	my $field = shift;
-	my $data = shift;
+	my $hid = shift;
 
-	if((not defined $data) or  ($data eq '') or (not defined $g{db_fields}{$table}{$field}{ref_hid})) { return $data; }
-	my $ref = $g{db_fields}{$table}{$field}{reference};
-	my $q = "SELECT ${ref}_hid2id('$data')";
+	return unless defined $hid and $hid ne '';
+	my $q = "SELECT ${table}_id FROM ${table} WHERE ${table}_hid = '$hid'";
 	my $sth = $dbh->prepare_cached($q) or return undef;
 	$sth->execute or return undef;
 	my $d = $sth->fetchrow_arrayref();
 	$sth->finish;
+
 	return $d->[0];
 }
 
-sub DB_DB2HTML($$)
-{
-	$_ = shift;
-	$_ = '' unless defined $_;
-	my $type = shift;
-	s/^\s+//;
-	s/\s+$//;
-
-	if($type eq 'bool') {
-		$_ = (/^(t|true|y|yes|TRUE|1)$/ ? '1' : '0');
-	}
-
-	return $_;
-}
-
-sub DB_HTML2DB($$)
+sub DB_PrepareData($$)
 {
 	$_ = shift;
 	$_ = '' unless defined $_;
@@ -591,6 +666,8 @@ sub DB_HTML2DB($$)
 		$_ = ($_ ? '1' : '0');
 	}
 
+	# this is a hack. It should be implemented in GUI.pm or
+	# (better) with a widget-type
 	if($type eq 'numeric') {
 		if(/^(\d*):(\d+)$/) {
 			my $hours = $1 or 0;
@@ -617,13 +694,15 @@ sub DB_DB2Record($$$$)
 	my @fields_list = @{$g{db_fields_list}{$table}};
 
 	my $f;
-	foreach $f (@fields_list) {
+	for $f (@fields_list) {
 		my $type = $fields->{$f}{type};
 		my $data = $dbdata->{$f};
 		
-		$data = DB_DB2HTML($data, $type);
+		if(defined $fields->{$f}{ref_hid}) {
+			# convert ID reference to HID
+			$data = DB_ID2HID($dbh, $fields->{$f}{reference}, $data);
+		}
 
-		$data = DB_ID2HID($dbh, $table, $f, $data);
 		$record->{$f} = $data;
 	}
 	return 1;
@@ -640,12 +719,16 @@ sub DB_Record2DB($$$$)
 	my @fields_list = @{$g{db_fields_list}{$table}};
 
 	my $f;
-	foreach $f (@fields_list) {
+	for $f (@fields_list) {
 		my $type = $fields->{$f}{type};
 		my $data = $record->{$f};
 
-		$data = DB_HTML2DB($data, $type);
-		$data = DB_HID2ID($dbh, $table, $f, $data);
+		$data = DB_PrepareData($data, $type);
+		if(defined $fields->{$f}{ref_hid}) {
+			# convert HID reference to ID
+			$data = DB_HID2ID($dbh, $fields->{$f}{reference}, $data);
+		}
+
 		$dbdata->{$f} = $data;
 	}
 
@@ -675,7 +758,7 @@ sub DB_AddRecord($$$$)
 	$query   .= join(', ',@fields_list);
 	$query   .= ") VALUES (";
 	my $first = 1;
-	foreach(@dbdata{@fields_list}) {
+	for(@dbdata{@fields_list}) {
 		if($first) {
 			$first = 0;
 		}
@@ -689,7 +772,6 @@ sub DB_AddRecord($$$$)
 			$query .= "NULL";
 		}
 	}
-	#$query   .= join("', '",@dbdata{@fields_list});
 	$query   .= ")";
 
 	print "<!-- Executing: $query -->\n";
@@ -735,7 +817,7 @@ sub DB_UpdateRecord($$$$)
 
 	my @updates;
 	my $query = "UPDATE $table SET ";
-	foreach(@fields_list) {
+	for(@fields_list) {
 		if($_ eq "id") { next; }
 		if($_ eq "${table}_id") { next; }
 		if(defined $dbdata{$_}) {
@@ -788,8 +870,7 @@ sub DB_GetCombo($$$)
 	$sth->execute() or return undef;
 	my $data;
 	while($data = $sth->fetchrow_arrayref()) {
-		my $key = DB_DB2HTML($data->[0],'text');
-		push @$combo, [$key, DB_DB2HTML($data->[1],'text')];
+		push @$combo, [$data->[0], $data->[1]];
 	}
 	#$sth->finish;
 	return 1;

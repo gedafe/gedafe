@@ -1,0 +1,36 @@
+Bugs
+----
+- Database errors sometimes do not get printed
+
+Documentation
+-------------
+- document meta_fields "reference" attribute (for views)
+
+Small features
+--------------
+- add a widget for referencing fields where only
+  the combo-box is wanted
+- add the align attribute in meta_fields ?
+- improve README (put what additional software is needed)
+- TUTORIAL ?
+- meta_fields: combo
+- meta_database, default_hide
+
+Big features
+------------
+- user management
+- integrate PearlReports
+  - export to CSV (excel)
+- multi-language
+- rewrite Text::CPPTemplate
+  - url in templates
+- make nicer templates
+- multi-level combos
+- editable views
+- drop naming rule (table_field)
+- implement m:n relations (lists in edit forms)
+
+Internal changes
+----------------
+- move GUI_Header, GUI_Footer, etc. to Layout.pm
+- move GUI_CheckFormID to Util.pm
