@@ -344,7 +344,7 @@ sub GUI_FilterFirst($$$$)
 	my $view = shift;
 	my $template_args = shift;
 	my $myurl = MyURL($q);
-	my $filterfirst_field = $g{db_tables}{$view}{filterfirst};
+	my $filterfirst_field = $g{db_tables}{$view}{meta}{filterfirst};
 	my $filterfirst_value = $q->url_param('filterfirst') || $q->url_param('combo_filterfirst') || '';
 
 	# filterfirst
@@ -1028,7 +1028,7 @@ sub GUI_Edit($$$)
 	}
 	elsif($action eq 'add') {
 		# take filterfirst value if set
-		my $ff_field = $g{db_tables}{$table}{filterfirst};
+		my $ff_field = $g{db_tables}{$table}{meta}{filterfirst};
 		my $ff_value = $q->url_param('filterfirst') || $q->url_param('combo_filterfirst') || '';
 		if(defined $ff_value and defined $ff_field) {
 			if(defined $g{db_fields}{$table}{$ff_field}{ref_hid}) {

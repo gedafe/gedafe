@@ -134,18 +134,45 @@ END
 		}
 	}
 
-	# meta tables
-	$query = 'SELECT meta_tables_table, meta_tables_filterfirst, meta_tables_hide FROM meta_tables';
-	$sth = $dbh->prepare($query) or return undef;
-	$sth->execute() or return undef;
-	while ($data = $sth->fetchrow_arrayref()) {
-		next if not defined $tables{$data->[0]};
-		$tables{$data->[0]}{filterfirst} = $data->[1];
-		if($data->[2] and defined $tables{$data->[0]}{editable}) {
-			delete $tables{$data->[0]}{editable};
-		}
-	}
+	# determine meta_tables is old-style or new-style:
+	$query = <<'END';
+SELECT 1 FROM pg_class c, pg_attribute a
+WHERE c.relname = 'meta_tables'
+AND a.attrelid = c.oid AND a.attname = 'meta_tables_filterfirst'
+END
+	$sth = $dbh->prepare($query);
+	$sth->execute();
+	my $old_style = ($sth->rows == 1);
 	$sth->finish;
+
+	# meta_tables
+	if($old_style) {
+		$query = 'SELECT meta_tables_table, meta_tables_filterfirst, meta_tables_hide FROM meta_tables';
+		$sth = $dbh->prepare($query) or return undef;
+		$sth->execute() or return undef;
+		while ($data = $sth->fetchrow_arrayref()) {
+			next if not defined $tables{$data->[0]};
+			$tables{$data->[0]}{meta}{filterfirst} = $data->[1];
+			if($data->[2] and defined $tables{$data->[0]}{editable}) {
+				delete $tables{$data->[0]}{editable};
+			}
+		}
+		$sth->finish;
+	}
+	else {
+		$query = 'SELECT meta_tables_table, meta_tables_attribute, meta_tables_value FROM meta_tables';
+		$sth = $dbh->prepare($query) or return undef;
+		$sth->execute() or return undef;
+		while ($data = $sth->fetchrow_arrayref()) {
+			next if not defined $tables{$data->[0]};
+			my $attr = lc($data->[1]);
+			$tables{$data->[0]}{meta}{$attr}=$data->[2];
+			if($attr eq 'hide' and $data->[2]) {
+				delete $tables{$data->[0]}{editable};
+			}
+		}
+		$sth->finish;
+	}
 	
 	# combo
 	$query = "SELECT 1 FROM pg_class c WHERE c.relkind = 'r' AND c.relname = ?";
@@ -325,32 +352,57 @@ END
 		}
 	}
 
+	# determine meta_fields is old-style or new-style:
+	$query = <<'END';
+SELECT 1 FROM pg_class c, pg_attribute a
+WHERE c.relname = 'meta_fields'
+AND a.attrelid = c.oid AND a.attname = 'meta_fields_widget'
+END
+	$sth = $dbh->prepare($query);
+	$sth->execute();
+	my $old_style = ($sth->rows == 1);
+	$sth->finish;
+
 	# meta fields
 	my %meta_fields = ();
-	$query = 'SELECT * FROM meta_fields';
-	$sth = $dbh->prepare($query) or return undef;
-	$sth->execute() or return undef;
-	while ($data = $sth->fetchrow_hashref()) {
-		my $field = $data->{meta_fields_field};
-		$meta_fields{$field} = {};
-		if(defined $data->{meta_fields_widget}) {
-			my $d = $data->{meta_fields_widget};
-			$d =~ s/^\s+//; $d=~s/\s+$//;
-			$meta_fields{$field}{widget} = $d;
+	if($old_style) {
+		$query = 'SELECT * FROM meta_fields';
+		$sth = $dbh->prepare($query) or return undef;
+		$sth->execute() or return undef;
+		while ($data = $sth->fetchrow_hashref()) {
+			my $field = $data->{meta_fields_field};
+			$meta_fields{$field} = {};
+			if(defined $data->{meta_fields_widget}) {
+				my $d = $data->{meta_fields_widget};
+				$d =~ s/^\s+//; $d=~s/\s+$//;
+				$meta_fields{$field}{widget} = $d;
+			}
+			if(defined $data->{meta_fields_copy}) {
+				$meta_fields{$field}{copy} = $data->{meta_fields_copy};
+			}
+			else {
+				$meta_fields{$field}{copy} = 0;
+			}
+			if(defined $data->{meta_fields_sortfunc}) {
+				my $d = $data->{meta_fields_sortfunc};
+				$d =~ s/^\s+//; $d=~s/\s+$//;
+				$meta_fields{$field}{sortfunc} = $d;
+			}
 		}
-		if(defined $data->{meta_fields_copy}) {
-			$meta_fields{$field}{copy} = $data->{meta_fields_copy};
-		}
-		else {
-			$meta_fields{$field}{copy} = 0;
-		}
-		if(defined $data->{meta_fields_sortfunc}) {
-			my $d = $data->{meta_fields_sortfunc};
-			$d =~ s/^\s+//; $d=~s/\s+$//;
-			$meta_fields{$field}{sortfunc} = $d;
-		}
+		$sth->finish;
 	}
-	$sth->finish;
+	else {
+		$query = <<'END';
+SELECT meta_fields_table, meta_fields_field, meta_fields_attribute,
+meta_fields_value FROM meta_fields
+END
+		$sth = $dbh->prepare($query) or return undef;
+		$sth->execute() or return undef;
+		while ($data = $sth->fetchrow_arrayref()) {
+			$meta_fields{$data->[0]}{$data->[1]}{lc($data->[2])} = $data->[3];
+		}
+		$sth->finish;
+	}
 
 	# foreign-key constraints (REFERENCES)
 	$query = <<'END';
@@ -361,7 +413,12 @@ END
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
 		my @d = split(/\\000/,$$data[0]);
-		$meta_fields{$d[4]}{reference} = $d[2];
+		if($old_style) {
+			$meta_fields{$d[4]}{reference} = $d[2];
+		}
+		else {
+			$meta_fields{$d[1]}{$d[4]}{reference} = $d[2];
+		}
 	}
 	$sth->finish;
 
@@ -371,8 +428,16 @@ END
 	table: for $table (keys %$tables) {
 		field: for $field (keys %{$fields{$table}}) {
 			my $f = $fields{$table}{$field};
-			if(defined $meta_fields{$field}) {
-				my $m = $meta_fields{$field};
+			my $m = undef;
+			if($old_style) {
+				$m = $meta_fields{$field};
+			}
+			else {
+				if(defined $meta_fields{$table}) {
+					$m = $meta_fields{$table}{$field};
+				}
+			}
+			if(defined $m) {
 				$f->{widget}    = $m->{widget}    if exists $m->{widget};
 				$f->{reference} = $m->{reference} if exists $m->{reference};
 				$f->{copy}      = $m->{copy}      if exists $m->{copy};
