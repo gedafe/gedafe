@@ -1020,6 +1020,7 @@ sub GUI_Edit($$$)
 	});
 	if($action eq 'add') {
 		$next_url = MakeURL($form_url, {
+			action => $action,
 			reedit_action => '',
 			reedit_data => '',
 		});
