@@ -1,3 +1,8 @@
+2002-11-28
+----------
+* try to enforce strict ordering to make the scrolling while sorting on a
+  non-unique field less confusing
+
 2002-09-25
 ----------
 * consider '0 rows affected' to be ok while inserting or updating, since
