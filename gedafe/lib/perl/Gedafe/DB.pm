@@ -539,6 +539,8 @@ END
 				$f->{copy}      = $m->{copy};
 				$f->{sortfunc}  = $m->{sortfunc};
 				$f->{markup}    = $m->{markup};
+				$f->{log_create_time} = $m->{log_create_time};
+				$f->{log_modify_time} = $m->{log_modify_time};
 			}
 			#if(! defined $f->{widget}) {
 			$f->{widget} = DB_Widget(\%fields, $f);
@@ -993,28 +995,31 @@ sub DB_AddRecord($$$)
 	my $fields = $g{db_fields}{$table};
 	my @fields_list = grep !/${table}_id/, @{$g{db_fields_list}{$table}};
 	
-	# filter-out readonly fields
-	@fields_list = grep { not defined $g{db_fields}{$table}{$_}{widget} or $g{db_fields}{$table}{$_}{widget} ne 'readonly' } @fields_list;
+	# filter-out readonly fields, except log_create_time date/time fields
+	@fields_list = grep { not defined $fields->{$_}->{widget} or $fields->{$_}->{widget} ne 'readonly' or ($fields->{$_}->{log_create_time} and $fields->{$_}->{type} =~ m/^date$|^time$|^timestamp$/) } @fields_list;
 
 	my %dbdata = ();
 	DB_Record2DB($dbh, $table, $record, \%dbdata);
 
 	my $query = "INSERT INTO $table (";
 	$query   .= join(', ',@fields_list);
-	$query   .= ") VALUES (";
-	my $first = 1;
-	for(@fields_list) {
-		if($first) {
-			$first = 0;
-		}
-		else {
-			$query .= ', ';
-		}
-		$query .= '?'
-	}
-	$query   .= ")";
-        return DB_ExecQuery($dbh,$table,$query,\%dbdata,\@fields_list);
 
+	my @inserts;
+	my @insertfields;
+	for(@fields_list) {
+	    # if meta_fields attr "log_create_time" is set, and this is
+	    # a date, time, or timestamp field, then log current date/time
+	    if ($fields->{$_}->{log_create_time} and
+		$fields->{$_}->{type} =~ m/^date$|^time$|^timestamp$/) {
+		push(@inserts, "CURRENT_".uc($fields->{$_}->{type}));
+	    } else {
+		push(@inserts, '?');
+		push(@insertfields, $_);
+	    }
+	}
+	$query   .= ") VALUES (".join(', ', @inserts).")";
+
+        return DB_ExecQuery($dbh,$table,$query,\%dbdata,\@insertfields);
 }
 
 sub DB_UpdateRecord($$$)
@@ -1026,9 +1031,9 @@ sub DB_UpdateRecord($$$)
 	my $fields = $g{db_fields}{$table};
 	my @fields_list = @{$g{db_fields_list}{$table}};
 
-	# filter-out readonly fields
-	@fields_list = grep { $g{db_fields}{$table}{$_}{widget} ne 'readonly' } @fields_list;
-	
+	# filter-out readonly fields, except log_modify_time date/time fields
+	@fields_list = grep { not defined $fields->{$_}->{widget} or $fields->{$_}->{widget} ne 'readonly' or ($fields->{$_}->{log_modify_time} and $fields->{$_}->{type} =~ m/^date$|^time$|^timestamp$/) } @fields_list;
+
 	my %dbdata = ();
 	DB_Record2DB($dbh, $table, $record, \%dbdata);
 
@@ -1039,6 +1044,14 @@ sub DB_UpdateRecord($$$)
 	for(@fields_list) {
 		if($_ eq "id") { next; }
 		if($_ eq "${table}_id") { next; }
+
+		# if meta_fields attr "log_modify_time" is set, and this is
+		# a date, time, or timestamp field, then log current date/time
+		if($fields->{$_}->{log_modify_time} and
+		   $fields->{$_}->{type} =~ m/^date$|^time$|^timestamp$/) {
+		    push @updates, "$_ = CURRENT_".uc($fields->{$_}->{type});
+		    next;
+		}
 		push @updates,"$_ = ?";
 		push @updatefields,$_;
 	}

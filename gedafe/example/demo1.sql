@@ -45,7 +45,9 @@ CREATE TABLE customer (
 	customer_id		SERIAL	NOT NULL PRIMARY KEY,
 	customer_name		TEXT	CHECK (customer_name != ''),
 	customer_address	TEXT	CHECK (customer_address != ''),
-	customer_email		TEXT
+	customer_email		TEXT,
+	customer_created	TIMESTAMP,
+	customer_modified	TIMESTAMP
 );
 GRANT ALL ON customer TO PUBLIC ;
 
@@ -55,10 +57,16 @@ COMMENT ON COLUMN customer.customer_id IS 'ID';
 COMMENT ON COLUMN customer.customer_name IS 'Name';
 COMMENT ON COLUMN customer.customer_address IS 'Address';
 COMMENT ON COLUMN customer.customer_email IS 'E-mail';
+COMMENT ON COLUMN customer.customer_created IS 'Created';
+COMMENT ON COLUMN customer.customer_modified IS 'Modified';
 
 -- meta information
 INSERT INTO meta_fields VALUES ('customer', 'customer_address', 'widget', 'area');
 INSERT INTO meta_fields VALUES ('customer', 'customer_email', 'markup', 1);
+INSERT INTO meta_fields VALUES ('customer', 'customer_created', 'log_create_time', 1);
+INSERT INTO meta_fields VALUES ('customer', 'customer_modified', 'log_modify_time', 1);
+INSERT INTO meta_fields VALUES ('customer', 'customer_created', 'widget', 'readonly');
+INSERT INTO meta_fields VALUES ('customer', 'customer_modified', 'widget', 'readonly');
 
 -- combo-box
 DROP VIEW customer_combo;
@@ -79,7 +87,9 @@ CREATE TABLE product (
 	product_id		SERIAL	NOT NULL PRIMARY KEY,
 	product_hid		CHAR(5)	NOT NULL UNIQUE,
 	product_description	TEXT	CHECK (product_description != ''),
-	product_url		TEXT
+	product_url		TEXT,
+	product_created		TIMESTAMP,
+	product_modified	TIMESTAMP
 );
 GRANT ALL ON product TO PUBLIC ;
 
@@ -89,10 +99,16 @@ COMMENT ON COLUMN product.product_id IS 'ID';
 COMMENT ON COLUMN product.product_hid IS 'HID';
 COMMENT ON COLUMN product.product_description IS 'Description';
 COMMENT ON COLUMN product.product_url IS 'WWW-URL';
+COMMENT ON COLUMN product.product_created IS 'Created';
+COMMENT ON COLUMN product.product_modified IS 'Modified';
 
 -- meta information
 INSERT INTO meta_fields VALUES ('product', 'product_description', 'widget', 'area');
 INSERT INTO meta_fields VALUES ('product', 'product_url', 'markup', 1);
+INSERT INTO meta_fields VALUES ('product', 'product_created', 'log_create_time', 1);
+INSERT INTO meta_fields VALUES ('product', 'product_modified', 'log_modify_time', 1);
+INSERT INTO meta_fields VALUES ('product', 'product_created', 'widget', 'readonly');
+INSERT INTO meta_fields VALUES ('product', 'product_modified', 'widget', 'readonly');
 
 -- combo-box
 DROP VIEW product_combo;
