@@ -1638,13 +1638,10 @@ sub GUI_Edit($$$)
 	my $n=0;
 	foreach $field (@fields_list) {
 		if($field eq "${table}_id" ){
-
 		     my $show_id = $g{db_tables}{$table}{meta}{edit_show_id};
-
-		     unless ( $show_id=~ /edit/
-		              and  
-			     ( $action eq 'edit' or $show_id  =~ /edit+add/ )
-		     ) { next; }   # Supress id column in Edit Screen
+		     # suppress id column in edit page:
+		     next unless defined $show_id and $show_id=~ /edit/ and  
+			     ($action eq 'edit' or $show_id  =~ /edit+add/);
 		}
 
 		my $value = exists $values{$field} ? $values{$field} : '';
@@ -2179,6 +2176,16 @@ sub GUI_WidgetWrite($$$$)
 
 	my ($w, $warg) = DB_ParseWidget($widget);
 
+	if($w eq 'format_number') {
+		$value = DB_Format($dbh, 'number_to_char', $warg->{template}, $value);
+	}
+	elsif($w eq 'format_date') {
+		$value = DB_Format($dbh, 'date_to_char', $warg->{template}, $value);
+	}
+	elsif($w eq 'format_timestamp') {
+		$value = DB_Format($dbh, 'timestamp_to_char', $warg->{template}, $value);
+	}
+
 	my $escval = $value;
 	$escval =~ s/\"/&quot;/g;
 
@@ -2188,7 +2195,7 @@ sub GUI_WidgetWrite($$$$)
 	elsif($w eq 'readonly') {
 		return $value || '&nbsp;';
 	}
-	elsif($w eq 'text')
+	elsif($w eq 'text' or $w eq 'format_number' or $w eq 'format_date' or $w eq 'format_timestamp')
 	{
 		my $size = defined $warg->{size} ? $warg->{size} : '20';
 		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"$size\" VALUE=\"".$escval."\">";
@@ -2276,11 +2283,7 @@ sub GUI_WidgetWrite($$$$)
 		$radio = GUI_MakeRadio($dbh, $warg->{'combo'}, 
 			"${input_name}",
 			$value,$warg->{'shownull'},$warg->{'nulltext'});
-
 		return $radio;
-
-
-
 	}
 	elsif($w eq 'file'){
 		my $filename = $value ne ''  ? $value : "(none)";
@@ -2308,20 +2311,6 @@ sub GUI_WidgetWrite($$$$)
 	}
 	elsif($w eq 'date') {
 		return GUI_WidgetWrite_Date($input_name, $warg, $value);
-	}
-	elsif($w eq 'format_number' or $w eq 'format_date' or $w eq 'format_timestamp') {
-		if($w eq 'format_number') {
-			$value = DB_Format($dbh, 'number_to_char', $warg->{template}, $value);
-		}
-		elsif($w eq 'format_date') {
-			$value = DB_Format($dbh, 'date_to_char', $warg->{template}, $value);
-		}
-		elsif($w eq 'format_timestamp') {
-			$value = DB_Format($dbh, 'timestamp_to_char', $warg->{template}, $value);
-		}
-
-		my $size = defined $warg->{size} ? $warg->{size} : '20';
-		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"$size\" VALUE=\"".$escval."\">";
 	}
 
 	return "Unknown widget: $w";
