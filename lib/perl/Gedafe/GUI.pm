@@ -21,6 +21,7 @@ use Gedafe::DB qw(
 	DB_GetDefault
 	DB_ParseWidget
 	DB_ID2HID
+	DB_RawField
 );
 use Gedafe::Util qw(
 	ConnectToTicketsDaemon
@@ -348,7 +349,9 @@ sub GUI_ListTable($$$)
 	}
 	$template_args{ELEMENT}='xtr';
 	print Template(\%template_args);
+	
 
+	my @typelist = @{%{$list->{type}}}{@{$list->{fields}}};
 	# data
 	my $displayed = 0;
 	for my $row (@{$list->{data}}) {
@@ -358,11 +361,22 @@ sub GUI_ListTable($$$)
 
 		$template_args{ELEMENT}='tr';
 		print Template(\%template_args);
-
+		my $column_number = 0;
 		for my $d (@{$row->[1]}) {
+			my $type = $typelist[$column_number];
+			if($type eq 'bytea' && $d ne '&nbsp;'){
+			    my $name = @{$list->{fields}}[$column_number];
+			    my $bloburl = MakeURL($s->{url}, {
+						action => 'dumpblob',
+						id => $row->[0],
+						field => $name,
+							     });
+			    $d = qq{<A HREF="$bloburl" TARGET="_blank">$d</A>};
+			}
 			$template_args{ELEMENT}='td';
 			$template_args{DATA}=$d;
 			print Template(\%template_args);
+		        $column_number++;
 		}
 		delete $template_args{DATA};
 
@@ -548,6 +562,36 @@ sub GUI_WidgetRead($$)
 	my ($w, $warg) = DB_ParseWidget($g{db_fields}, $f->{widget});
 
 	my $value = $q->param("field_$field");
+	
+	if($w eq 'file'){
+	    my $file = $value;
+	    if($file){
+		my $filename = scalar $file;
+		$filename =~ /([\w\d\.]+$)/;
+		$filename = $1;
+		my $mimetype = $q->uploadInfo($file)->{'Content-Type'};
+		my $blob=$filename.' '.$mimetype.'#';
+		my $buffer; 
+		while(read($file,$buffer,1024)){
+		    $blob .=$buffer;
+	        }
+		#note that value is set to a reference to the large blob
+		$value=\$blob;
+	    }else{
+		#when we are here the file field has not been set
+		
+		if($q->param("post_action") eq 'edit'){
+		    #no new file therefor preserve old one.
+		    my $table=$q->url_param('table');
+		    my $id=$q->param('id');
+		    my $oldblob = DB_RawField($dbh,$table,$field,$id);
+		    $value = \$oldblob;
+		}else{
+		    #no new file and we are inserting. send undef
+		    $value = undef;
+		}
+	    }
+	}
 
 	if($w eq 'hid' or $w eq 'hidcombo') {
 		if(defined $value and $value !~ /^\s*$/) {
@@ -568,7 +612,6 @@ sub GUI_PostEdit($$$)
 {
 	my ($s, $user, $dbh) = @_;
 	my $q = $s->{cgi};
-
 	my $action = $q->param('post_action');
 	if(not defined $action) { return; }
 
@@ -599,41 +642,44 @@ sub GUI_PostEdit($$$)
 
 
 	## add or edit:
-	my %record;
-	for my $field (@{$g{db_fields_list}{$table}}) {
+	if($action eq 'add' || $action eq 'edit'){
+	    my %record;
+	    for my $field (@{$g{db_fields_list}{$table}}) {
 		my $f = $g{db_fields}{$table}{$field};
 		my $value = GUI_WidgetRead($s, $f);
 		if(defined $value) {
 			$record{$field} = $value;
 		}
-	}
-
-	# combo
-	my $p;
-	foreach $p ($q->param) {
+	    }
+	    
+	    # combo
+	    my $p;
+	    foreach $p ($q->param) {
 		if($p =~ /^combo_(.*)/) {
-			my $f = $1;
-			if((not defined $record{$f}) or ($record{$f} =~ /^\s*$/)) {
-				$record{$f} = $q->param($p);
-			}
+		    my $f = $1;
+		    if((not defined $record{$f}) or ($record{$f} =~ /^\s*$/)) {
+			$record{$f} = $q->param($p);
+		    }
 		}
-	}
+	    }
 
-	if($action eq 'add') {
+
+	    if($action eq 'add') {
 		if(!DB_AddRecord($dbh,$table,\%record)) {
-			my $data = GUI_Hash2Str(\%record);
-			GUI_Edit_Error($s, $user, $g{db_error}, $q->param('form_url'), $data, $action);
+		    my $data = GUI_Hash2Str(\%record);
+		    GUI_Edit_Error($s, $user, $g{db_error}, $q->param('form_url'), $data, $action);
 		}
-	}
-	elsif($action eq 'edit') {
+	    }
+	    elsif($action eq 'edit') {
 		$record{id} = $q->param('id');
 		if(!DB_UpdateRecord($dbh,$table,\%record)) {
-			my $data = GUI_Hash2Str(\%record);
-			GUI_Edit_Error($s, $user, $g{db_error}, $q->param('form_url'), $data, $action);
+		    my $data = GUI_Hash2Str(\%record);
+		    GUI_Edit_Error($s, $user, $g{db_error}, $q->param('form_url'), $data, $action);
 		}
+	    }
 	}
 }
-
+	
 sub GUI_Edit($$$)
 {
 	my ($s, $user, $dbh) = @_;
@@ -852,6 +898,131 @@ sub GUI_WidgetWrite($$$$)
 		$out .= ">\n$combo";
 		return $out;
 	}
+	if($w eq 'file'){
+	        my $out;
+		$out = "Current blob: <b>$value</b><br>Enter filename to update.<br><INPUT TYPE=\"file\" NAME=\"field_$field\">";
+		return $out;
+	}
+
+	if($w eq 'date') {
+	  my $y;
+	  my $m;
+	  my $d;
+
+	  my %monthhash = (1, "Januari", 2, "Februari", 3, "March", 4, "April", 5, "May", 6, "June", 7, "July", 8, "August", 9, "September", 10, "October", 11, "November", 12, "December");
+
+	  my $yearselect;
+	  my $dayselect;
+	  my $monthselect;
+
+	  if($escval=~/(\d+)-(\d+)-(\d+)/)
+          {
+	    $y = $1;
+	    $m = $2;
+	    $d = $3;	  
+	  }
+
+	  for (($warg->{from})..($warg->{to}))
+	  {
+	    if ($_ == $y)
+	    {
+	      $yearselect .= "<option selected> $_ </option>\n";
+	    }
+	    else
+	    {
+	      $yearselect .= "<option> $_ </option>\n";
+	    }
+	  }
+
+	  for(1..12)
+	  {
+	    if ($_ == $m)
+	    {
+	      $monthselect .= "<option selected> $monthhash{$_} </option>\n";
+	    }
+	    else
+	    {
+	      $monthselect .= "<option> $monthhash{$_} </option>\n";
+	    }
+	  }
+
+	  for (1..31)
+	  {
+	    if ($_ == $d)
+	    {
+	      $dayselect .= "<option selected> $_ </option>\n";
+	    }
+	    else
+	    {
+	      $dayselect .= "<option> $_ </option>\n";
+	    }
+	  }
+
+	  my $out =
+	        "<SCRIPT LANGUAGE=\"JavaScript\">
+                <!--
+                function validate()
+		{
+		  var leap = 0;
+		  var err = 0;
+		  var year = document.editform.field_".$field."_1.selectedIndex + ".($warg->{from}).";
+		  var month = document.editform.field_".$field."_2.selectedIndex + 1;
+		  var day = document.editform.field_".$field."_3.selectedIndex + 1;
+
+                  if(month < 10)
+                  {
+                    var date = year + \"-0\" + month + \"-\" + day;
+	          }
+                  else
+                  {
+                    var date = year + \"-\" + month + \"-\" + day;
+                  }
+
+		  if ((year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0))) 
+		  {
+		    leap = 1;
+		  }
+
+		  if ((month == 2) && (leap == 1) && (day > 29)) 
+		  {
+                    document.editform.field_".$field."_3.selectedIndex = 28;
+		  }
+
+		  if ((month == 2) && (leap != 1) && (day > 28)) 
+		  {
+                    document.editform.field_".$field."_3.selectedIndex = 27;
+		  }
+
+		  if ((day > 30) && ((month == 4) || (month == 6) || (month == 9) || (month == 11)))
+		  {
+                    document.editform.field_".$field."_3.selectedIndex = 29;
+		  }
+
+		  if (err == 0)
+		  {
+                    document.editform.field_".$field.".value = date;
+                  }
+		}
+	    //  -->
+	    </script>
+
+      <select NAME=\"field_".$field."_1\" onChange=\"validate()\">
+	".$yearselect."
+      </select>
+
+      <select NAME=\"field_".$field."_2\" onChange=\"validate()\">
+        ".$monthselect."
+      </select>
+
+      <select NAME=\"field_".$field."_3\" onChange=\"validate()\">
+        ".$dayselect."
+      </select>
+
+      <input TYPE=\"hidden\" NAME=\"field_".$field."\" VALUE=\"".$escval."\">";
+
+	return $out;
+	}
+
 
 	return "Unknown widget: $w";
 }
