@@ -49,6 +49,7 @@ require Exporter;
 	GUI_PostEdit
 	GUI_Edit
 	GUI_Delete
+	GUI_Export
 	GUI_DumpTable
 );
 
@@ -614,6 +615,7 @@ sub GUI_List($$$)
 		URL => $s->{url},
 		TABLE => $table,
 		TITLE => "$g{db_tables}{$table}{desc}",
+		EXPORT_URL => MakeURL(MyURL($q), { action => 'export' }),
 	);
 
 	# header
@@ -660,6 +662,63 @@ sub GUI_List($$$)
 
 	# footer
 	GUI_Footer(\%template_args);
+}
+
+sub GUI_ExportData($$)
+{
+	my ($s, $list) = @_;
+
+	# fields
+	my $fields = $g{db_fields}{$list->{spec}{view}};
+	print join("\t", map {$fields->{$_}{desc}} @{$list->{fields}})."\n";
+
+	# data
+	for my $row (@{$list->{data}}) {
+		print join("\t", map {
+			my $str=$_;
+			$str=~s/\t/        /g;
+			$str=~s/\n/\r/g;
+			$str;
+		} @{$row->[1]})."\n";
+	}
+}
+
+sub GUI_Export($$$)
+{
+	my ($s, $user, $dbh) = @_;
+	my $q = $s->{cgi};
+	my $table = $q->url_param('table');
+
+	my %template_args = (
+		USER => $user,
+		PAGE => 'export',
+		URL => $s->{url},
+		TABLE => $table,
+		TITLE => "$g{db_tables}{$table}{desc}",
+	);
+
+	# build list-spec
+	my %spec = (
+		table => $table,
+		view => defined $g{db_tables}{"${table}_list"} ?
+			"${table}_list" : $table,
+		offset => $q->url_param('offset') || 0,
+		limit => $q->url_param('list_rows') || $g{conf}{list_rows},
+		orderby => $q->url_param('orderby') || '',
+		descending => $q->url_param('descending') || 0,
+		export => 1,
+	);
+
+	# get search params
+	$spec{search_field} = $q->url_param('search_field') || '';
+	$spec{search_value} = $q->url_param('search_value') || '';
+	$spec{search_field} =~ s/^\s*//; $spec{search_field} =~ s/\s*$//;
+	$spec{search_value} =~ s/^\s*//; $spec{search_value} =~ s/\s*$//;
+
+	# fetch list
+	my $list = DB_FetchList($s, \%spec);
+
+	GUI_ExportData($s, $list);
 }
 
 # CGI.pm already encodes/decodes parameters, but we want to do it ourselves

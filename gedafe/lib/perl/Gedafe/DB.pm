@@ -698,14 +698,14 @@ sub DB_FetchListSelect($$) {
 		} elsif (defined $g{db_tables}{$v}{meta_sort}) {
 			$query .= " ORDER BY $v.meta_sort";
 		}
-		if (defined $spec->{limit}) {
+		if (defined $spec->{limit} and !$spec->{export}) {
 			$query .= " LIMIT $spec->{limit}";
 		}
 		if (defined $spec->{offset} and !$spec->{countrows}) {
 			$query .= " OFFSET $spec->{offset}";
 		}
 	}
-	print "\n<!-- $query -->\n";
+	print "\n<!-- $query -->\n" unless $spec->{export};
 	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
 	$sth->execute() or die $sth->errstr;
 	return (\@fields, $sth);
@@ -728,13 +728,11 @@ sub DB_FetchList($$)
 	# fetch one row more than necessary, so that we
 	# can find out when we are at the end (skip if DB_GetNumRecords)
 	$spec->{limit}++ unless $spec->{countrows};
-	
 
 	my %list = (
 		spec => $spec,
 		acl  => $acl,
 		data => [],
-		
 	);
 	my $sth;
 	($list{fields}, $sth) = DB_FetchListSelect($dbh, $spec);
@@ -745,21 +743,20 @@ sub DB_FetchList($$)
 		$sth->finish or die $sth->errstr;
 		return $data->[0];
 	}
-	
+
 	my %typelist=();
 	for(@{$list{fields}}){
 	    $typelist{$_} = $g{db_fields}{$v}{$_}{type};
 	}
 	$list{type}=\%typelist;
-	
+
 	while(my $data = $sth->fetchrow_arrayref()) {
 		my $col;
 		my @row;
 		for($col=0; $col<=$#$data; $col++) {
 			my $name = $list{fields}[$col];
 			my $type = $g{db_fields}{$v}{$name}{type};
-			push @row, DB_DB2HTML($data->[$col], $type);
-			
+			push @row, $spec->{export} ? $data->[$col] : DB_DB2HTML($data->[$col], $type);
 		}
 
 		my $id = $data->[0] if $can_edit;
