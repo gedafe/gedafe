@@ -77,6 +77,7 @@ my %type_widget_map = (
 	'float4'    => 'text(size=12)',
 	'float8'    => 'text(size=12)',
 	'bpchar'    => 'text(size=40)',
+	'money'     => 'text(size=12)', # deprecated
 	'text'      => 'text',
 	'name'      => 'text(size=20)',
 	'bool'      => 'checkbox',

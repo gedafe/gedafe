@@ -96,6 +96,7 @@ my %numeric_types = (
 	numeric   => 1,
 	float4    => 1,
 	float8    => 1,
+	money     => 1,
 );
 
 # setup for GUI_Export
