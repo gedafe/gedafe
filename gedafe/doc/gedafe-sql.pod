@@ -266,6 +266,19 @@ in the table header and pop up as tool tip when you place the mouse
 over the table links on top of each table. There is such a comment
 for the Customer table in the demo1.sql example database.
 
+=item editmask
+
+You can supply a template for the edit/add screen.
+If this value is defined, it is the filename of a template for the edit/add
+screen of this table and must be found in the templates directory. This
+template is a normal html snippet (without <html> and <body> tags!). It
+is placed verbatim between Edit/Add Header and Edit/Add Footer. 
+
+To make it work, for every field place ##XXXX_LABEL## at the places you want
+the  field description and ##XXXX_INPUT## at the place you want the Input
+widget to be in your html layout. A very ugly example "customer" template is
+supplied for the "customer" table.
+
 =back
 
 =head2 The B<meta_fields> table

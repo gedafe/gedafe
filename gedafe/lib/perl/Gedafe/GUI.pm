@@ -1155,6 +1155,7 @@ sub GUI_Edit($$$)
 	my $action = $q->url_param('action');
 	my $table = $q->url_param('table');
 	my $id = $q->url_param('id');
+	our %template_form_args;
 
 	my $reedit = undef;
 	if($action eq 'reedit') {
@@ -1201,6 +1202,11 @@ sub GUI_Edit($$$)
 
 	GUI_InitTemplateArgs($s, \%template_args);
 	GUI_Header($s, \%template_args);
+
+	our $edit_mask = $g{db_tables}{$table}{meta}{editmask};
+	print STDERR "editmask: $edit_mask\n\n";
+	GUI_InitTemplateArgs($s, \%template_form_args) if defined $edit_mask;
+
 
 	# FORM
 	UniqueFormStart($s, $next_url);
@@ -1263,23 +1269,39 @@ sub GUI_Edit($$$)
 
 		my $inputelem = GUI_WidgetWrite($s, "field_$field", $fields->{$field}{widget},$value);
 
-		$template_args{ELEMENT} = 'editfield';
-		$template_args{FIELD} = $field;
-		$template_args{LABEL} = $fields->{$field}{desc};
-		$template_args{INPUT} = $inputelem;
-		if ( defined $g{db_tables}{$table}{meta}{twocols} 
-		     and  $g{db_tables}{$table}{meta}{twocols}== 1 ){
-		   $template_args{TWOCOL} = $n%2 ;
-		} else {
-		   $template_args{TWOCOL} = 0;
-		}
-		print Template(\%template_args);
+               if (defined $edit_mask){
+                    $template_form_args{ELEMENT} = $edit_mask;
+
+                    $template_form_args{FIELD} = $field;
+                    $template_form_args{(uc $field)."_LABEL"}=
+                                                   $fields->{$field}{desc};
+                    $template_form_args{(uc $field)."_INPUT"}= $inputelem
+
+                } else {
+
+		    $template_args{ELEMENT} = 'editfield';
+	    	    $template_args{FIELD} = $field;
+		    $template_args{LABEL} = $fields->{$field}{desc};
+		    $template_args{INPUT} = $inputelem;
+			if ( defined $g{db_tables}{$table}{meta}{twocols} 
+			     and  $g{db_tables}{$table}{meta}{twocols}== 1 ){
+			   $template_args{TWOCOL} = $n%2 ;
+			} else {
+			   $template_args{TWOCOL} = 0;
+			}
+			print Template(\%template_args);
+	       }
 		$n++;
 	}
 	delete $template_args{FIELD};
 	delete $template_args{LABEL};
 	delete $template_args{INPUT};
 	
+	if (defined $edit_mask){
+	        print Template ( \%template_form_args );
+	        #undef %template_form_args;
+	}
+
 	# Fields
 	$template_args{ELEMENT} = 'editform_footer';
 	print Template(\%template_args);
