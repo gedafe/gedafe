@@ -42,7 +42,7 @@ sub Start(%)
 		$g{conf} = {
 			list_rows  => 10,
 			admin_user => 'admin',
-			tickets_socket => '/tmp/.gpw3fd.sock',
+			tickets_socket => '/tmp/.gedafed.sock',
 		};
 
 		# init config

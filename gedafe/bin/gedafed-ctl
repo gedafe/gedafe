@@ -1,10 +1,10 @@
 #!/bin/sh -e
 
-BIN=/usr/local/gpw3f/bin
+BIN=/usr/local/gedafe/bin
 DAEMONCTL=$BIN/daemon-ctl
-GPW3FD=$BIN/gpw3fd
+GPW3FD=$BIN/gedafed
 
 test -f $GPW3FD || exit 0
 test -f $DAEMONCTL || exit 0
 
-$DAEMONCTL $1 gpw3fd $GPW3FD
+$DAEMONCTL $1 gedafed $GPW3FD
