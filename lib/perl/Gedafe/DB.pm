@@ -42,13 +42,13 @@ sub DB_ReadTableAcls($$);
 sub DB_ReadFields($$$);
 
 my %type_widget_map = (
-	'date'      => 'text(size=10)',
-	'time'      => 'text(size=10)',
+	'date'      => 'text(size=12)',
+	'time'      => 'text(size=12)',
 	'timestamp' => 'text(size=22)',
-	'int4'      => 'text(size=10)',
-	'int8'      => 'text(size=10)',
-	'numeric'   => 'text(size=10)',
-	'float8'    => 'text(size=10)',
+	'int4'      => 'text(size=12)',
+	'int8'      => 'text(size=12)',
+	'numeric'   => 'text(size=12)',
+	'float8'    => 'text(size=12)',
 	'bpchar'    => 'text(size=40)',
 	'text'      => 'text',
 	'name'      => 'text(size=20)',
