@@ -367,9 +367,9 @@ sub DB_Widget($$)
 }
 
 # Parse widget specification, split args, verify if it is a valid widget
-sub DB_ParseWidget($$)
+sub DB_ParseWidget($)
 {
-	my ($fields, $widget) = @_;
+	my ($widget) = @_;
 	$widget =~ /^(\w+)(\((.*)\))?$/ or die "syntax error for widget: $widget";
 	my ($type, $args_str) = ($1, $3);
 	my %args=();
@@ -388,7 +388,7 @@ sub DB_ParseWidget($$)
 		defined $r or die "widget $widget: mandatory argument 'ref' not defined";
 		defined $g{db_tables}{$r} or die "widget $widget: no such table: $r";
 		if($type eq 'hidcombo' or $type eq 'hidisearch') {
-			defined $fields->{$r}{"${r}_hid"} or
+			defined $g{db_fields}{$r}{"${r}_hid"} or
 				die "widget $widget: table $r has no HID";
 		}
 	}

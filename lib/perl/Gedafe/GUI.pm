@@ -814,7 +814,7 @@ sub GUI_WidgetRead($$)
 	my $dbh = $s->{dbh};
 	my $field = $f->{field};
 
-	my ($w, $warg) = DB_ParseWidget($g{db_fields}, $f->{widget});
+	my ($w, $warg) = DB_ParseWidget($f->{widget});
 
 	my $value = $q->param("field_$field");
 	
@@ -1038,7 +1038,13 @@ sub GUI_Edit($$$)
 		if($field eq "${table}_id") { next; }
 
 		my $value = exists $values{$field} ? $values{$field} : '';
-		my $inputelem = GUI_WidgetWrite($dbh,$table,$field,$value,$s);
+		# get default from DB
+		if(not defined $value or $value eq '') {
+			$value = DB_GetDefault($dbh,$table,$field);
+		}
+
+		my $inputelem = GUI_WidgetWrite($s, $dbh, "field_$field", $fields->{$field}{widget},$value,
+					$table, $field);
 
 		$template_args{ELEMENT} = 'editfield';
 		$template_args{FIELD} = $field;
@@ -1141,27 +1147,23 @@ sub GUI_AppletParam($$){
 
 
 
-sub GUI_WidgetWrite($$$$)
+sub GUI_WidgetWrite($$$$$$$)
 {
-	my $dbh = shift;
-	my $table = shift;
-	my $field = shift;
-	my $value = shift;
 	my $s = shift;
+	my $dbh = shift;
+	my $input_name = shift;
+	my $widget = shift;
+	my $value = shift;
+	my $table = shift; # this should not be needed, all needed info should be in widget
+	my $field = shift; # this should not be needed, all needed info should be in widget 
+
 	my $q = $s->{cgi};
 	my $myurl = MyURL($q);
 
-	my $f = $g{db_fields}{$table}{$field};
+	if(not defined $value) { $value = ''; }
 
-	# get default from DB
-	if(not defined $value or $value eq '') {
-		$value = DB_GetDefault($dbh,$table,$field);
-		if(not defined $value) {
-			$value = '';
-		}
-	}
+	my ($w, $warg) = DB_ParseWidget($widget);
 
-	my ($w, $warg) = DB_ParseWidget($g{db_fields}, $f->{widget});
 	my $escval = $value;
 	$escval =~ s/\"/&quot;/g;
 
@@ -1170,23 +1172,23 @@ sub GUI_WidgetWrite($$$$)
 	}
 	if($w eq 'text') {
 		my $size = defined $warg->{size} ? $warg->{size} : '20';
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"$size\" VALUE=\"".$escval."\">";
+		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"$size\" VALUE=\"".$escval."\">";
 	}
 	if($w eq 'area') {
 		my $rows = defined $warg->{rows} ? $warg->{rows} : '4';
 		my $cols = defined $warg->{cols} ? $warg->{cols} : '60';
-		return "<TEXTAREA NAME=\"field_$field\" ROWS=\"$rows\" COLS=\"$cols\" WRAP=\"virtual\">".$value."</TEXTAREA>";
+		return "<TEXTAREA NAME=\"$input_name\" ROWS=\"$rows\" COLS=\"$cols\" WRAP=\"virtual\">".$value."</TEXTAREA>";
 	}
         if($w eq 'varchar') {
 		my $size = defined $warg->{size} ? $warg->{size} : '20';
 		my $maxlength = defined $warg->{maxlength} ? $warg->{maxlength} : '100';
-                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"$size\" MAXLENGTH=\"$maxlength\" VALUE=\"$escval\">";
+                return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"$size\" MAXLENGTH=\"$maxlength\" VALUE=\"$escval\">";
         }
 	if($w eq 'checkbox') {
-		return "<INPUT TYPE=\"checkbox\" NAME=\"field_$field\" VALUE=\"1\"".($value ? 'CHECKED' : '').">";
+		return "<INPUT TYPE=\"checkbox\" NAME=\"$input_name\" VALUE=\"1\"".($value ? 'CHECKED' : '').">";
 	}
 	if($w eq 'hid') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$escval."\">";
+		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"10\" VALUE=\"".$escval."\">";
 	}
 	if($w eq 'isearch' or $w eq 'hidisearch') {
 		my $out;
@@ -1200,7 +1202,7 @@ sub GUI_WidgetWrite($$$$)
 		
 		my $combo = GUI_MakeISearch($table,$field,$s->{ticket_value},$myurl,$value,$hidisearch);
 
-		$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10";
+		$out.="<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
 		$out .= " VALUE=\"$value\"";
 		$out .= ">\n$combo";
 		return $out;
@@ -1219,7 +1221,7 @@ sub GUI_WidgetWrite($$$$)
 			$combo = GUI_MakeCombo($dbh, $table, $field, "combo_$field", $value);
 			$value = DB_ID2HID($dbh,$warg->{'ref'},$value) if $w eq 'hidcombo';
 		}
-		$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10";
+		$out.="<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
 		if($combo !~ /SELECTED/ and defined $value) {
 			$out .= " VALUE=\"$value\"";
 		}
@@ -1228,7 +1230,7 @@ sub GUI_WidgetWrite($$$$)
 	}
 	if($w eq 'file'){
 	        my $out;
-		$out = "Current blob: <b>$value</b><br>Enter filename to update.<br><INPUT TYPE=\"file\" NAME=\"field_$field\">";
+		$out = "Current blob: <b>$value</b><br>Enter filename to update.<br><INPUT TYPE=\"file\" NAME=\"$input_name\">";
 		return $out;
 	}
 
@@ -1293,9 +1295,9 @@ sub GUI_WidgetWrite($$$$)
 		{
 		  var leap = 0;
 		  var err = 0;
-		  var year = document.editform.field_".$field."_1.selectedIndex + ".($warg->{from}).";
-		  var month = document.editform.field_".$field."_2.selectedIndex + 1;
-		  var day = document.editform.field_".$field."_3.selectedIndex + 1;
+		  var year = document.editform.${input_name}_1.selectedIndex + ".($warg->{from}).";
+		  var month = document.editform.${input_name}_2.selectedIndex + 1;
+		  var day = document.editform.${input_name}_3.selectedIndex + 1;
 
                   if(month < 10)
                   {
@@ -1313,40 +1315,40 @@ sub GUI_WidgetWrite($$$$)
 
 		  if ((month == 2) && (leap == 1) && (day > 29)) 
 		  {
-                    document.editform.field_".$field."_3.selectedIndex = 28;
+                    document.editform.${input_name}_3.selectedIndex = 28;
 		  }
 
 		  if ((month == 2) && (leap != 1) && (day > 28)) 
 		  {
-                    document.editform.field_".$field."_3.selectedIndex = 27;
+                    document.editform.${input_name}_3.selectedIndex = 27;
 		  }
 
 		  if ((day > 30) && ((month == 4) || (month == 6) || (month == 9) || (month == 11)))
 		  {
-                    document.editform.field_".$field."_3.selectedIndex = 29;
+                    document.editform.${input_name}_3.selectedIndex = 29;
 		  }
 
 		  if (err == 0)
 		  {
-                    document.editform.field_".$field.".value = date;
+                    document.editform.${input_name}.value = date;
                   }
 		}
 	    //  -->
 	    </script>
 
-      <select NAME=\"field_".$field."_1\" onChange=\"validate()\">
+      <select NAME=\"${input_name}_1\" onChange=\"validate()\">
 	".$yearselect."
       </select>
 
-      <select NAME=\"field_".$field."_2\" onChange=\"validate()\">
+      <select NAME=\"${input_name}_2\" onChange=\"validate()\">
         ".$monthselect."
       </select>
 
-      <select NAME=\"field_".$field."_3\" onChange=\"validate()\">
+      <select NAME=\"${input_name}_3\" onChange=\"validate()\">
         ".$dayselect."
       </select>
 
-      <input TYPE=\"hidden\" NAME=\"field_".$field."\" VALUE=\"".$escval."\">";
+      <input TYPE=\"hidden\" NAME=\"$input_name\" VALUE=\"".$escval."\">";
 
 	return $out;
 	}
