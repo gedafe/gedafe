@@ -1,8 +1,15 @@
 
-        Upgrading Gedafe to a new version
-        =================================
+        News and upgrading information for Gedafe
+        =========================================
 
 (arrows indicate actions that you should make when upgrading)
+
+1.0.4
+-----
+
+* The edit view now returns to the "Referer" if it is provided by the browser.
+  This makes it possible to jump internally directly to an edit view (from
+  the list view of another table for example)
 
 1.0.1
 -----
