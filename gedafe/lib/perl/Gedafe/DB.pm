@@ -1099,14 +1099,20 @@ sub DB_DeleteRecord($$$)
 	return 1;
 }
 
-
 sub DB_GetBlobName($$$$){
         my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
 	my $id = shift;
 
-	my $query = "Select substring($field,1,position(' '::bytea in $field)-1) from $table where ${table}_id=$id";
+	my $idcolumn = "${table}_id";
+	if($table =~ /\w+_list/){
+	  #tables that end with _list are actualy views and have their
+	  # id column as 'id' instead of table_list_id
+	  $idcolumn = "id";
+	}
+
+	my $query = "Select substring($field,1,position(' '::bytea in $field)-1) from $table where $idcolumn=$id";
 	my $sth = $dbh->prepare($query);
 	$sth->execute() or return undef;
 	my $data = $sth->fetchrow_arrayref() or return undef;
@@ -1119,7 +1125,14 @@ sub DB_GetBlobType($$$$){
 	my $field = shift;
 	my $id = shift;
 
-	my $query = "Select substring($field,position(' '::bytea in $field)+1,position('#'::bytea in $field)-(position(' '::bytea in $field)+1)) from $table where ${table}_id=$id";
+	my $idcolumn = "${table}_id";
+	if($table =~ /\w+_list/){
+	  #tables that end with _list are actualy views and have their
+	  # id column as 'id' instead of table_list_id
+	  $idcolumn = "id";
+	}
+
+	my $query = "Select substring($field,position(' '::bytea in $field)+1,position('#'::bytea in $field)-(position(' '::bytea in $field)+1)) from $table where $idcolumn=$id";
 	my $sth = $dbh->prepare($query);
 	$sth->execute() or return undef;
 	my $data = $sth->fetchrow_arrayref() or return undef;
@@ -1132,7 +1145,15 @@ sub DB_DumpBlob($$$$){
 	my $field = shift;
 	my $id = shift;
 
-	my $query = "Select position('#'::bytea in $field)+1,octet_length($field) from $table where ${table}_id=$id";
+	my $idcolumn = "${table}_id";
+	if($table =~ /\w+_list/){
+	  #tables that end with _list are actualy views and have their
+	  # id column as 'id' instead of table_list_id
+	  $idcolumn = "id";
+	}
+	
+
+	my $query = "Select position('#'::bytea in $field)+1,octet_length($field) from $table where $idcolumn=$id";
 	my $sth = $dbh->prepare($query);
 	$sth->execute() or return -1;
 	my $data = $sth->fetchrow_arrayref() or return -1;
@@ -1140,7 +1161,7 @@ sub DB_DumpBlob($$$$){
       	my $strlength = $data->[1] || 0;
 	$sth->finish();
 	my $endpos = $strlength-($startpos-1);
-	my $dumpquery = "Select substring($field,?,?) from $table where ${table}_id=$id";
+	my $dumpquery = "Select substring($field,?,?) from $table where $idcolumn=$id";
 	my $dumpsth = $dbh->prepare($dumpquery);
 	my $blobdata;
 	$dumpsth->execute($startpos,$endpos) or return -1;
@@ -1150,6 +1171,8 @@ sub DB_DumpBlob($$$$){
 	print $blobdata->[0];
 	return 1;
 }
+
+
 
 sub DB_RawField($$$$){
         my $dbh = shift;

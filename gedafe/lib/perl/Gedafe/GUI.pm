@@ -527,6 +527,7 @@ sub GUI_ListTable($$$)
 			my $name = $list->{fields}->[$column_number];
 			if($type eq 'bytea' && $d ne '&nbsp;'){
 			    my $bloburl = MakeURL($s->{url}, {
+						table => $list->{spec}{view},
 						action => 'dumpblob',
 						id => $row->[0],
 						field => $name,
