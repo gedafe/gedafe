@@ -1,6 +1,6 @@
 
         ==========================================
-          Gedafe (generic database frontend) 1.0 
+        Gedafe (the Generic Database Frontend) 1.0 
         ==========================================
          by David Schweikert <dws@ee.ethz.ch> and
             Tobias Oetiker   <oetiker@ee.ethz.ch>
@@ -12,7 +12,7 @@
 Introduction
 ------------
 
-Gedafe (Generic PostgreSQL Web Frontend) is a web-based database
+Gedafe (the Generic Database Frontend) is a web-based database
 frontend that is database-application independent. That means
 that the (perl) code doesn't contain any information about what
 tables are present in the database, how the data is organized or

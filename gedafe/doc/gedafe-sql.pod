@@ -1,18 +1,18 @@
 =head1 NAME
 
-gpw3f-sql - Database Structure for Gpw3f
+gedafe-sql - Database Structure for Gedafe
 
 =head1 SYNOPSIS
 
-Gpw3f is a generic web front-end to PostgreSQL. Generic means in this
-context that Gpw3f does not know anything about the structure or
+Gedafe is a generic web front-end to PostgreSQL. Generic means in this
+context that Gedafe does not know anything about the structure or
 contents of the database it is presenting.
 
-The idea is that Gpw3f looks at a database and presents it on the web.
-Because Gpw3f is no AI it expects the database structure and naming to
+The idea is that Gedafe looks at a database and presents it on the web.
+Because Gedafe is no AI it expects the database structure and naming to
 follow certain rules.
 
-It is also important to note that Gpw3f does not impose any
+It is also important to note that Gedafe does not impose any
 restrictions on to what a user can do with a database (this is what
 all front-ends should do but alas ...) All consistency and permission
 rules must be checked on the back-end side of the database. PostgreSQL
