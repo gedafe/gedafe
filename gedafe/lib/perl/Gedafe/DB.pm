@@ -6,8 +6,8 @@
 
 package Gedafe::DB;
 use strict;
-use Data::Dumper;
 use Gedafe::Global qw(%g);
+#use Data::Dumper;
 
 use DBI;
 use DBD::Pg 1.20; # 1.20 has constants for data types
@@ -666,8 +666,8 @@ END
 		$meta_vfields{lc($data->[0])}{lc($data->[1])}{name}   = lc($data->[1]);
 		$meta_vfields{lc($data->[0])}{lc($data->[1])}{reference} = lc($data->[2]);
 		$meta_vfields{lc($data->[0])}{lc($data->[1])}{widget} = lc($data->[3]);
-        #hide tables from web page
-        $g{db_tables}{lc($data->[3])}{hide} = "1";	   
+		#hide tables from web page
+		$g{db_tables}{lc($data->[3])}{hide} = "1";	   
 	}
 	$sth->finish;
 
@@ -878,8 +878,8 @@ sub DB_FetchListSelect($$)
 	# does the view/table exist?
 	defined $g{db_fields_list}{$v}[0] or die "no such table: $v\n";
 
-	print STDERR "View $v\n seems to be defined\n";
-	print STDERR "First el in fieldlist : $g{db_fields_list}{$v}[0]\n";
+	#print STDERR "View $v\n seems to be defined\n";
+	#print STDERR "First el in fieldlist : $g{db_fields_list}{$v}[0]\n";
 	# go through fields and build field list for SELECT (...)
 	my @wvfields = @{$g{db_fields_list}{$v}};
     my @fields;
