@@ -3,6 +3,11 @@
         =========================================
 
 (arrows indicate actions that you should make when upgrading)
+HEAD    (2004-02-04)
+  * Change DB.pm, so that numeric fields accept separator or grouping
+    characters in numbers and decimal comma instead of the decimal 
+    point. This is a hack as it should be done in the widget code.
+	(Johannes)
 
 HEAD	(2004-01-20) 
 ------------------------------------------------------------------------------
