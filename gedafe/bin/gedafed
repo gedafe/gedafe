@@ -3,11 +3,11 @@
 use strict;
 use IO::Socket;
 
-# gpw3fd 1.3, dws@ee.ethz.ch, 2000/6/14
+# gedafed 1.5, dws@ee.ethz.ch, 2001/02/17
 
 # Protocol definition:
 #
-# 0) from client: SITE site path
+# 0) from client: SITE url
 #      to client: OK\n
 #    (mandatory before each of the following requests)
 #
@@ -30,7 +30,7 @@ use IO::Socket;
 # TODO: cleanup expired tickets
 
 my $DEBUG=0;
-my $socket_path = '/tmp/.gpw3fd.sock';
+my $socket_path = '/tmp/.gedafed.sock';
 my $tickets_validity = 7200; # in seconds, delete ticket after that delay of non-use
 #my $tickets_validity = 10;
 
@@ -72,18 +72,20 @@ my $socket = IO::Socket::UNIX->new(Local  => $socket_path,
                                    Listen => 5 )
 	or die "Couldn't setup unix-domain socket ($socket_path): $!\n";
 
+chmod 0666, $socket_path;
+
 while(defined (my $conn = $socket->accept)) {
 	# SITE
 	$_ = <$conn>;
 	if(/^\s*$/) { next; }
 	print "< $_" if $DEBUG;
 	chomp;
-	if(!/^SITE ([^ ]+) (.+)$/) {
+	if(!/^SITE (.+)$/) {
 		myprint $conn, "FAIL\n";
 		$conn->close;
 		next;
 	}
-	my $site = "$1/$2";
+	my $site = "$1";
 	myprint $conn, "OK\n";
 
 	# REQUEST
