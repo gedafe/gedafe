@@ -9,6 +9,8 @@ use strict;
 
 use Gedafe::Global qw(%g);
 
+use Data::Dumper;
+
 use DBI;
 use DBD::Pg;
 
@@ -118,7 +120,6 @@ END
 	$sth = $dbh->prepare($query) or return undef;
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
-		print STDERR "$data->[0] -> $data->[1]\n";
 		$tables{$data->[0]}{desc} = $data->[1];
 	}
 	$sth->finish;
@@ -189,6 +190,22 @@ END
 	return \%tables;
 }
 
+sub DB_MergeAcls($$)
+{
+	my $a = shift;
+	my $b = shift;
+	$a = '' unless defined $a;
+	$b = '' unless defined $a;
+	my %acls = ();
+	for(split('',$a)) {
+		$acls{$_}=1;
+	}
+	for(split('',$b)) {
+		$acls{$_}=1;
+	}
+	return join('',keys %acls);
+}
+
 sub DB_ReadTableAcls($$)
 {
 	my $dbh = shift;
@@ -235,28 +252,24 @@ sub DB_ReadTableAcls($$)
 		$acldef =~ s/^{(.*)}$/$1/;
 		my @acldef = split(',', $acldef);
 		map { s/^"(.*)"$/$1/ } @acldef;
-		my %acl_level = ();
 		acl: for(@acldef) {
 			/(.*)=(.*)/;
 			my $who = $1; my $what = $2;
 			if($who eq '') {
 				for(values %db_users) {
-					if(not defined $acl_level{$_}) {
-						$tables->{$data->[0]}{acls}{$_} = $what;
-						$acl_level{$_} = 1;
-					}
+					$tables->{$data->[0]}{acls}{$_} =
+						DB_MergeAcls($tables->{$data->[0]}{acls}{$_}, $what);
 				}
 			}
 			elsif($who =~ /^group (.*)$/) {
 				for(@{$db_groups{$1}}) {
-					if(not defined $acl_level{$_} or $acl_level{$_} < 2) {
-						$tables->{$data->[0]}{acls}{$_} = $what;
-						$acl_level{$_} = 2;
-					}
+					$tables->{$data->[0]}{acls}{$_} =
+						DB_MergeAcls($tables->{$data->[0]}{acls}{$_}, $what);
 				}
 			}
 			else {
-				$tables->{$data->[0]}{acls}{$who} = $what;
+				$tables->{$data->[0]}{acls}{$who} =
+					DB_MergeAcls($tables->{$data->[0]}{acls}{$who}, $what);
 			}
 		}
 	}
