@@ -1,3 +1,7 @@
+2001-08-06
+----------
+* example templates: fix table borders for browsers other than netscape
+
 2001-06-07
 ----------
 * improve url-encoding for data in the url (reedit)
