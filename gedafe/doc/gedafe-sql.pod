@@ -351,6 +351,12 @@ Please also note that for this applet to work you need to have a browser
 that supports java, javascript and liveconnect. 
 (Mozilla, Netscape and IE will do fine)
 
+The isearch applet can be placed on a custom location on your web-server.
+Placing it in the cgi-bin directory of your server can lead to the
+web-server trying to execute the java archive instead of serving it.
+Make sure that the 'isearch' variable in your cgi-script is set to point
+to the web address of the isearch.jar java archive.
+
 =back
 
 =head1 REPORTS

@@ -110,6 +110,7 @@ as follows:
  	templates      => '/usr/local/gedafe/templates/demo',
  	documentation_url => 'http://mysite.com/demo-docs',
 	show_row_count => 1,
+        isearch        => '/place/in/the/webtree/for/isearch.jar',
     	list_buttons   => 'both',
  );
 
@@ -158,6 +159,16 @@ If set, show a count of total records returned by each select, along
 with extra navigation links to skip to first and last pages of result set.
 Since this produces slightly higher database overhead (an added
 SELECT COUNT(*) for every SELECT), it is turned off by default.
+
+=item isearch
+
+Web-servers don't like Java archives (jar) to be down-loaded from cgi-bin
+directory's. They will try to execute them instead. To resolve this,
+you have to place the 'incremental search widget' (isearch) Java 
+archive in a place where it can be down-loaded like any other file.
+This item is used to point gedafe to the place where you have put the
+isearch.jar. Please make sure that it is on the same server and 
+preferably a relative address. Java security restrictions require this. 
 
 =item list_buttons
 

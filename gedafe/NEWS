@@ -33,6 +33,9 @@
     applet instead of a html select widget. This makes large (>100 rows or
     a few kb) tables more easy to use. See documentation about 'isearch'
     for details.
+    Please remember to set the 'isearch' value to point to your copy of
+    isearch.jar in your cgi script. It must be a relative address on the 
+    same server as the cgi script for java security reasons.
 
   * Dates can now be entered with a special 'date' widget.
 
