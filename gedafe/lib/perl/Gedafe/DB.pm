@@ -738,7 +738,7 @@ sub DB_FetchListSelect($$) {
 	  $sth->bind_param($_,shift @query_parameters);
 	}
 
-	$sth->execute() or die $sth->errstr;
+	$sth->execute() or die $sth->errstr . " ($query)";
 	return (\@fields, $sth);
 }
 
