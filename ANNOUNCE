@@ -1,12 +1,12 @@
-Tobias Oetiker and David Schweikert are proud to announce:
-
-                _        __            _   ___   ___  
-  __ _  ___  __| | __ _ / _| ___      / | / _ \ / _ \ 
- / _` |/ _ \/ _` |/ _` | |_ / _ \_____| || | | | | | |
-| (_| |  __/ (_| | (_| |  _|  __/_____| || |_| | |_| |
- \__, |\___|\__,_|\__,_|_|  \___|     |_(_)___(_)___/ 
- |___/             
-          #### Gedafe (the Generic Database Front-End) 1.0.0 ####
+Tobias Oetiker, David Schweikert, Fritz Zaucker, Adi Fairbank, and
+Freek Zindel are proud to announce:
+                _        __        _   ____    ___
+  __ _  ___  __| | __ _ / _| ___  / | |___ \  / _ \
+ / _` |/ _ \/ _` |/ _` | |_ / _ \ | |   __) || | | |
+| (_| |  __/ (_| | (_| |  _|  __/ | |_ / __/ | |_| |
+ \__, |\___|\__,_|\__,_|_|  \___| |_(_)_____(_)___/
+ |___/
+          #### Gedafe (the Generic Database Front-End) 1.2.0 ####
 
 
 Introduction
@@ -14,15 +14,15 @@ Introduction
 
     Gedafe (Generic Database Front-End) is an application independent
     end-user web front-end for databases. Application independant means,
-    that the front-end doesn't have any information about the
-    structure and contents of the database.
+    that the front-end doesn't have any information about the structure
+    and contents of the database.
 
-    The idea behind Gedafe is to put all the application logic
-    into the database, along with meta-information on how to present
-    the data. The front-end then gathers this information and uses it
-    to build the user interface. This approach greatly reduces
-    development time since you only have to develop the application at
-    the database level and the web front-end comes for free.
+    The idea behind Gedafe is to put all the application logic into the
+    database, along with meta-information on how to present the data.
+    The front-end then gathers this information and uses it to build the
+    user interface. This approach greatly reduces development time since
+    you only have to develop the application at the database level and
+    the web front-end comes for free.
 
     And there is more:
   
@@ -41,8 +41,33 @@ Introduction
 Release Notes
 -------------
 
-    This is the first public version. The program has been used
-    internally in a production environment for several months.
+  * More widgets: the 'widget' attribute of the meta_fields
+    can now specify more widgets and widgets can now have parameters.
+    For example with 'idcombo(combo=...)' another combo-box can be
+    selected instead of the one chosen by Gedafe.
+
+  * Blobs (files) can now be inserted into bytea columns if you have
+    Postgresql >= 7.2
+
+  * Referencing large tables can now be done trough a java applet
+    instead of a html select widget. This makes large (>100 rows or a
+    few kb) tables more easy to use.
+
+  * Dates can now be entered with a special 'date' widget.
+
+  * Data can now be scanned for tokens resembling web objects (e.g.
+    e-mail addresses, http urls), and automatically marked up to be
+    hyper links. Set the 'markup' attribute to 1 in meta_fields for the
+    desired column.
+  
+  * Gedafe can now count the total number of results returned from the
+    database.  This is helpful for seeing the number of items found by a
+    search, and in skipping to the beginning end or of a result set.
+  
+  * If you have the Text::CSV_XS Perl module installed (available from CPAN),
+    gedafe automatically detects it, and gives the option of exporting data
+    either in CSV format (comma-separated-values), or in tab-delimited format.
+    CSV format is useful for data with embedded newlines characters.
 
 Availability
 ------------
