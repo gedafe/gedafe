@@ -323,7 +323,7 @@ sub GUI_Entry_Header($$)
 
         foreach my $sch ( @schemalist ) {
 		$args->{TABLE_TABLE}=$sch;
-		$args->{TABLE_DESC} = "\u${sch}" ; 
+		$args->{TABLE_DESC} = "<i>\u${sch}</i>" ; 
 		$args->{TABLE_URL}=MakeURL($args->{REFRESH_ENTRY_URL}, {
 				table => '',
 				action => '',
