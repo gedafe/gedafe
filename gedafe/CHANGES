@@ -1,3 +1,15 @@
+2002-01-20
+----------
+* Return to referer after action=edit
+
+2001-11-07
+----------
+* Error when deleting didn't work (undefined subroutine GUI_DB_Error)
+
+2001-08-24
+----------
+* display correctly '0' in read-only fields
+
 2001-08-06
 ----------
 * example templates: fix table borders for browsers other than netscape
