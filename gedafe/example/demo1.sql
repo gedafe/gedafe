@@ -171,11 +171,14 @@ INSERT INTO meta_fields VALUES (DEFAULT,'orders', 'orders_customer', 'copy', '1'
 INSERT INTO meta_fields VALUES (DEFAULT,'orders', 'orders_customer', 'widget', 'isearch');
 
 -- presentation view
+-- note that the customer_name column is renamed tot orders_customer 
+-- to make a reference back to the customer column.
+-- see the showref section of the gedafe manual for more details
 DROP VIEW orders_list;
 CREATE VIEW orders_list AS
 	SELECT	orders_id, orders_date, customer_name, orders_qty,
 		product_hid, product_description, orders_shipped,
-		customer_name || ',' || product_hid AS meta_sort
+		customer_name as orders_customer || ',' || product_hid AS meta_sort
 	FROM	orders, customer, product
 	WHERE	customer_id = orders_customer AND
 		product_id = orders_product;
