@@ -153,6 +153,30 @@ COMMENT ON COLUMN due_shipments_rep.orders_total IS 'Orders';
 
 GRANT SELECT ON due_shipments_rep TO PUBLIC;
 
+--#######
+-- Filetable
+--#######
+
+DROP TABLE filetable;
+DROP SEQUENCE filetable_filetable_id_seq;
+CREATE TABLE filetable (
+	filetable_id		SERIAL	NOT NULL PRIMARY KEY,
+	filetable_date		DATE	NOT NULL DEFAULT CURRENT_DATE,
+	filetable_file		BYTEA
+);
+
+GRANT ALL ON filetable TO PUBLIC;
+
+COMMENT ON TABLE filetable IS 'Filetable';
+COMMENT ON COLUMN filetable.filetable_id IS 'ID';
+COMMENT ON COLUMN filetable.filetable_date IS 'Date';
+COMMENT ON COLUMN filetable.filetable_file IS 'File';
+
+INSERT INTO meta_fields VALUES ('filetable', 'filetable_date', 'widget', 'date(from=2000,to=2005)');
+
+
+
 GRANT ALL ON customer_customer_id_seq TO PUBLIC;
 GRANT ALL ON product_product_id_seq TO PUBLIC;
 GRANT ALL ON orders_orders_id_seq TO PUBLIC;
+GRANT ALL ON filetable_filetable_id_seq TO PUBLIC;

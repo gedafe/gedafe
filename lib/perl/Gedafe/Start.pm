@@ -24,6 +24,12 @@ use Gedafe::GUI qw(
 	GUI_Edit
 	GUI_Delete
 );
+use Gedafe::DB qw(
+	DB_GetBlobType
+	DB_GetBlobName
+	DB_DumpBlob
+);
+
 use Gedafe::Util qw(Die MakeURL MyURL InitTemplate Template NextRefresh);
 
 sub Start(%)
@@ -111,14 +117,24 @@ sub Start(%)
 		$expires = '-1d';
 	}
 
-	# header
-	if(! $cookie) {
+	if($action eq 'dumpblob'){
+	    my $table = $q->param('table');
+	    my $id = $q->param('id');
+	    my $field = $q->param('field');
+	    my $type = DB_GetBlobType($dbh,$table,$field,$id);
+	    my $name = DB_GetBlobName($dbh,$table,$field,$id);
+	    print $q->header(-expires=>$expires,
+			     -type=>$type,
+			     -attachment=>$name);
+	}else{
+	    # header
+	    if(! $cookie) {
 		print $q->header(-expires=>$expires);
-	} else {
+	    } else {
 		print $q->header(-expires=>$expires,-cookie=>$cookie);
+	    }
 	}
 	$s{http_header_sent}=1;
-
 	GUI_PostEdit(\%s, $user, $dbh);
 
 	if($action eq 'list') {
@@ -129,6 +145,11 @@ sub Start(%)
 	}
 	elsif($action eq 'delete') {
 		GUI_Delete(\%s, $user, $dbh);
+	}elsif($action eq 'dumpblob'){
+	    my $table = $q->param('table');
+	    my $id = $q->param('id');
+	    my $field = $q->param('field');
+	    DB_DumpBlob($dbh,$table,$field,$id);
 	}
 	else {
 		GUI_Entry(\%s, $user, $dbh);

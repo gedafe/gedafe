@@ -175,7 +175,7 @@ sub UniqueFormStart($$)
 {
 	my $s = shift;
 	my $action = shift;
-	print "<FORM ACTION=\"$action\" METHOD=\"POST\">\n";
+	print qq{<FORM ACTION="$action" METHOD="POST" ENCTYPE="multipart/form-data" NAME="editform">\n};
 
 	$s->{in_form}=1;
 }
