@@ -1267,24 +1267,23 @@ sub GUI_ExportData($$)
 	my $fields = $g{db_fields}{$list->{spec}{view}};
 	if ($exp_fmt eq 'csv') {
 		my $status = $csv->combine(map {$fields->{$_}{desc}} @{$list->{fields}});
-		print $csv->string(). "\n";
+		print $csv->string(). "\r\n";
 	} else {
-		print join("\t", map {$fields->{$_}{desc}} @{$list->{fields}})."\n";
+		print join("\t", map {$fields->{$_}{desc}} @{$list->{fields}})."\r\n";
 	}
 
 	# data
 	for my $row (@{$list->{data}}) {
-		# if correct module is loaded and user selected 'CSV'
 		if ($exp_fmt eq 'csv') {
-		my $status = $csv->combine(@{$row->[1]});
-			print $csv->string() . "\n";
+			my $status = $csv->combine(@{$row->[1]});
+			print $csv->string() . "\r\n";
 		} else {
 			print join("\t", map {
-			my $str = defined $_ ? $_ : '';
-			$str=~s/\t/        /g;
-			$str=~s/\n/\r/g;
-			$str;
-		} @{$row->[1]})."\n";
+				my $str = defined $_ ? $_ : '';
+				$str=~s/\t/        /g;
+				$str=~s/\n/<br>/g;
+				$str;
+			} @{$row->[1]})."\r\n";
 		}
 	}
 }
