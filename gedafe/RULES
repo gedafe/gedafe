@@ -1,0 +1,18 @@
+Important when you do changes:
+
+- Do not change the stable branches (br1_0, ...) other than strictly for
+  bug-fixes.
+
+- Always update the NEWS file and the documentation along with your
+  code changes. Do it from the beginning...
+
+- Try to keep the coding style: indenting with tabs, variable and sub naming
+
+- Discuss major changes in the mailing list (gedafe-dev) and find an agreement
+  before committing such changes.
+
+- Try to keep Gedafe as generic as possible, do not implement hacks that
+  only work in very specific cases. Gedafe is very small but can do much
+  because of this. Try to follow the 'application in the database' approach.
+
+David Schweikert <dws@ee.ethz.ch>, 2003-11-24
