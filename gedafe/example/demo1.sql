@@ -45,7 +45,9 @@ CREATE TABLE customer (
 	customer_id		SERIAL	NOT NULL PRIMARY KEY,
 	customer_name		TEXT	CHECK (customer_name != ''),
 	customer_address	TEXT	CHECK (customer_address != ''),
-	customer_email		TEXT
+	customer_email		TEXT,
+	customer_last_modified  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	customer_last_modified_by NAME NOT NULL DEFAULT CURRENT_USER
 );
 GRANT ALL ON customer TO PUBLIC ;
 
@@ -55,6 +57,8 @@ COMMENT ON COLUMN customer.customer_id IS 'ID';
 COMMENT ON COLUMN customer.customer_name IS 'Name';
 COMMENT ON COLUMN customer.customer_address IS 'Address';
 COMMENT ON COLUMN customer.customer_email IS 'E-mail';
+COMMENT ON COLUMN customer.customer_last_modified IS 'Last modified';
+COMMENT ON COLUMN customer.customer_last_modified_by IS 'Last modified by';
 
 -- meta information
 INSERT INTO meta_fields VALUES ('customer', 'customer_address', 'widget', 'area');
@@ -67,6 +71,31 @@ CREATE VIEW customer_combo AS
 		customer_id || ' -- ' || customer_name AS text
 	FROM customer;
 GRANT SELECT ON customer_combo TO PUBLIC ;
+
+-- Log timestamp and user
+-- ======================
+-- Creates a trigger function which saves timestamp and user of
+-- last modification
+--  Note: you need to register PL/pgSQL (see top of useful-functions.sql)
+
+DROP FUNCTION update_last_modified();
+CREATE FUNCTION update_last_modified()
+RETURNS OPAQUE
+AS  '
+BEGIN
+	NEW.customer_last_modified_by = CURRENT_USER;
+	NEW.customer_last_modified    = CURRENT_TIMESTAMP;
+	RETURN NEW;
+END;'
+LANGUAGE 'plpgsql';
+
+-- trigger before each row update, for logging last modification time with
+-- user who modified each record
+DROP TRIGGER customer_last_modified ON customer;
+CREATE TRIGGER customer_last_modified
+  BEFORE UPDATE
+  ON customer FOR EACH ROW
+  EXECUTE PROCEDURE update_last_modified();
 
 
 --#########
