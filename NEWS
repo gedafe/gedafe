@@ -56,6 +56,10 @@
     either in CSV format (comma-separated-values), or in tab-delimited format.
     CSV format is useful for data with embedded newlines characters.
 
+  * The meta_fields attribute 'align' can be used to change the alignment
+    of a coulumn. The default is right-aligned for numeric fields and
+    left-aligned otherwise.
+
 1.0.6 (2002-03-17)
 ------------------------------------------------------------------------------
   * 'action=export' instead of 'action=list' or 'action=listrep' returns
