@@ -10,7 +10,7 @@ use strict;
 use Gedafe::Global qw(%g);
 
 use DBI;
-use DBD::Pg;
+use DBD::Pg 1.20; # 1.20 has constants for data types
 
 use vars qw(@ISA @EXPORT_OK);
 require Exporter;
