@@ -1,3 +1,9 @@
+2000-11-23
+----------
+* released version 0.9.13
+* show only selectable tables and views in the entry page
+* use relative url for images
+
 2000-11-18
 ----------
 * released version 0.9.12
