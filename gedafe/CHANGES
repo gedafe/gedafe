@@ -1,3 +1,11 @@
+2000-12-18
+----------
+* Use everywhere quotes for HTML attributes in form fields.
+
+2000-12-12
+----------
+* added support for 'timestamp' datatype
+
 2000-12-10
 ----------
 * fixed acl handling. It works now for users with multiple groups
