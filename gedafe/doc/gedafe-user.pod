@@ -279,6 +279,14 @@ the C<refresh> parameter, such that a new version of the page is always
 requested from the server. There is a link on every page, that you can drag to
 store the currently viewed page.
 
+=head2 Exporting Data
+
+If you replace in the URL the C<action> parameter from C<list> or C<listrep> to
+C<export>, Gedafe will generate a "Tab-Separated-Values" (tsv) file, that you
+can for example in Excel. You can use the C<EXPORT_URL> variable in the HTML
+templates to reference the C<export> version of the current view including the
+current search.
+
 =head1 TROUBLESHOOTING
 
 =head2 Edit form is empty
