@@ -1,3 +1,7 @@
+2000-12-09
+----------
+* Restructured DB_Init in DB.pm
+
 2000-12-07 Tobi
 ----------
 * Improved descrition of how to COMMENT in the gedafe-sql manpage
