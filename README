@@ -8,8 +8,10 @@
 Documentation
 -------------
 
-    Read doc/gedafe-user.pod for the frontend installation and usage
-    and doc/gedafe-sql.pod for database-setup instructions.
+    Gedafe comes with two main documentation files:
+
+    doc/gedafe-user.txt   explains how to install and use gedafe
+    doc/gedafe-sql.txt    explains how to setup a gedafe app in postgresql
 
 
 Examples
@@ -21,7 +23,7 @@ Examples
 Versioning Scheme
 -----------------
 
-    Gedafe uses a linux-style versioning, i.e. three numbers versions
+    Gedafe uses a linux-style versioning, i.e. three number versions
     (major.minor.minorminor) and stable/unstable marked by the minor
     number being even (stable) or odd (unstable).
 
