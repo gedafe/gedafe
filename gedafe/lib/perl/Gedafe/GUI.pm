@@ -113,6 +113,7 @@ my %numeric_types = (
 	int4      => 1,
 	int8      => 1,
 	numeric   => 1,
+	float4    => 1,
 	float8    => 1,
 );
 
