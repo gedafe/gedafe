@@ -1,13 +1,8 @@
 #ifdef TABLE_INFO
-<table border="0" cellpadding="0" cellspacing="0">
-<tr><td colspan="2"><A href="##TABLE_URL##">##TABLE_DESC##</A></td></tr>
-<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;</td><td>##TABLE_INFO##</td></tr>
-<tr><td></td></tr>
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+<tr><td width="30%"><A href="##TABLE_URL##">##TABLE_DESC##</A></td>
+    <td width="70%">##TABLE_INFO##</td></tr>
 </table>
 #else
-#ifdef TABLE_LONGCOMMENT
-<DIV><A href="##TABLE_URL##">##TABLE_DESC##</A>&nbsp; ##TABLE_LONGCOMMENT##</DIV>
-#else
 <DIV><A href="##TABLE_URL##">##TABLE_DESC##</A></DIV>
-#endif
 #endif
