@@ -8,22 +8,12 @@ package Gedafe::Global;
 
 use strict;
 
-use vars qw(@ISA @EXPORT_OK %g %s);
+use vars qw(@ISA @EXPORT_OK %g);
 
 # %g  -> global data
-# %u  -> user data
 
 require Exporter;
 @ISA       = qw(Exporter);
-@EXPORT_OK = qw(%g *u Global_InitUser);
-
-
-sub Global_InitUser($)
-{
-	my $user = shift;
-	defined $user or $user = '_default';
-	defined $g{user_data}{$user} or $g{user_data}{$user}={};
-	*u = $g{user_data}{$user};
-}
+@EXPORT_OK = qw(%g);
 
 1;
