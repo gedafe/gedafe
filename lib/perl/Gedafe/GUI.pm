@@ -530,10 +530,17 @@ sub GUI_ListTable($$$)
 			}
 			my $align = $g{db_fields}{$list->{spec}->{table}}{$name}{align};
 			if(!$align){
-			  if($d =~ /^[\d\.]+$/){
-			    $align = '"RIGHT" NOWRAP';
+			  my @numerictypes = qw(date
+					       time
+					       timestamp
+					       int4
+					       int8
+					       numeric
+					       float8);
+			  if(grep (/^$type$/,@numerictypes)){
+			    $align='"RIGHT" NOWRAP';
 			  }else{
-			    $align = '"LEFT"';			    
+			    $align='"LEFT"';
 			  }
 			}
 			$template_args{ALIGN}=$align;
