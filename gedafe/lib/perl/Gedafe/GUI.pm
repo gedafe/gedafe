@@ -265,13 +265,11 @@ sub GUI_EditLink($$$$)
 		action=>'edit',
 		id=>$row->[0],
 		refresh=>NextRefresh,
-	}); 
+	});
 	$template_args->{ELEMENT}='td_edit';
 	$template_args->{EDIT_URL}=$edit_url;
-	$template_args->{ID}=$row->[0];
 	print Template($template_args);
 	delete $template_args->{EDIT_URL};
-	delete $template_args->{ID};
 }
 
 sub GUI_DeleteLink($$$$)
@@ -285,7 +283,7 @@ sub GUI_DeleteLink($$$$)
 	});
 	$template_args->{ELEMENT}='td_delete';
 	$template_args->{DELETE_URL}=$delete_url;
-	return Template($template_args);
+	print Template($template_args);
 	delete $template_args->{DELETE_URL};
 }
 
@@ -346,7 +344,12 @@ sub GUI_ListTable($$$)
 	print Template(\%template_args);
 
 	# data
+	my $displayed = 0;
 	for my $row (@{$list->{data}}) {
+		$displayed++;
+		if($displayed%2) { $template_args{EVENROW}=1; }
+		else             { $template_args{ODDROW}=1; }
+
 		$template_args{ELEMENT}='tr';
 		print Template(\%template_args);
 
@@ -357,11 +360,16 @@ sub GUI_ListTable($$$)
 		}
 		delete $template_args{DATA};
 
+		$template_args{ID} = $row->[0];
 		GUI_EditLink($s, \%template_args, $list, $row) if $can_edit;
 		GUI_DeleteLink($s, \%template_args, $list, $row) if $can_delete;
+		delete $template_args{ID};
 
 		$template_args{ELEMENT}='xtr';
 		print Template(\%template_args);
+
+		if($displayed%2) { delete $template_args{EVENROW}; }
+		else             { delete $template_args{ODDROW}; }
 	}
 
 	# </TABLE>
@@ -737,6 +745,7 @@ sub GUI_MakeCombo($$$$$)
 		}
 		$str .= "</SELECT>\n";
 	}
+	return $str;
 }
 
 sub GUI_WidgetWrite($$$$)
