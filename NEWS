@@ -1,23 +1,21 @@
 
         News and upgrading information for Gedafe
         =========================================
+
+(arrows indicate actions that you should make when upgrading)
+
 HEAD	(2003-12-12)
 ------------------------------------------------------------------------------
   * offer a button to copy a record "as new" i.e. "clone" a record. 	
     Change template td_edit.html, GUI.pm, add th_clone.html and
     "clone.gif" Button (johannes)
 
-HEAD	(2003-12-2)
-------------------------------------------------------------------------------
   * Support for user plugin widgets as per Widgets.pm
     Works just like the pearls. (freek)
 
   * Add id columms to meta_fields and meta_tables in example database
     demo.sql. This is not needed, but it allows you to maintain these
     tables more easy with tools like phpPgAmin or pgadmin3 (johannes)
-------------------------------------------------------------------------------
-
-(arrows indicate actions that you should make when upgrading)
 
 1.2.1 (2003-09-03)
 ------------------------------------------------------------------------------
