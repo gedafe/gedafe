@@ -68,6 +68,11 @@ I<Double form protection>. The front-end prevents accidental repeated
 submission of the same form. This is implemented using a unique serial
 number for each form.
 
+=item *
+
+Using the PearlReports integration, is is possible to write custom multilevel
+report modules (Pearls) available from the Gedafe webinterface.
+
 =back
 
 =head1 INSTALLATION
@@ -79,9 +84,12 @@ The structure of the Gedafe distribution is as follows:
  |-- doc/             documentation
  |-- lib/              
  |   `-- perl/
- |       `-- Gedafe/  gedafed main source
+ |       |-- Gedafe/  gedafed main source
+ |       |-- DBIx/    PearlReports (required for gedafe pearls)
+ |       `-- Text/    CPPTemplates (required for gedafe screen layout)
  `-- example
      |-- templates/   HTML templates
+     |-- mypearls/    Sample pearl report module
      |-- demo1.cgi    demo-application  script
      `-- demo1.sql    PostgreSQL script to initialize the
                       demo-application database
@@ -111,6 +119,7 @@ as follows:
  	documentation_url => 'http://mysite.com/demo-docs',
 	show_row_count => 1,
         isearch        => '/place/in/the/webtree/for/isearch.jar',
+        pearl_dir      => '/usr/local/gedafe/example/mypearls',
     	list_buttons   => 'both',
  );
 
@@ -179,6 +188,13 @@ Top selects only buttons above the list.
 Bottom selects only buttons below the list.
 None removes all buttons, but doing so wouldn't make much sense.
 When omitted the default is 'both'.
+
+=item pearl_dir
+
+Name of a directory where gedafe should go looking for pearls. Pearls are
+object oriented perl modules which first display a data input screen and
+then run a report off the database based on the entires given at the data
+entry screen. See F<gedafe-pearls.pod> for more information.
 
 =back
 
@@ -336,7 +352,8 @@ key. See the F<gedafe-sql.pod>, section 'Presentation View'.
 
 =head1 SEE ALSO
 
-F<gedafe-sql.pod>, F<gedafe-templates.txt>, F<Text::CPPTemplate>
+F<gedafe-sql.pod>, F<gedafe-templates.txt>, F<Text::CPPTemplate>, F<gedafe-pearls.pod>,
+F<DBIx::PearlReports>
 
 =head1 COPYRIGHT
 

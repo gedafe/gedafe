@@ -1,0 +1,172 @@
+=head1 NAME
+
+gedafe-pearls - Multilevel Reports for Gedafe
+
+=head1 DESCRIPTION
+
+With a more or less complex select statement you can get about any data you
+want from the database. Gedafe allows you to present the result of such
+queries through the F<*_rep> views which are presented on the entry screen.
+
+What if you want to show a report listing all your customers, with their
+orders, grouped by date. A query will quickly return the relevant data, but
+the customer will be repeated over and over again in many records, also you
+might not want to show orders from ages back, but only orders from the last
+month, so prior to makeing the report you would want to specify a begin and
+end date. This is where Gedafe Pearls come in.
+
+Pearls are object oriented perl modules sitting in sepcial directory. Each
+module has to offer a set of methodes which will be used from withing
+gedafe. To first list the pearl in the Entry screen, then produce a custom
+form to let the user customize the report (eg select the date range). And
+finally a methode to create the actual report.
+
+  ------------------------------------
+ | Custome Report                     |
+ | --------------                     |
+ |                                    |
+ | 2 - Peter David                    |
+ |                                    |
+ |     Orders from: 2002-12-01        |
+ |         1 Red Flower               |
+ |       12 Bottles of Wather         |
+ |                                    |
+ |    Orders from: 2003-08-14         |
+ |       3 Green Software Packages    |
+ |                                    |
+ | 8 - John Miller                    |
+ |                                    |
+ |    Orders from: 2001-09-29         |
+ |      18 Candles                    |
+ |                                    |
+  ------------------------------------
+   
+For creating the report you can use the included PearlReports module which
+makes the creation of multilevel report simple. Check the separate documentation.
+
+=head1 USAGE
+
+To be written. Should include documentation on required methodes and services provided by the parent module.
+
+=head1 EXAMPLE
+
+Commented example Pearl.
+
+ package demo;
+
+ use strict;
+ use Gedafe::Pearl qw(format_desc date_print);
+ use vars qw(@ISA);
+ @ISA = qw(Gedafe::Pearl);
+
+ use DBIx::PearlReports;
+
+ sub new($;@){
+     my $proto = shift;
+     my $class = ref($proto) || $proto;
+     my $self = $class->SUPER::new(@_);
+     return $self;
+ }
+
+ sub info($){
+    #my $self = shift;
+    return "Customers Orders","List all Orders of a particular customer";
+ }
+
+ # what information do I need to go into action
+ sub template ($){
+    #my $self = shift;
+    # return a list of lists with the following elements
+    #    name        desc        widget
+    return [['start', 'Start Date (YYYY-MM-DD)', 'text',
+	      date_print('month_first'),'\d+-\d+-\d+'],
+	    ['end', 'End Date (YYYY-MM-DD)', 'text',
+	      date_print('month_last'),'\d+-\d+-\d+' ],
+	    ['customer', 'Customer', 'idcombo(combo=customer_combo)','','\d+' ], 
+	   ];
+ }
+
+ # check the PearlReports Documentation for details
+
+ sub run ($$){
+    my $self = shift;
+    my $s = shift;
+    $self->SUPER::run($s);
+    # run the parent ( this will set the params)
+    my $p = $self->{param};
+    my $rep = DBIx::PearlReports::new
+       (
+	-handle => $s->{dbh},
+	-query => <<SQL,
+
+ SELECT customer_id,customer_name,
+        order_id,order_date,order_qty,
+        product_hid,product_description
+ FROM customer,order,product
+ WHERE order_product=product_id
+      AND customer_id = ?
+      AND order_customer = customer_id
+      AND order_date >= ?
+      AND order_date <= ?
+ ORDER BY customer_id,order_date,order_id
+
+ SQL
+	-param => [ $p->{customer},$p->{start},$p->{end}]
+
+       );
+
+ $rep->group
+  ( -trigger => sub { $field{customer_id} },
+    -head => sub { "Report for $field{customer_id} - $field{customer_name}\n".
+                   "Date: $p->{start} - $p->{end}\n".
+                   "-------------------------------------------------------------\n"},
+    -foot => sub { "Total Items Shipped :".rpcnt($field{product_id})."\n" }
+  );
+
+ $rep->group
+  ( -trigger => sub { $field{order_date} },
+     -head => sub { Orders for $field{order_date}\n"}
+  );
+
+ $rep->body
+    ( -contents => sub {
+         sprintf "  %10d %7d %8s  %s\n", 
+	    $field{order_id},
+            $field{order_qty},
+	    $field{product_hid},
+            $field{product_desc} } );
+
+   return 'text/plain',
+       join '', (map { defined $_ ? $_ : '' } $rep->makereport);
+ }
+
+ 1;
+
+=head1 SEE ALSO
+
+F<gedafe-sql.pod>, F<gedafe-templates.txt>, F<Text::CPPTemplate>, F<gedafe-pearls.pod>,
+F<DBIx::PearlReports>
+
+=head1 COPYRIGHT
+
+Copyright (c) 2000-2003 ETH Zurich, All rights reserved.
+
+=head1 LICENSE
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+=head1 AUTHOR
+
+S<Tobias Oetiker E<lt>oetiker@ee.ethz.chE<gt>>

@@ -20,10 +20,13 @@ require Exporter;
 	MakeURL
 	MyURL
 	InitTemplate
+        InitPearls
 	Template
 	Die
 	DropUnique
-	UniqueFormStart
+	FormStart
+        UniqueFormStart
+	FormEnd
 	UniqueFormEnd
 	NextRefresh
 );
@@ -32,6 +35,9 @@ require Exporter;
 sub Die($) {
 	my $error_text = shift;
 	my $s = $g{s};
+
+        # no recursion here please
+        $SIG{__DIE__} = 'DEFAULT';
 
 	my %t = (
 		PAGE => 'error',
@@ -68,7 +74,8 @@ sub Die($) {
 	$t{ELEMENT}='footer';
 	print Template(\%t);
 
-	die "GEDAFE ERROR: $error_text";
+#	die "GEDAFE ERROR: $error_text";
+	exit 1;
 }
 
 sub ConnectToTicketsDaemon($) {
@@ -179,6 +186,23 @@ sub UniqueFormStart($$)
 
 	$s->{in_form}=1;
 }
+sub FormStart($$)
+{
+	my $s = shift;
+	my $action = shift;
+	print qq{<FORM ACTION="$action" METHOD="GET" ENCTYPE="multipart/form-data" NAME="editform">\n};
+	$s->{in_form}=1;
+}
+
+# end form without double form protection
+sub FormEnd($)
+{
+	my $s = shift;
+
+	print "</FORM>\n";
+
+	delete $s->{in_form};
+}
 
 sub UniqueFormEnd($$;$)
 {
@@ -187,14 +211,12 @@ sub UniqueFormEnd($$;$)
 	my $next_url = shift || $form_url;
 
 	my $form_id = GetUnique($s);
-
-	print "\n<INPUT TYPE=\"hidden\" NAME=\"form_id\" VALUE=\"$form_id\">\n";
-	print "<INPUT TYPE=\"hidden\" NAME=\"form_url\" VALUE=\"$form_url\">\n";
+	print "\n<INPUT TYPE=\"hidden\" NAME=\"form_url\" VALUE=\"$form_url\">\n";
 	print "<INPUT TYPE=\"hidden\" NAME=\"next_url\" VALUE=\"$next_url\">\n";
-	print "</FORM>\n";
-
-	delete $s->{in_form};
+	print "<INPUT TYPE=\"hidden\" NAME=\"form_id\" VALUE=\"$form_id\">\n";
+        FormEnd $s;
 }
+
 
 sub rand_ascii_32
 {
@@ -217,4 +239,34 @@ sub Template($)
 	return $g{tmpl}->template(shift);
 }
 
+sub InitPearls($){
+	return if defined $g{pearls};
+	my $path = shift;
+	my %pearls;
+	chdir $path || 	Die "switching to 'pearl_dir ($path)': $!\n";
+	my @modules = <*.pm>;
+	foreach my $module (@modules) {
+		$module =~ s/\.pm$//;
+		$pearls{$module} = eval "local \$SIG{__DIE__} = 'IGNORE';
+                                         require $module;
+                                         $module->new()";
+		if ($@) {
+			$pearls{$module} =
+			    "<pre>Unable to load Pearl $module.pm from $path<br><br>$@</pre>"
+		}
+	}
+	$g{pearls} = \%pearls;
+}
+
 1;
+
+# Emacs Configuration
+#
+# Local Variables:
+# mode: cperl
+# eval: (cperl-set-style "BSD")
+# cperl-indent-level: 8
+# mode: flyspell
+# mode: flyspell-prog
+# End:
+#

@@ -6,6 +6,12 @@
 
 1.2.0 (2003-07-FIXME)
 ------------------------------------------------------------------------------
+  * PearlReports have been integrated with gedafe. It is now possible
+    to write perl modules (pearls) which will be picked up by gedafe and
+    presented in the "Entry" screen. The idea is, to use this facility for
+    generating complex, structured reports. Pearls have access to gedafes
+    Webform generator as well a to the database handle.
+
   * Combo-boxes must always reference the 'id' of the table and not the
     'hid' if the table has one. The old behaviour was confusing and was
     thus changed, but you can still tell Gedafe to behave like that
