@@ -783,8 +783,6 @@ sub GUI_Export($$$)
 		table => $table,
 		view => defined $g{db_tables}{"${table}_list"} ?
 			"${table}_list" : $table,
-		offset => $q->url_param('offset') || 0,
-		limit => $q->url_param('list_rows') || $g{conf}{list_rows},
 		orderby => $q->url_param('orderby') || '',
 		descending => $q->url_param('descending') || 0,
 		export => 1,

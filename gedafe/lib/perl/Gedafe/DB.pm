@@ -719,7 +719,7 @@ sub DB_FetchListSelect($$) {
 		{
 			$query .= " LIMIT $spec->{limit}";
 		}
-		if (defined $spec->{offset} and !$spec->{countrows} and !$spec->{export}) {
+		if (defined $spec->{offset} and !$spec->{countrows}) {
 			$query .= " OFFSET $spec->{offset}";
 		}
 	}
