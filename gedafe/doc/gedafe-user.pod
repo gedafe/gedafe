@@ -149,6 +149,13 @@ F<example/templates> as a basis for you local modifications).
 URL passed to the html templates where the documentation of the
 application is stored.
 
+=item show_row_count
+
+If set, show a count of total records returned by each select, along
+with extra navigation links to skip to first and last pages of result set.
+Since this produces slightly higher database overhead (an added
+SELECT COUNT(*) for every SELECT), it is turned off by default.
+
 =back
 
 =head2 The gedafed Daemon

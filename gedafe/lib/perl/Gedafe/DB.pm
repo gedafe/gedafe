@@ -18,6 +18,7 @@ require Exporter;
 @ISA       = qw(Exporter);
 @EXPORT_OK = qw(
 	DB_Connect
+	DB_GetNumRecords
 	DB_FetchList
 	DB_GetRecord
 	DB_AddRecord
@@ -586,6 +587,16 @@ sub DB_DB2HTML($$)
 	return $str;
 }
 
+# this is merely an envelope for DB_FetchList()
+sub DB_GetNumRecords($$)
+{
+	my $s = shift;
+	my $spec = shift;
+
+	$spec->{countrows} = 1;
+	return DB_FetchList($s, $spec);
+}
+
 sub DB_FetchListSelect($$) {
 	my $dbh = shift;
 	my $spec = shift;
@@ -599,7 +610,7 @@ sub DB_FetchListSelect($$) {
 	my @fields = @{$g{db_fields_list}{$v}};
 
 	my $query = "SELECT ";
-	$query .= join(', ',@fields);
+	$query .= $spec->{countrows} ? "COUNT(*)" : join(', ',@fields);
 	$query .= " FROM $v";
 	my $searching=0;
 	if(defined $spec->{search_field} and defined $spec->{search_value}
@@ -626,29 +637,29 @@ sub DB_FetchListSelect($$) {
 		}
 		$query .= " $spec->{filter_field} = '$spec->{filter_value}'";
 	}
-	if(defined $spec->{orderby} and $spec->{orderby} ne '') {
-		if(defined $g{db_fields}{$v}{$spec->{orderby}}{sortfunc}) {
-			my $f = $g{db_fields}{$v}{$spec->{orderby}}{sortfunc};
-			$query .= " ORDER BY $f($spec->{orderby})";
+	unless ($spec->{countrows}) {
+		if (defined $spec->{orderby} and $spec->{orderby} ne '') {
+			if (defined $g{db_fields}{$v}{$spec->{orderby}}{sortfunc}) {
+				my $f = $g{db_fields}{$v}{$spec->{orderby}}{sortfunc};
+				$query .= " ORDER BY $f($spec->{orderby})";
+			} else {
+				$query .= " ORDER BY $spec->{orderby}";
+			}
+			if ($spec->{descending}) {
+				$query .= " DESC";
+			}
+			if (defined $g{db_tables}{$v}{meta_sort}) {
+				$query .= ", $v.meta_sort";
+			}
+		} elsif (defined $g{db_tables}{$v}{meta_sort}) {
+			$query .= " ORDER BY $v.meta_sort";
 		}
-		else {
-			$query .= " ORDER BY $spec->{orderby}";
+		if (defined $spec->{limit}) {
+			$query .= " LIMIT $spec->{limit}";
 		}
-		if($spec->{descending}) {
-			$query .= " DESC";
+		if (defined $spec->{offset} and !$spec->{countrows}) {
+			$query .= " OFFSET $spec->{offset}";
 		}
-		if(defined $g{db_tables}{$v}{meta_sort}) {
-			$query .= ", $v.meta_sort";
-		}
-	}
-	elsif(defined $g{db_tables}{$v}{meta_sort}) {
-		$query .= " ORDER BY $v.meta_sort";
-	}
-	if(defined $spec->{limit}) {
-		$query .= " LIMIT $spec->{limit}";
-	}
-	if(defined $spec->{offset}) {
-		$query .= " OFFSET $spec->{offset}";
 	}
 	print "\n<!-- $query -->\n";
 	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
@@ -671,8 +682,8 @@ sub DB_FetchList($$)
 	my $can_edit = ($acl =~ /w/);
 	
 	# fetch one row more than necessary, so that we
-	# can find out when we are at the end
-	$spec->{limit}++;
+	# can find out when we are at the end (skip if DB_GetNumRecords)
+	$spec->{limit}++ unless $spec->{countrows};
 
 	my %list = (
 		spec => $spec,
@@ -681,6 +692,13 @@ sub DB_FetchList($$)
 	);
 	my $sth;
 	($list{fields}, $sth) = DB_FetchListSelect($dbh, $spec);
+
+	# if this is actually a call to DB_GetNumRecords()
+	if($spec->{countrows}) {
+		my $data = $sth->fetchrow_arrayref();
+		$sth->finish or die $sth->errstr;
+		return $data->[0];
+	}
 
 	while(my $data = $sth->fetchrow_arrayref()) {
 		my $col;
@@ -705,6 +723,8 @@ sub DB_FetchList($$)
 		$list{end} = 0;
 		pop @{$list{data}}; # we did get one more than requested
 	}
+	# decrement temporarily incremented LIMIT count
+	$spec->{limit}--;
 
 	return \%list;
 }
