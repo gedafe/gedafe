@@ -229,17 +229,17 @@ sub DB_ReadTables($$)
 	# 7.1: views have relkind 'v'
 
 	# tables
-	if($database->{version} >= 7.2){  # be backward compatible
-	$query = <<"END";
+	if($database->{version} >= 7.3) {
+	$query = <<END;
 SELECT c.relname, n.nspname
 FROM pg_class c, pg_namespace n
 WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND   (c.relname !~ '^pg_')
-AND   (n.nspname != 'information_schema')
 AND   (c.relnamespace = n.oid) 
+AND   (n.nspname != 'information_schema')
 END
 	} else { # no schema support before 7.3
-        $query = <<"END";
+        $query = <<END;
 SELECT c.relname
 FROM pg_class c
 WHERE (c.relkind = 'r' OR c.relkind = 'v')
@@ -404,6 +404,7 @@ sub DB_ReadTableAcls($$)
 	while ($data = $sth->fetchrow_arrayref()) {
 		next unless defined $data->[0];
 		next unless defined $data->[1];
+		next unless defined $tables->{$data->[0]};
 		my $acldef = $data->[1];
 		$acldef =~ s/^{(.*)}$/$1/;
 		my @acldef = split(',', $acldef);
@@ -414,7 +415,6 @@ sub DB_ReadTableAcls($$)
 			if($who eq '') {
 				# PUBLIC: assign permissions to all db users
 				for(values %db_users) {
-                                        next unless defined $tables->{$data->[0]};
 					$tables->{$data->[0]}{acls}{$_} =
 						DB_MergeAcls($tables->{$data->[0]}{acls}{$_}, $what);
 				}
@@ -422,14 +422,12 @@ sub DB_ReadTableAcls($$)
 			elsif($who =~ /^group (.*)$/) {
 				# group permissions: assign to all db groups
 				for(@{$db_groups{$1}}) {
-                                        next unless defined $tables->{$data->[0]};
 					$tables->{$data->[0]}{acls}{$_} =
 						DB_MergeAcls($tables->{$data->[0]}{acls}{$_}, $what);
 				}
 			}
 			else {
 				# individual user: assign just to this db user
-                                next unless defined $tables->{$data->[0]};
 				$tables->{$data->[0]}{acls}{$who} =
 					DB_MergeAcls($tables->{$data->[0]}{acls}{$who}, $what);
 			}
