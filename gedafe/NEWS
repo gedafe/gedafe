@@ -6,6 +6,13 @@
 ------------------------------------------------------------------
 HEAD    (2004-05-24)
 
+   *    Parsed searching was removed in favour of 'stacked' 
+	searching.
+		Freek	
+
+------------------------------------------------------------------
+HEAD    (2004-05-24)
+
    *    A new way of searching was added: Parsed searching.
 
 	-> install Parse::RecDescent to enable searchquery parsing

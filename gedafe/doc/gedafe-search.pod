@@ -4,128 +4,41 @@ gedafe-search - Searching in gedafe.
 
 =head1 STATUS
 
-good enough, but could be better.
-Parsed searching requires the Parse::RecDescent module.
+Testing
 
 =head1 DESCRIPTION
 
-The search field above a row-listing in gedafe comes in two
-flavours:
 
-=over
-
-=item Traditional
-
-You can find out if you have Gedafe Traditional Searching 
-by looking for a pull-down list next to the search field. 
-It should contain the column names for the view you are 
-looking at.
-
-Traditional searching is easy. Just select a column and type
-what the values should match next to it.
-
-The rest of this document will be about parsed searching.
-
-=item Parsed
-
-Gedafe Parsed Searching is a more powerful way of selecting
-the rows you want.
-It requires the Parse::RecDescent module to make sense of 
-user input.
-You know you have Gedafe Parsed Searching when there is
-no pull-down list next to the search field anymore.
-
-To enable parsed searching you can set
- 
- parsed_search => 1
-
-in the Start command of your Gedafe CGI script.
-
-=back
 
 =head1 USAGE
 
-The search parser will try to understand your command and
-transform it into a query that the database can understand.
-
-There are a few simple conventions and then you can make it
-as complicated as you would like.
-
-
-=over
-
-=item WHERE
-
-If you want to do your own SQL you can start your
-command with "where" and it will be passed to the 
-database as is... This is for the people that
-want to do difficult things.
-
-=item Column names
-
-columns can be addressed by their description, their
-column number or their database name.
+Search questions can be entered into multiple rows.
+These rows are joined by AND operators into the
+query to the database.
+Per field you can enter multiple words. These are
+also joined by an AND operator.
+Individual fields can also contain the OR operator.
 
 Example:
-  Foo = bar           
-	(if Foo is the description for a column)
 
-  footable_foo = bar  
-	(assuming that footable_foo is a column)
+foo bar   <=> foo AND bar
 
-  1 = bar		    
-	(find bar in the first column)
-
-=item All columns
-
-The first 'right hand side' of an expression that the
-parser encounters will be matched against all columns:
-Just entering plain
-
-  foo
-
-would result in finding foo in any column.
-Compound 'right hand sides' will work the same way:
-
-foo or bar
-
-would result in finding foo or bar in any column.
-
-=item Compound statements
-
-Just like the rest of Perl this parser is mostly a 
-Do What I Mean system.
-Commands like:
-
-  tree = apple or banana
-
-gives you all trees that have apples or trees that
-have bananas. INSTEAD of giving you a couple of 
-bananas and a few apple trees.
-
-Rules:
-
-a = b or c  => (a = b) or ( a = c)
-
-a = b or c = d => (a = b) or (c = d)
-
-a = b or c or d = e  => (a = b) or (a = c) (d = e)
-
-You will learn to love this in time... trust me :-)
-
-=item Implicit OR
-
-When no operator is specified to link 
-'right hand sides' together an OR is assumed.
-
-foo bar
-
-is equivalent to
-
-foo or bar
+foo OR bar    <=> foo OR BAR (unchanged)
 
 
-=item Operators
+
+=head1 Operators
+
+A question may be preceded by a comparison operator:
+
+
+Example:
+
+> 5
+
+not apple
+
+
 
 These operators are supported:
 
@@ -134,7 +47,7 @@ Operator:	What it does:
 
 ----------------------------------------
 
- ==	-> 	compare char by char
+ =	-> 	compare char by char
 
  >= 	-> 	>=
 
@@ -148,21 +61,12 @@ Operator:	What it does:
 
  < 	->	<
 
- =	->	finds needle in haystack 
+ 	->	finds needle in haystack*
+  
+* this is the default behaviour when no operator
+is specified.
+ 
 
- like	->	finds needle in haystack
-
-
-
-=back
-
-=head1 Parenthesis and operator precedence.
-
-I'm a lazy @#$$!@12. This parser doesn't do parenthesis
-or operator precedense.
-Please use the WHERE syntax.
-If you are one of my Comp. Sci. professors please have
-mercy on me... I wrote this thing in a few hours.
 
 =head1 Bytea columns
 
@@ -194,7 +98,4 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 S<Freek Zindel E<lt>freek@zindel.nlE<gt>>
 
-=head1 THANKS
-
-Many thanks to Damian Conway for constructing the Parse::RecDescent.
 

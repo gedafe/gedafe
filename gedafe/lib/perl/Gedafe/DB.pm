@@ -11,8 +11,6 @@ use strict;
 
 use Gedafe::Global qw(%g);
 
-use Gedafe::Search qw(Search_parse);
-
 use DBI;
 use DBD::Pg 1.20; # 1.20 has constants for data types
 
@@ -800,8 +798,9 @@ sub DB_FetchListSelect($$)
 	# does the view/table exist?
 	defined $g{db_fields_list}{$v}[0] or die "no such table: $v\n";
 
-	print STDERR "View $v\n seems to be defined\n";
-	print STDERR "First el in fieldlist : $g{db_fields_list}{$v}[0]\n";
+	#print STDERR "View $v\n seems to be defined\n";
+	#print STDERR "First el in fieldlist : $g{db_fields_list}{$v}[0]\n";
+
 	# go through fields and build field list for SELECT (...)
 	my @fields = @{$g{db_fields_list}{$v}};
 	my @select_fields;
@@ -862,33 +861,45 @@ sub DB_FetchListSelect($$)
 	$query .= $spec->{countrows} ? "COUNT(*)" : join(', ',@select_fields);
 	$query .= " FROM $v";
 	my $searching=0;
-	if(defined $spec->{search_field} and defined $spec->{search_value}
-		and $spec->{search_field} ne '' and $spec->{search_value} ne '')
+	if(defined $spec->{search} and ref($spec->{search}) eq 'ARRAY'
+		and scalar(@{$spec->{search}})>0)
 	{
-		my $type = $g{db_fields}{$v}{$spec->{search_field}}{type};
+		my @tree = @{$spec->{search}};
+		my $type;
+		my @ands = ();
+		for my $line (@tree){
+		    my $field = $line->{field};
+		    #build expression that is the conjunction of all fields in db
+		    if($field eq '#ALL#'){
+			my @fieldlist = ();
+			my $fields = $g{db_fields}{$spec->{view}};
+			foreach(@{$g{db_fields_list}{$spec->{view}}}) {
+			    next if($g{db_fields}{$spec->{view}}{$_}{type} eq 'bytea');
+			    push @fieldlist,$_;
+			}
+			$field = join("||' '||",@fieldlist);
+		    }
 
-		if($spec->{search_field} eq '###PARSED SEARCH###'){
-		    print STDERR ">>>> $spec->{search_field}\n";
-		    $query.= " WHERE ".Search_parse($v,$spec->{search_value});
-		}elsif($spec->{search_field}=~/meta_rc_(.*)/){
-		    $query .= " WHERE $select_fields[0] in (select $spec->{table}_id from $spec->{table} WHERE $1 = ?)";
-			push @query_parameters, "$spec->{search_value}";
-		}elsif($type eq 'date') {
-			$query .= " WHERE $spec->{search_field} = ? ";
-			push @query_parameters, "$spec->{search_value}";
+		    if($field =~ /meta_rc_(.*)/){
+			push @ands, "($select_fields[0] in (select $spec->{table}_id from $spec->{table} WHERE $1 = ".$line->{tree}[0][0]."))";
+		    } else {
+			#roll out tree of conjuctions and disjunctions
+			my @ors = @{$line->{tree}};
+			foreach my $or (@ors){
+			    my @innerand = @$or;
+			    foreach my $and (@innerand){
+				if($line->{op} =~ /like/){
+				    $and = "%$and%";
+				}
+				$and = "(".$field." ".$line->{op}." '".$and."')";
+			    }
+			    $or = join " AND ",@innerand;
+			    $or = "( $or ) ";
+			}
+			push @ands,"( ".join(" OR ",@ors)." ) ";
+		    }
 		}
-		elsif($type eq 'bool') {
-			$query .= " WHERE $spec->{search_field} = ? ";
-			push @query_parameters, "$spec->{search_value}";
-		}
-		elsif($type eq 'bytea') {
-			$query .= " WHERE position(?::bytea in $spec->{search_field}) != 0";
-			push @query_parameters, "$spec->{search_value}";
-		}
-		else {
-			$query .= " WHERE $spec->{search_field} ~*  ? ";
-			push @query_parameters, ".*$spec->{search_value}.*";
-		}
+		$query .= " WHERE ".join(" AND ",@ands);
 		$searching=1;
 	}
 	if(defined $spec->{filter_field} and defined $spec->{filter_value}) {
@@ -1321,7 +1332,7 @@ sub DB_GetCombo($$$)
 	else {
 		$query .= " ORDER BY text";
 	}
-	print STDERR "$query\n";
+	# print STDERR "$query\n";
 	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
 	$sth->execute() or die $sth->errstr;
 	my $data;

@@ -216,26 +216,29 @@ sub GUI_InitTemplateArgs($$)
 			});
 	$args->{LOGOUT_URL}=$logout_url;
 
-	my $entry_url = MakeURL($stripped_url, {
-				id => '',
-				action => '',
-				orderby => '',
-				table => '',
-				offset => '',
-				filterfirst => '',
-				combo_filterfirst => '',
-				descending => '',
-				search_field => '',
-				search_value => '',
-				reedit_action => '',
-				reedit_data => '',
-				pearl=>'',
-				oyster=>'',
-				state=>'',
-				previousstate=>'',
-				datastate=>'',
-				
-			});
+	my $entry_url = MakeURL($stripped_url, 
+				{
+				 id => '',
+				 action => '',
+				 orderby => '',
+				 table => '',
+				 offset => '',
+				 filterfirst => '',
+				 combo_filterfirst => '',
+				 descending => '',
+				 reedit_action => '',
+				 reedit_data => '',
+				 pearl=>'',
+				 oyster=>'',
+				 state=>'',
+				 previousstate=>'',
+				 datastate=>'',
+				},['search.*']);
+
+
+
+	
+
 	$args->{ENTRY_URL}=$entry_url;
 	$args->{REFRESH_ENTRY_URL}=MakeURL($entry_url, {
 				refresh => $refresh,
@@ -617,106 +620,164 @@ sub GUI_FilterFirst($$$$)
 	return ($ff_field, $ff_value);
 }
 
+
+
+sub GUI_ReadSearchSpec($$){
+	my $s = shift;
+	my $q = $s->{cgi};
+	my $view = shift;
+	my @search_fields = ();
+	my $fieldcount = 1;
+
+	my ($name,$value,$op,$operand);
+	while($name=$q->url_param('search_field'.$fieldcount)){
+		$name =~ s/^\s*//; $name =~ s/\s*$//;
+		$value = $q->url_param('search_value'.$fieldcount) || '';
+		$value =~ s/^\s*//; $value =~ s/\s*$//;
+		if($value){
+			if($name ne '#ALL#' && 
+			   $g{db_fields}{$view}{$_}{type} &&
+			   $g{db_fields}{$view}{$_}{type} eq 'date') {
+				if($value =~ /today/i) {
+					$value =~ s/today/POSIX::strftime("%Y-%m-%d", localtime)/;
+				}
+				if($value =~ /yesterday/i) {
+					my $time = time;
+					$time -= 3600 * 24;
+					$value =~ s/today/POSIX::strftime("%Y-%m-%d", localtime($time))/;
+				}
+			}
+
+			# print STDERR "Value read: $value\n";
+			# op  is the operator, like is default
+			# except when we are following a reference link
+
+			$op = 'like';
+			
+			$operand = $value;
+			# print STDERR "$operand\n";
+			if($value =~ /^>=/){
+				$operand = substr $value,2;
+				$op = '>=';
+			}elsif($value =~ /^<=/){
+				$operand = substr $value,2;
+				$op = '<=';
+			}elsif($value =~ /^</){
+				$operand = substr $value,1;
+				$op = '<';
+			}elsif($value =~ /^>/){
+				$operand = substr $value,1;
+				$op = '>';
+			}elsif($value =~ /^not /){
+				$operand = substr $value,4;
+				$op = 'not like';
+			}elsif($value =~ /^=\~/){
+				$operand = substr $value,2;
+				$op = '=~';
+			}elsif($value =~ /^\~\*/){
+				$operand = substr $value,2;
+				$op = '=~';
+			}elsif($value =~ /^=/){
+				$operand = substr $value,1;
+				$op = '=';
+			}
+			
+			my @ors = split / or /i,$operand;
+			for(@ors){
+				my @ands = split / and | /i,$_;
+				for my $atom (@ands){
+					$atom =~ s/^\s*//; $atom =~ s/\s*$//;
+				}
+				$_ = \@ands;
+			}
+
+			push @search_fields,{field=>$name,
+					     value=>$value,
+					     op=>$op,
+					     operand=>$operand,
+					     tree=>\@ors};
+		}
+		$fieldcount ++;
+	}
+
+	return \@search_fields;
+}
+
 sub GUI_Search($$$){
-	if($g{conf}{parsed_search} and Gedafe::Search::Search_available()){
-		return GUI_ParsedSearch(shift,shift,shift);
-	}else{
-		return GUI_TraditionalSearch(shift,shift,shift);
-	}
-}
-
-sub GUI_ParsedSearch($$$){
 	my $s = shift;
 	my $q = $s->{cgi};
 	my $view = shift;
 	my $template_args = shift;
-	my $search_value = $q->url_param('search_value') || '';
+	my @search_fields = @{GUI_ReadSearchSpec($s,$view)};
+	my @return_fields = @search_fields;
+	
+	my @fields = @{$g{db_fields_list}{$view}};
 
-	$search_value =~ s/^\s*//; $search_value =~ s/\s*$//;
+	#ADD ALL OPTION TO FIELDS LIST
+	unshift @fields, '#ALL#';
 
+	#ADD EMPTY SEARCH BOX;
+	unshift @search_fields,{field=>'#ALL#',value=>''};
+	
+	my %search_combos = ();
+	my ($name,$field,$value);
+	my $counter = 1;
+	for(@search_fields){
+		$name = 'search_field'.$counter;
+		$field = $_->{field};
+		$value = $_->{value};
+
+
+		#default the field to 'all columns';
+		$search_combos{$name} = "<SELECT name=\"$name\" SIZE=\"1\">\n";
+		if($_->{field} =~ /^meta_rc_(.*)_(.*)$/){
+			$search_combos{$name} .= "<OPTION SELECTED VALUE=\"$_->{field}\">Reference from $2 to $1</OPTION>\n";
+		}
+		foreach(@fields) {
+			my $description = $_ eq '#ALL#' ? 'All columns'
+			    : $g{db_fields}{$view}{$_}{desc};
+			if(/^$field$/) {
+				$search_combos{$name} .= "<OPTION SELECTED VALUE=\"$_\">$description</OPTION>\n";
+			}
+			else {
+				$search_combos{$name} .= "<OPTION VALUE=\"$_\">$description</OPTION>\n";
+			}
+		}
+		$search_combos{$name} .= "</SELECT>\n";
+		$search_combos{$name} .= "<INPUT TYPE=\"text\" NAME=\"search_value$counter\" VALUE=\"$value\">\n";
+		$counter++;
+	}
 	my $search_hidden = '';
 	foreach($q->url_param) {
+		#FIXME
+		#this copying of fields except when something special is at hand seems 
+		#fragile. There should be at least some rationale about which fields get
+		#copied. Also this rather important bit of code is sort of hidden here.
 		next if /^search/;
 		next if /^button/;
 		next if /^offset$/;
 		$search_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
 	}
+
+	my $search_gui = join "<br>\n",values(%search_combos);
+
 	$template_args->{ELEMENT} = 'search';
 	$template_args->{SEARCH_ACTION} = $q->url;
-	$template_args->{SEARCH_COMBO} = "";
+	$template_args->{SEARCH_COMBO} = $search_gui;
 	$template_args->{SEARCH_HIDDEN} = $search_hidden;
-	$template_args->{SEARCH_VALUE} = $search_value;
-	$template_args->{SEARCH_SHOWALL} = MakeURL(MyURL($q), { search_value=>'', search_button=>'', search_field=>'' });
+	#$template_args->{SEARCH_VALUE} = $search_value;
+	$template_args->{SEARCH_SHOWALL} = MakeURL(MyURL($q), {},
+						   [ 'search_value.*',
+						     'search_button.*',
+						     'search_field.*']);
 	print Template($template_args);
 	delete $template_args->{ELEMENT};
 	delete $template_args->{SEARCH_ACTION};
 	delete $template_args->{SEARCH_COMBO};
 	delete $template_args->{SEARCH_HIDDEN};
-	delete $template_args->{SEARCH_VALUE};
-	delete $template_args->{SEARCH_SHOWALL};
-	return ("###PARSED SEARCH###", $search_value);
-}
-
-
-sub GUI_TraditionalSearch($$$)
-{
-	my $s = shift;
-	my $q = $s->{cgi};
-	my $view = shift;
-	my $template_args = shift;
-	my $search_field = $q->url_param('search_field') || '';
-	my $search_value = $q->url_param('search_value') || '';
-
-	$search_field =~ s/^\s*//; $search_field =~ s/\s*$//;
-	$search_value =~ s/^\s*//; $search_value =~ s/\s*$//;
-	my $fields = $g{db_fields}{$view};
-	my $search_combo = "<SELECT name=\"search_field\" SIZE=\"1\">\n";
-	foreach(@{$g{db_fields_list}{$view}}) {
-		next if /${view}_id/;
-		if(/^$search_field$/) {
-			$search_combo .= "<OPTION SELECTED VALUE=\"$_\">$fields->{$_}{desc}</OPTION>\n";
-		}
-		else {
-			$search_combo .= "<OPTION VALUE=\"$_\">$fields->{$_}{desc}</OPTION>\n";
-		}
-	}
-	$search_combo .= "</SELECT>\n";
-	my $search_hidden = '';
-	foreach($q->url_param) {
-		next if /^search/;
-		next if /^button/;
-		next if /^offset$/;
-		$search_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
-	}
-	$template_args->{ELEMENT} = 'search';
-	$template_args->{SEARCH_ACTION} = $q->url;
-	$template_args->{SEARCH_COMBO} = $search_combo;
-	$template_args->{SEARCH_HIDDEN} = $search_hidden;
-	$template_args->{SEARCH_VALUE} = $search_value;
-	$template_args->{SEARCH_SHOWALL} = MakeURL(MyURL($q), { search_value=>'', search_button=>'', search_field=>'' });
-	print Template($template_args);
-	delete $template_args->{ELEMENT};
-	delete $template_args->{SEARCH_ACTION};
-	delete $template_args->{SEARCH_COMBO};
-	delete $template_args->{SEARCH_HIDDEN};
-	delete $template_args->{SEARCH_VALUE};
 	delete $template_args->{SEARCH_SHOWALL};
 
-	# search date = TODAY
-	if($search_field ne '') {
-		if($g{db_fields}{$view}{$search_field}{type} eq 'date') {
-			if($search_value =~ /^today$/i) {
-				$search_value = POSIX::strftime("%Y-%m-%d", localtime);
-			}
-			elsif($search_value =~ /^yesterday$/i) {
-				my $time = time;
-				$time -= 3600 * 24;
-				$search_value = POSIX::strftime("%Y-%m-%d", localtime($time));
-			}
-		}
-	}
-
-	return ($search_field, $search_value);
+	return \@return_fields;
 }
 
 sub GUI_EditLink($$$$)
@@ -797,7 +858,7 @@ sub GUI_ListTable($$$)
 	$template_args{ELEMENT}='tr';
 	print Template(\%template_args);
 
-	if  (  $g{conf}{edit_buttons_left} == 1 ){
+	if  (  $g{conf}{edit_buttons_left}  ){
 		if($can_edit) {
 			$template_args{ELEMENT}='th_edit';
 			print Template(\%template_args);
@@ -834,7 +895,7 @@ sub GUI_ListTable($$$)
 	delete $template_args{FIELD};
 	delete $template_args{SORT_URL};
 
-	unless (  $g{conf}{edit_buttons_left} == 1 ){
+	unless (  $g{conf}{edit_buttons_left}  ){
 		if($can_edit) {
 			$template_args{ELEMENT}='th_edit';
 			print Template(\%template_args);
@@ -867,7 +928,7 @@ sub GUI_ListTable($$$)
 		$template_args{ELEMENT}='tr';
 		print Template(\%template_args);
 
-	if  (  $g{conf}{edit_buttons_left} == 1 ){
+	if  (  $g{conf}{edit_buttons_left} ){
 		$template_args{ID} = $row->[0];
 		GUI_EditLink($s, \%template_args, $list, $row) if $can_edit;
 		GUI_AddFromLink($s, \%template_args, $list, $row) if $can_add;
@@ -924,8 +985,8 @@ sub GUI_ListTable($$$)
 				my $refurl = MakeURL($s->{url}, {
 						table => $c->{desc},
 						action => 'list',
-						search_field => 'meta_rc_'.$c->{tar_field},
-						search_value => $row->[0]});
+						search_field1 => 'meta_rc_'.$c->{tar_field},
+						search_value1 => '='.$row->[0]});
 				$d = qq {<A HREF="$refurl">$d items</a>};
 			}
 			if($c->{type} eq 'date' && 
@@ -950,7 +1011,7 @@ sub GUI_ListTable($$$)
 		delete $template_args{DATA};
 		delete $template_args{ALIGN};
 
-		unless (  $g{conf}{edit_buttons_left} == 1 ){
+		unless (  $g{conf}{edit_buttons_left} ){
 			$template_args{ID} = $row->[0];
 			GUI_EditLink($s, \%template_args, $list, $row) 
 				if $can_edit;
@@ -1077,8 +1138,10 @@ sub GUI_List($$$)
 		GUI_FilterFirst($s, $dbh, $spec{view}, \%template_args);
 
 	# search
-	($spec{search_field}, $spec{search_value}) =
-		GUI_Search($s, $spec{view}, \%template_args);
+	#($spec{search_field}, $spec{search_value}) =
+	#	GUI_Search($s, $spec{view}, \%template_args);
+	$spec{search} =	GUI_Search($s, $spec{view}, \%template_args);
+
 
 	# fetch list
 	my $list = DB_FetchList($s, \%spec);
@@ -1214,10 +1277,12 @@ sub GUI_Export($$$)
 	);
 
 	# get search params
-	$spec{search_field} = $q->url_param('search_field') || '';
-	$spec{search_value} = $q->url_param('search_value') || '';
-	$spec{search_field} =~ s/^\s*//; $spec{search_field} =~ s/\s*$//;
-	$spec{search_value} =~ s/^\s*//; $spec{search_value} =~ s/\s*$//;
+	#$spec{search_field} = $q->url_param('search_field') || '';
+	#$spec{search_value} = $q->url_param('search_value') || '';
+	#$spec{search_field} =~ s/^\s*//; $spec{search_field} =~ s/\s*$//;
+	#$spec{search_value} =~ s/^\s*//; $spec{search_value} =~ s/\s*$//;
+
+	$spec{search} = GUI_ReadSearchSpec($s,$spec{view});
 
 	# fetch list
 	my $list = DB_FetchList($s, \%spec);
@@ -1429,7 +1494,7 @@ sub GUI_Edit($$$)
 	GUI_Header($s, \%template_args);
 
 	our $edit_mask = $g{db_tables}{$table}{meta}{editmask};
-	print STDERR "editmask: $edit_mask\n\n";
+	# print STDERR "editmask: $edit_mask\n\n"
 	GUI_InitTemplateArgs($s, \%template_form_args) if defined $edit_mask;
 
 
@@ -1496,7 +1561,7 @@ sub GUI_Edit($$$)
 		#protect users from malicious javascripts
 		if(!$g{db_fields}{$table}{$field}{javascript}){
 			my $safevalue = StripJavascript($value);
-			if ($safevalue ne $value){
+			if (defined $safevalue and defined $value and $safevalue ne $value){
 				die <<end;
 <p>The information you have requested from the database contains<br>
 HTML and/or javascript tags that could compromise your personal information<br>
