@@ -1873,7 +1873,7 @@ sub _DB_AddRecordMN($$$$)
 		if (scalar(@mntable_fields) > 0){
 			my $order = 1;
 			for my $val (@mntable_fields){
-				my $query = _DB_InsertMN($table, $vfield, $id, $val, defined $g{db_fields}{$table}{$vfield}{ordered} && $order++);
+				my $query = _DB_InsertMN($table, $vfield, $id, $val, defined $g{db_fields}{$table}{$vfield}{ordered} ? $order++:undef);
 				DB_ExecQuery_OID($dbh,$query); # FIXME: what about errors?
 			}
 		}
@@ -1952,7 +1952,7 @@ sub _DB_UpdateMN($$$$){
 		if(scalar(@$mntable_fields_add) > 0){
 			for my $val (@$mntable_fields_add){
 				# no ordering yet, this happens in the update query we just add a fake order number
-				$query = _DB_InsertMN($table, $vfield, $ID, $val,defined $g{db_fields}{$table}{$vfield}{ordered} && 99 );
+				$query = _DB_InsertMN($table, $vfield, $ID, $val,defined $g{db_fields}{$table}{$vfield}{ordered}?99:undef);
 				($result,$oid) = DB_ExecQuery_OID($dbh,$query);
 			}
 		}
