@@ -12,6 +12,8 @@ use Gedafe::Global qw(%g);
 use DBI;
 use DBD::Pg;
 
+use Data::Dumper;
+
 use vars qw(@ISA @EXPORT);
 require Exporter;
 @ISA       = qw(Exporter);
@@ -65,23 +67,6 @@ END
 	}
 	$sth->finish;
 
-	# reports
-	$query = <<'END';
-SELECT c.relname, d.description
-FROM pg_class c, pg_description d
-WHERE c.relkind = 'r'
-AND c.relname !~ '^pg_'
-AND c.relname ~ '_rep$'
-AND c.oid = d.objoid
-ORDER BY d.description
-END
-	$sth = $dbh->prepare($query) or return undef;
-	$sth->execute() or return undef;
-	while ($data = $sth->fetchrow_arrayref()) {
-		$g{db_tables}{$data->[0]}{desc} = $data->[1];
-	}
-	$sth->finish;
-
 	# read table comments as descriptions
 	$query = <<'END';
 SELECT c.relname, d.description 
@@ -102,7 +87,9 @@ END
 	# set not-defined table descriptions
 	foreach $table (keys %{$g{db_tables}}) {
 		next if defined $g{db_tables}{$table}{desc};
-		if(defined $g{db_tables}{"${table}_list"}{desc}) {
+		if(exists $g{db_tables}{"${table}_list"} and defined
+			$g{db_tables}{"${table}_list"}{desc})
+		{
 			$g{db_tables}{$table}{desc} = $g{db_tables}{"${table}_list"}{desc};
 		}
 		else {
@@ -375,6 +362,8 @@ END
 		}
 	}
 	$sth->finish;
+
+	print STDERR Dumper(\%g);
 }
 
 sub DB_Connect($$) {

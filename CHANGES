@@ -1,5 +1,7 @@
 2000-11-25
 ----------
+* made tables with no comments at all work
+* released version 0.9.14
 * if a comment is not defined for a field, take the comment for a
   field with the same name
 * if a comment is not defined for a xy_list view, take it from the xy table
