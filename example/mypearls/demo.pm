@@ -56,15 +56,15 @@ sub run ($$){
 	-query => <<SQL,
 
 SELECT customer_id,customer_name,
-       order_id,order_date,order_qty,
+       orders_id,orders_date,orders_qty,
        product_hid,product_description
-FROM customer,order,product
-WHERE order_product=product_id
+FROM customer,orders,product
+WHERE orders_product=product_id
       AND customer_id = ?
-      AND order_customer = customer_id
-      AND order_date >= ?
-      AND order_date <= ?
-ORDER BY customer_id,order_date,order_id
+      AND orders_customer = customer_id
+      AND orders_date >= ?
+      AND orders_date <= ?
+ORDER BY customer_id,orders_date,orders_id
 
 SQL
 	-param => [ $p->{customer},$p->{start},$p->{end}]
@@ -80,15 +80,15 @@ $rep->group
   );
 
 $rep->group
-  ( -trigger => sub { $field{order_date} },
-     -head => sub { Orders for $field{order_date}\n"}
+  ( -trigger => sub { $field{orders_date} },
+     -head => sub { "Orders for $field{orders_date}\n"}
   );
 
 $rep->body
     ( -contents => sub {
          sprintf "  %10d %7d %8s  %s\n", 
-	    $field{order_id},
-            $field{order_qty},
+	    $field{orders_id},
+            $field{orders_qty},
 	    $field{product_hid},
             $field{product_desc} } );
 
