@@ -834,6 +834,15 @@ sub GUI_Export($$$)
 		}
 	}
 
+	# field names
+	foreach my $f (@fields_list[$skip_id..$#fields_list]) {
+		my $str = $fields->{$f}{desc};
+		$str =~ s/\t/        /g;
+		print $str;
+		print "\t" unless $f >= $#fields_list;
+	}
+	print "\n";
+
 	# data
 	my $fetch_state=0;
 	my $data;
@@ -857,12 +866,12 @@ sub GUI_Export($$$)
 			my $field_name = $g{db_fields_list}{$view}[$i];
 			my $field_type = $g{db_fields}{$view}{$field_name}{type};
 			my $str = GUI_DB2HTML($d, $field_type);
-			$str =~ s/"/""/g;
-			print "\"$str\"";
-			print ',' unless $i >= $lasti;
+			$str =~ s/\t/        /g;
+			print $str;
+			print "\t" unless $i >= $lasti;
 			$i++;
 		}
-		print "\r\n";
+		print "\n";
 	}
 
 	if(defined $error) {
