@@ -9,10 +9,8 @@ Small features
 --------------
 - add a widget for referencing fields where only
   the combo-box is wanted
-- add the align attribute in meta_fields ?
 - improve README (put what additional software is needed)
 - TUTORIAL ?
-- meta_fields: combo
 - meta_database, default_hide
 - Better error reporting when just permissions problems on meta_tables
   for example -> Authentication error
@@ -27,8 +25,6 @@ Small features
 Big features
 ------------
 - user management
-- integrate PearlReports
-  - export to CSV (excel)
 - multi-language
 - rewrite Text::CPPTemplate
   - url in templates
