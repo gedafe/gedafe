@@ -1,1 +1,3 @@
 - relative urls for images in the example templates
+- add a widget for referencing fields where only
+  the combo-box is wanted
