@@ -120,7 +120,7 @@ B<*_id> column. 'Editing' the data of such a row from the front-end
 causes a row to be inserted into the database. Defaults for the new
 row are taken from the edited NULL-row.
 
-You may want to pre sort the contents of a view. Unfortunately
+You may want to pre-sort the contents of a view. Unfortunately
 PostgreSQL does not allow to ORDER views. However, you can create a column
 in your view called B<meta_sort> which the front-end will use to sort
 the contents of the view as long as there are no other sorting
@@ -246,7 +246,7 @@ Example:
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000 ISG / DELEK / ETH Zurich, All rights reserved.
+Copyright (c) 2000 ISG / D-ELEK / ETH Zurich, All rights reserved.
 
 =head1 LICENSE
 
