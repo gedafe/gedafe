@@ -16,6 +16,8 @@ Small features
 - meta_database, default_hide
 - Better error reporting when just permissions problems on meta_tables
   for example -> Authentication error
+- Show error directly in the edit view where you can correct the mistake, do
+  not use two pages
 
 Big features
 ------------
