@@ -18,6 +18,8 @@ Small features
   for example -> Authentication error
 - Show error directly in the edit view where you can correct the mistake, do
   not use two pages
+- edit/delete on the left (selectable with a meta attribute, wide tables make
+  the buttons difficult to access)
 
 Big features
 ------------
