@@ -33,6 +33,19 @@ sub DB_ReadTables($);
 sub DB_ReadTableAcls($$);
 sub DB_ReadFields($$);
 
+my %type_widget_map = (
+	'date'      => 'text(size=10)',
+	'time'      => 'text(size=10)',
+	'timestamp' => 'text(size=22)',
+	'int4'      => 'text(size=10)',
+	'numeric'   => 'text(size=10)',
+	'float8'    => 'text(size=10)',
+	'bpchar'    => 'text(size=40)',
+	'text'      => 'text',
+	'name'      => 'text(size=20)',
+	'bool'      => 'checkbox',
+);
+
 sub DB_Init($$)
 {
 	my $user = shift;
@@ -408,6 +421,7 @@ END
 	# go through every table and field and fill-in:
 	# - table information in reference fields
 	# - meta information from meta_fields
+	# - widget from type (if not specified)
 	table: for $table (keys %$tables) {
 		field: for $field (keys %{$fields{$table}}) {
 			my $f = $fields{$table}{$field};
@@ -421,21 +435,40 @@ END
 				$f->{copy}      = $m->{copy}      if exists $m->{copy};
 				$f->{sortfunc}  = $m->{sortfunc}  if exists $m->{sortfunc};
 			}
-			if(! exists $f->{reference}) {
-				next field;
-			}
-			my $ref = $f->{reference};
-			if(! exists $tables->{$ref}) {
-				next field;
-			}
-			my $rt = $tables->{$ref};
+			next if defined $f->{widget};
 
-			if(exists $rt->{combo}) {
-				$f->{ref_combo} = 1;
+			# determine widget from type:
+
+			# HID and combo-boxes
+			if($f->{type} eq 'int4') {
+				if(defined $f->{reference}) {
+					my $r  = $f->{reference};
+					my $rt = $tables->{$f->{reference}};
+					defined $rt or die "table $f->{reference}, referenced from $table:$field, not found.\n";
+					if(defined($rt->{combo})) {
+						if(defined $fields{$r}{"${r}_hid"}) {
+							# Combo with HID
+							$f->{widget}="hidcombo(ref=$r)";
+						}
+						else {
+							$f->{widget}="idcombo(ref=$r)";
+						}
+						next field;
+					}
+					else {
+						$f->{widget}="hid(ref=$r)";
+					}
+				}
 			}
-			if(exists $fields{$ref}{"${ref}_hid"}) {
-				$f->{ref_hid} = 1;
+			if($f->{type} eq 'varchar') {
+				my $len = $f->{atttypmod}-4;
+				$f->{widget} = "text(size=$len,maxlength=$len)";
+				next field;
 			}
+
+			my $w = $type_widget_map{$f->{type}};
+			defined $w or die "unknown widget for type $f->{type} ($table:$field).\n";
+			$f->{widget} = $w;
 		}
 	}
 
@@ -584,12 +617,11 @@ sub DB_FetchList($$$;%)
 	return \@html_data;
 }
 
-sub DB_GetRecord($$$$)
+sub DB_GetRecord($$$)
 {
 	my $dbh = shift;
 	my $table = shift;
 	my $id = shift;
-	my $record = shift;
 
 	my @fields_list = @{$g{db_fields_list}{$table}};
 
@@ -601,19 +633,10 @@ sub DB_GetRecord($$$$)
 	my $sth;
 	$sth = $dbh->prepare_cached($query) or die $dbh->errstr;
 	$sth->execute() or die $sth->errstr;
-	$data = $sth->fetchrow_arrayref() or
+	$data = $sth->fetchrow_hashref() or
 		die ($sth->err ? $sth->errstr : "Record not found ($query)\n");
 
-	# transorm raw data into record
-	my %dbdata = ();
-	my $i=0;
-	for(@fields_list) {
-		$dbdata{$_} = $data->[$i];
-		$i++;
-	}
-	DB_DB2Record($dbh, $table, \%dbdata, $record);
-	
-	return 1;
+	return $data;
 }
 
 sub DB_ID2HID($$$)
@@ -681,55 +704,6 @@ sub DB_PrepareData($$)
 	return $_;
 }
 
-sub DB_DB2Record($$$$)
-{
-	my $dbh = shift;
-	my $table = shift;
-	my $dbdata = shift;
-	my $record = shift;
-
-	my $fields = $g{db_fields}{$table};
-	my @fields_list = @{$g{db_fields_list}{$table}};
-
-	my $f;
-	for $f (@fields_list) {
-		my $type = $fields->{$f}{type};
-		my $data = $dbdata->{$f};
-		
-		if(defined $fields->{$f}{ref_hid}) {
-			# convert ID reference to HID
-			$data = DB_ID2HID($dbh, $fields->{$f}{reference}, $data);
-		}
-
-		$record->{$f} = $data;
-	}
-}
-
-sub DB_Record2DB($$$$)
-{
-	my $dbh = shift;
-	my $table = shift;
-	my $record = shift;
-	my $dbdata = shift;
-
-	my $fields = $g{db_fields}{$table};
-	my @fields_list = @{$g{db_fields_list}{$table}};
-
-	my $f;
-	for $f (@fields_list) {
-		my $type = $fields->{$f}{type};
-		my $data = $record->{$f};
-
-		$data = DB_PrepareData($data, $type);
-		if(defined $fields->{$f}{ref_hid}) {
-			# convert HID reference to ID
-			$data = DB_HID2ID($dbh, $fields->{$f}{reference}, $data);
-		}
-
-		$dbdata->{$f} = $data;
-	}
-}
-
 sub DB_AddRecord($$$)
 {
 	my $dbh = shift;
@@ -742,14 +716,11 @@ sub DB_AddRecord($$$)
 	# filter-out readonly fields
 	@fields_list = grep { not defined $g{db_fields}{$table}{$_}{widget} or $g{db_fields}{$table}{$_}{widget} ne 'readonly' } @fields_list;
 
-	my %dbdata = ();
-	DB_Record2DB($dbh, $table, $record, \%dbdata);
-
 	my $query = "INSERT INTO $table (";
 	$query   .= join(', ',@fields_list);
 	$query   .= ") VALUES (";
 	my $first = 1;
-	for(@dbdata{@fields_list}) {
+	for(@$record{@fields_list}) {
 		if($first) {
 			$first = 0;
 		}
@@ -788,16 +759,13 @@ sub DB_UpdateRecord($$$)
 	# filter-out readonly fields
 	@fields_list = grep { $g{db_fields}{$table}{$_}{widget} ne 'readonly' } @fields_list;
 
-	my %dbdata = ();
-	DB_Record2DB($dbh, $table, $record, \%dbdata);
-
 	my @updates;
 	my $query = "UPDATE $table SET ";
 	for(@fields_list) {
 		if($_ eq "id") { next; }
 		if($_ eq "${table}_id") { next; }
-		if(defined $dbdata{$_}) {
-			push @updates, "$_ = '$dbdata{$_}'";
+		if(defined $record->{$_}) {
+			push @updates, "$_ = '$record->{$_}'";
 		}
 		else {
 			push @updates, "$_ = NULL";
