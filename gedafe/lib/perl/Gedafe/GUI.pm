@@ -854,7 +854,11 @@ sub GUI_WidgetRead($$$)
 	
 	if($w eq 'file'){
 	    my $file = $value;
-	    if($file){
+	    my $deletefile = $q->param("file_delete_$input_name");
+	    if($deletefile){
+	      $value="";
+	    }else{
+	      if($file){
 		my $filename = scalar $file;
 		$filename =~ /([\w\d\.]+$)/;
 		$filename = $1;
@@ -866,19 +870,10 @@ sub GUI_WidgetRead($$$)
 	        }
 		#note that value is set to a reference to the large blob
 		$value=\$blob;
-	    }else{
-		# FIXME: when we are here the file field has not been set
-		#if($q->param("post_action") eq 'edit') {
-		#    #no new file therefor preserve old one.
-		#    my $table=$q->url_param('table');
-		#    my $id=$q->param('id');
-		#    my $oldblob = DB_RawField($dbh,$table,$field,$id);
-		#    $value = \$oldblob;
-		#} else {
-		#    #no new file and we are inserting. send undef
-		#    $value = undef;
-		#}
+	      }else{
+		#when we are here the file field has not been set
 		$value = undef;
+	      }
 	    }
 	}
 	if($w eq 'hid' or $w eq 'hidcombo' or $w eq 'hidisearch') {
@@ -1039,6 +1034,8 @@ sub GUI_Edit($$$)
 		# copy fields from previous add form
 		for my $field (@fields_list) {
 			if($g{db_fields}{$table}{$field}{copy}) {
+			        # FIXME: find out how this works with files.
+			        # I think we don't want to copy a file.
 				my $v = GUI_WidgetRead($s, "field_$field", $g{db_fields}{$table}{$field}{widget});
 				$values{$field} = $v if defined $v;
 			}
@@ -1126,8 +1123,8 @@ sub GUI_MakeCombo($$$$)
 
 sub GUI_MakeISearch($$$$$$)
 {
-	my $table = shift; # FIXME: this is now the 'ref' argument in the widget
-	my $field = shift; # FIXME: this is now 'input_name'
+	my $ref_target = shift;
+	my $input_name = shift;
 	my $ticket = shift;
 	my $myurl = shift;
 	my $value = shift;
@@ -1136,17 +1133,14 @@ sub GUI_MakeISearch($$$$$$)
 	$value =~ s/^\s+//;
 	$value =~ s/\s+$//;
 
-	my $meta = $g{db_fields}{$table}{$field};
 
-	my $target = $meta->{reference};
-
-	my $targeturl = MakeURL($myurl,{action=>'dumptable',table=>$target,ticket=>$ticket});
+	my $targeturl = MakeURL($myurl,{action=>'dumptable',table=>$ref_target,ticket=>$ticket});
 
 	my $html;
 	$html .= "<input type=\"button\" onclick=\"";
-	$html .= "document.editform.field_$field.value=document.isearch_$field.getID('$value')";
+	$html .= "document.editform.$input_name.value=document.isearch_$input_name.getID('$value')";
 	$html .= ";\" value=\"I-Search\">&nbsp;";
-	$html .= "<applet id=\"isearch_$field\" name=\"isearch_$field\"";
+	$html .= "<applet id=\"isearch_$input_name\" name=\"isearch_$input_name\"";
 	$html .= ' code="ISearch.class" width="70" height="20" archive="'.$g{conf}{isearch}.'">'."\n";
 	$html .= GUI_AppletParam("url",$targeturl);
 	if($hidisearch){
@@ -1243,8 +1237,13 @@ sub GUI_WidgetWrite($$$$)
 		return $out;
 	}
 	if($w eq 'file'){
+	        my $filename = $value ne ''  ? $value : "(none)";
 	        my $out;
-		$out = "Current blob: <b>$value</b><br>Enter filename to update.<br><INPUT TYPE=\"file\" NAME=\"$input_name\">";
+		$out = "Current file: <b>$filename</b>";
+		if($value ne ''){
+		  $out .= "<br>Delete file?: <INPUT TYPE=\"checkbox\" NAME=\"file_delete_$input_name\">";
+		}
+		$out .= "<br>Enter filename to update.<br><INPUT TYPE=\"file\" NAME=\"$input_name\">";
 		return $out;
 	}
 
@@ -1253,11 +1252,11 @@ sub GUI_WidgetWrite($$$$)
 	  my $m = 0;
 	  my $d = 0;
 
-	  my %monthhash = (1, "Januari", 2, "Februari", 3, "March", 4, "April", 5, "May", 6, "June", 7, "July", 8, "August", 9, "September", 10, "October", 11, "November", 12, "December");
+	  my %monthhash = (1, "January", 2, "February", 3, "March", 4, "April", 5, "May", 6, "June", 7, "July", 8, "August", 9, "September", 10, "October", 11, "November", 12, "December");
 
-	  my $yearselect;
-	  my $dayselect;
-	  my $monthselect;
+	  my $yearselect = "<option>(year)</option>\n";
+	  my $dayselect = "<option>(day)</option>\n";
+	  my $monthselect = "<option>(month)</option>\n";
 
 	  if($escval=~/(\d+)-(\d+)-(\d+)/)
           {
@@ -1313,9 +1312,18 @@ sub GUI_WidgetWrite($$$$)
     var leap = 0;
     
     //get variables from form
-    var year = $warg->{from} + document.editform.$yearinput.selectedIndex;
-    var month = document.editform.$monthinput.selectedIndex + 1;
-    var day = document.editform.$dayinput.selectedIndex + 1;
+    var year = document.editform.$yearinput.selectedIndex;
+    var month = document.editform.$monthinput.selectedIndex;
+    var day = document.editform.$dayinput.selectedIndex;
+
+    // if year month or date are on the (first) empty field
+    // then the date is invalid. Clear the field to reflect that. 
+    if(year == 0 || month == 0 || day == 0){
+      document.editform.$input_name.value = "";
+      return;
+    }
+
+    year = $warg->{from} + year - 1;
 
     // is this a leap year?
     if ((year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0))){ 
@@ -1323,7 +1331,7 @@ sub GUI_WidgetWrite($$$$)
     }
     
 
-    //update form to reflect corrctions on date
+    //update form to reflect corretions on date
     if ((month == 2) && (leap == 1) && (day > 29)){ 
       document.editform.$dayinput.selectedIndex = 28;
       day = 29;
