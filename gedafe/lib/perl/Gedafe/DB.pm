@@ -336,6 +336,7 @@ SELECT a.attname, t.typname, a.attnum, a.atthasdef, a.atttypmod
 FROM pg_class c, pg_attribute a, pg_type t
 WHERE c.relname = ? AND a.attnum > 0
 AND a.attrelid = c.oid AND a.atttypid = t.oid
+AND a.attname != ('........pg.dropped.' || a.attnum || '........')
 ORDER BY a.attnum
 END
 	$sth = $dbh->prepare($query);
@@ -368,6 +369,7 @@ SELECT a.attname, col_description(a.attrelid, a.attnum)
 FROM pg_class c, pg_attribute a
 WHERE c.relname = ? AND a.attnum > 0
 AND a.attrelid = c.oid
+AND a.attname != ('........pg.dropped.' || a.attnum || '........')
 END
 	}
 	else {
@@ -377,6 +379,7 @@ FROM pg_class c, pg_attribute a, pg_description d
 WHERE c.relname = ? AND a.attnum > 0
 AND a.attrelid = c.oid
 AND a.oid = d.objoid
+AND a.attname != ('........pg.dropped.' || a.attnum || '........')
 END
 	}
 
