@@ -1,6 +1,10 @@
+2001-01-23 Fritz
+----------
+* Some modifications in the documentation.
+
 2000-12-18
 ----------
-* Use everywhere quotes for HTML attributes in form fields.
+* Use quotes everywhere for HTML attributes in form fields.
 
 2000-12-12
 ----------
@@ -19,17 +23,19 @@
 
 2000-12-07 Tobi
 ----------
-* Improved descrition of how to COMMENT in the gedafe-sql manpage
+* Improved description of how to use COMMENT in the gedafe-sql manpage
 
 2000-12-06
 ----------
 * released version 0.9.15
-* remove some "Use of uninitialized value"
+* removed some "Use of uninitialized value"
 
 2000-11-29 Tobi
 ----------
-* added check to /\n/<br>/ to make sure it does not happen on fields with html contents
-* added varchar field type ... it now sets the MAXLENGTH property of the INPUT field
+* added check to /\n/<br>/ to make sure it does not happen on fields with 
+  html contents
+* added varchar field type ... it now sets the MAXLENGTH property of the 
+  INPUT field
 
 2000-11-25
 ----------
