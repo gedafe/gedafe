@@ -121,6 +121,7 @@ as follows:
         isearch        => '/place/in/the/webtree/for/isearch.jar',
         pearl_dir      => '/usr/local/gedafe/example/mypearls',
     	list_buttons   => 'both',
+	edit_buttons_left => 1,
  );
 
 Gedafe gathers information about the database structure when it is
@@ -207,6 +208,11 @@ You do not see tables in other schemas. From Postgres Version
 specifies a search path i.e. defines the schemas
 where we want to find tables in. This value defaults 
 to the value of schema (above) if you do not set it.
+
+=item edit_buttons_left 
+
+If set to 1, the buttons for edit, clone and delete are shown on
+the left, which is useful for very wide tables.
 
 =back
 

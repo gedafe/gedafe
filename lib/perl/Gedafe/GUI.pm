@@ -615,6 +615,23 @@ sub GUI_ListTable($$$)
 	# header
 	$template_args{ELEMENT}='tr';
 	print Template(\%template_args);
+
+	if  (  $g{conf}{edit_buttons_left} == 1 ){
+		if($can_edit) {
+			$template_args{ELEMENT}='th_edit';
+			print Template(\%template_args);
+		}
+		if($can_add) {
+			$template_args{ELEMENT}='th_clone';
+			print Template(\%template_args);
+
+		}
+		if($can_delete) {
+			$template_args{ELEMENT}='th_delete';
+			print Template(\%template_args);
+		}
+	}
+
 	for my $c (@{$list->{columns}}) {
 		next if $c->{hide_list};
 		my $sort_url;
@@ -635,19 +652,23 @@ sub GUI_ListTable($$$)
 	delete $template_args{DATA};
 	delete $template_args{FIELD};
 	delete $template_args{SORT_URL};
-	if($can_edit) {
-		$template_args{ELEMENT}='th_edit';
-		print Template(\%template_args);
-	}
-        if($can_add) {
-                $template_args{ELEMENT}='th_clone';
-                print Template(\%template_args);
 
-        }
-	if($can_delete) {
-		$template_args{ELEMENT}='th_delete';
-		print Template(\%template_args);
+	unless (  $g{conf}{edit_buttons_left} == 1 ){
+		if($can_edit) {
+			$template_args{ELEMENT}='th_edit';
+			print Template(\%template_args);
+		}
+		if($can_add) {
+			$template_args{ELEMENT}='th_clone';
+			print Template(\%template_args);
+
+		}
+		if($can_delete) {
+			$template_args{ELEMENT}='th_delete';
+			print Template(\%template_args);
+		}
 	}
+
 	$template_args{ELEMENT}='xtr';
 	print Template(\%template_args);
 	
@@ -660,6 +681,15 @@ sub GUI_ListTable($$$)
 
 		$template_args{ELEMENT}='tr';
 		print Template(\%template_args);
+
+	if  (  $g{conf}{edit_buttons_left} == 1 ){
+		$template_args{ID} = $row->[0];
+		GUI_EditLink($s, \%template_args, $list, $row) if $can_edit;
+		GUI_AddFromLink($s, \%template_args, $list, $row) if $can_add;
+		GUI_DeleteLink($s, \%template_args, $list, $row) if $can_delete;
+		delete $template_args{ID};
+	}
+
 		my $column_number = 0;
 		for my $d (@{$row->[1]}) {
 			delete $template_args{ALIGN};
@@ -716,11 +746,16 @@ sub GUI_ListTable($$$)
 		delete $template_args{DATA};
 		delete $template_args{ALIGN};
 
-		$template_args{ID} = $row->[0];
-		GUI_EditLink($s, \%template_args, $list, $row) if $can_edit;
-		GUI_AddFromLink($s, \%template_args, $list, $row) if $can_add;
-		GUI_DeleteLink($s, \%template_args, $list, $row) if $can_delete;
-		delete $template_args{ID};
+		unless (  $g{conf}{edit_buttons_left} == 1 ){
+			$template_args{ID} = $row->[0];
+			GUI_EditLink($s, \%template_args, $list, $row) 
+				if $can_edit;
+			GUI_AddFromLink($s, \%template_args, $list, $row) 
+				if $can_add;
+			GUI_DeleteLink($s, \%template_args, $list, $row) 
+				if $can_delete;
+			delete $template_args{ID};
+		}
 
 		$template_args{ELEMENT}='xtr';
 		print Template(\%template_args);
