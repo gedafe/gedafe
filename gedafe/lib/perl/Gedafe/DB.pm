@@ -1730,7 +1730,7 @@ sub DB_Format($$$$) {
 	# trim spaces
 	$formatted =~ s/^\s+//;
 	$formatted =~ s/\s+$//;
-	return $d->[0];
+	return $formatted;
 }
 
 1;
