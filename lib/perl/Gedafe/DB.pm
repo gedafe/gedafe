@@ -35,10 +35,35 @@ require Exporter;
 	DB_DumpTable
 );
 
+sub DB_AddRecord($$$);
+sub DB_Connect($$);
+sub DB_DB2HTML($$);
+sub DB_DeleteRecord($$$);
+sub DB_DumpBlob($$$$);
+sub DB_DumpTable($$$);
+sub DB_ExecQuery($$$$$);
+sub DB_FetchList($$);
+sub DB_FetchListSelect($$);
+sub DB_GetBlobName($$$$);
+sub DB_GetBlobType($$$$);
+sub DB_GetCombo($$$);
+sub DB_GetDefault($$$);
+sub DB_GetNumRecords($$);
+sub DB_GetRecord($$$$);
+sub DB_HID2ID($$$);
+sub DB_ID2HID($$$);
+sub DB_Init($$);
+sub DB_MergeAcls($$);
+sub DB_ParseWidget($);
+sub DB_PrepareData($$);
+sub DB_RawField($$$$);
 sub DB_ReadDatabase($);
-sub DB_ReadTables($$);
-sub DB_ReadTableAcls($$);
 sub DB_ReadFields($$$);
+sub DB_ReadTableAcls($$);
+sub DB_ReadTables($$);
+sub DB_Record2DB($$$$);
+sub DB_UpdateRecord($$$);
+sub DB_Widget($$);
 
 my %type_widget_map = (
 	'date'      => 'text(size=12)',
@@ -558,7 +583,8 @@ END
 	return \%fields;
 }
 
-sub DB_Connect($$) {
+sub DB_Connect($$)
+{
 	my $user = shift;
 	my $pass = shift;
 	my $dbh;
@@ -632,7 +658,8 @@ sub DB_GetNumRecords($$)
 	return DB_FetchList($s, $spec);
 }
 
-sub DB_FetchListSelect($$) {
+sub DB_FetchListSelect($$)
+{
 	my $dbh = shift;
 	my $spec = shift;
 	my $v = $spec->{view};
