@@ -48,7 +48,7 @@ Example:
 
  CREATE TABLE customer (
    customer_id SERIAL NOT NULL PRIMARY KEY,
-   customer_hid TEXT,
+   customer_hid TEXT UNIQUE,
    customer_name TEXT, 
    customer_age INT,
    customer_address TEXT);
