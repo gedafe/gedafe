@@ -796,19 +796,11 @@ sub GUI_ListRep($$$)
 # of '%'.
 sub GUI_URL_Encode($)
 {
-	my @encode_chars = ('&', '+', '>', '<', ' ', '%', '!', '/', '?', ';', "\n", "\r", ':', ',', '"', "'");
 	my $str = shift;
 	my $enc = '';
-	my $c;
-	defined $str or return '';
-	foreach $c (split //, $str) {
-		if(grep { $c eq $_ } @encode_chars) {
-			$enc .= '!'.sprintf('%2X',ord($c));
-		}
-		else {
-			$enc .= $c;
-		}
-	}
+        $enc =~ s/!/gedafe_PROTECTED_eXclamatiOn/g;
+        $enc =~ s/\W/'!'.sprintf('%2X',ord($_))/eg;
+        $enc =~ s/gedafe_PROTECTED_eXclamatiOn/'!'.sprintf('%2X',ord('!'))/eg;
 	return $enc;
 }
 

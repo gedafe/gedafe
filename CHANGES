@@ -1,6 +1,6 @@
 2001-06-07
 ----------
-* encode also single and double quotes in urls for reedit
+* improve url-encoding for data in the url (reedit)
 
 2001-06-04
 ----------
