@@ -753,22 +753,20 @@ sub DB_FetchList($$)
 	my $user = $s->{user};
 	my $v = $spec->{view};
 
-	# can the user edit this view?
-	my $acl = defined $g{db_tables}{$spec->{table}}{acls}{$user} ?
-		$g{db_tables}{$spec->{table}}{acls}{$user} : '';
-	my $can_edit = ($acl =~ /w/);
-	
 	# fetch one row more than necessary, so that we
 	# can find out when we are at the end (skip if DB_GetNumRecords)
 	$spec->{limit}++ unless $spec->{countrows};
 
 	my %list = (
 		spec => $spec,
-		acl  => $acl,
 		data => [],
 	);
 	my $sth;
 	($list{fields}, $sth) = DB_FetchListSelect($dbh, $spec);
+
+	# ACLs
+	list{acl} = defined $g{db_tables}{$spec->{table}}{acls}{$user} ?
+		$g{db_tables}{$spec->{table}}{acls}{$user} : '';
 
 	# if this is actually a call to DB_GetNumRecords()
 	if($spec->{countrows}) {
@@ -789,12 +787,11 @@ sub DB_FetchList($$)
 		for($col=0; $col<=$#$data; $col++) {
 			my $name = $list{fields}[$col];
 			my $type = $g{db_fields}{$v}{$name}{type};
-			push @row, $spec->{export} ? $data->[$col] : DB_DB2HTML($data->[$col], $type);
+			push @row, $spec->{export} ? $data->[$col] :
+				DB_DB2HTML($data->[$col], $type);
 		}
 
-		my $id = $data->[0] if $can_edit;
-
-		push @{$list{data}}, [ $id, \@row ];
+		push @{$list{data}}, [ $data->[0], \@row ];
 	}
 	die $sth->errstr if $sth->err;
 
