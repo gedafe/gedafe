@@ -11,7 +11,6 @@ use Gedafe::DB;
 use Gedafe::Util;
 
 use CGI;
-#use CGI::Carp; 
 use POSIX;
 
 use vars qw(@ISA @EXPORT);
@@ -40,13 +39,6 @@ sub rand_ascii_32
 sub GUI_NextRefresh(;$)
 {
 	return rand_ascii_32;
-	#my $q = shift;
-	#my $refresh = $q->url_param('refresh') || 0;
-	#$refresh++;
-	#if($refresh >= 1000) {
-	#	$refresh=0;
-	#}
-	#return $refresh;
 }
 
 sub GUI_DB2HTML($$)
@@ -249,7 +241,6 @@ sub GUI_xForm($;$)
 {
 	my $form_url = shift;
 	my $next_url = shift || $form_url;
-	#my $form_data = shift;
 
 	my $form_id = GUI_GetUnique;
 
