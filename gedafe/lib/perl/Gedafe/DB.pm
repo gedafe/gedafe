@@ -7,10 +7,13 @@
 package Gedafe::DB;
 use strict;
 
+#use Data::Dumper;
 use Gedafe::Global qw(%g);
 
 use DBI;
 use DBD::Pg;
+
+# use DBI;# done in start.pl
 
 use vars qw(@ISA @EXPORT);
 require Exporter;
@@ -113,7 +116,7 @@ END
 
 	# fields
 	$query = <<'END';
-SELECT a.attname, t.typname, a.attnum, a.atthasdef
+SELECT a.attname, t.typname,  a.attnum, a.atthasdef,a.atttypmod
 FROM pg_class c, pg_attribute a, pg_type t
 WHERE c.relname = ? AND a.attnum > 0
 AND a.attrelid = c.oid AND a.atttypid = t.oid
@@ -137,6 +140,7 @@ END
 					desc => $data->[0],
 					attnum => $data->[2],
 					atthasdef => $data->[3],
+					atttypmod => $data->[4]
 				};
 			}
 		}
@@ -216,6 +220,9 @@ END
 		$meta_fields{$d[4]}{reference} = $d[2];
 	}
 	$sth->finish;
+
+#	print "\n";
+#	print Dumper(\%meta_fields);
 
 	# combo
 	$query = <<'END';
@@ -339,6 +346,11 @@ END
 		}
 	}
 	$sth->finish;
+
+#	print "\n";
+#	print Dumper($g{db_tables});
+
+#	$dbh->disconnect;
 }
 
 sub DB_Connect($$) {
@@ -364,18 +376,19 @@ sub DB_GetDefault($$$)
 	my $query = $g{db_fields}{$table}{$field}{default};
 	return undef unless defined $query;
 
+	if($g{db_fields}{$table}{$field}{ref_hid}) {
+		my $ref = $g{db_fields}{$table}{$field}{reference};
+		$query = "${ref}_id2hid($query)";
+	}
+
 	$query = "SELECT ".$query;
+
 	my $sth = $dbh->prepare_cached($query) or return undef;
 	print "<!-- Executing: $query -->\n";
 	$sth->execute() or return undef;
 	my $d = $sth->fetchrow_arrayref();
 	my $default = $d->[0];
 	$sth->finish or return undef;
-
-	if($g{db_fields}{$table}{$field}{ref_hid}) {
-		my $ref = $g{db_fields}{$table}{$field}{reference};
-		$default = DB_ID2HID($dbh, $ref, $default);
-	}
 
 	return $default;
 }
@@ -471,7 +484,7 @@ sub DB_FetchList($$$$;%)
 	my $i=0;
 	for $f (@fields) {
 		my $type = $g{db_fields}{$table}{$f}{type};
-		push @html_data, $data->[$i];
+		push @html_data, DB_DB2HTML($data->[$i],$type);
 		$i++;
 	}
 
@@ -514,39 +527,56 @@ sub DB_GetRecord($$$$)
 	return 1;
 }
 
-sub DB_ID2HID($$$)
+sub DB_ID2HID($$$$)
 {
 	my $dbh = shift;
 	my $table = shift;
-	my $id = shift;
+	my $field = shift;
+	my $data = shift;
 
-	return unless defined $id and $id ne '';
-	my $q = "SELECT ${table}_hid FROM ${table} WHERE ${table}_id = '$id'";
+	if((not defined $data) or  ($data eq '') or (not defined $g{db_fields}{$table}{$field}{ref_hid})) { return $data; }
+	my $ref = $g{db_fields}{$table}{$field}{reference};
+	my $q = "SELECT ${ref}_id2hid('$data')";
 	my $sth = $dbh->prepare_cached($q) or return undef;
 	$sth->execute or return undef;
 	my $d = $sth->fetchrow_arrayref();
 	$sth->finish;
-
 	return $d->[0];
 }
 
-sub DB_HID2ID($$$)
+sub DB_HID2ID($$$$)
 {
 	my $dbh = shift;
 	my $table = shift;
-	my $hid = shift;
+	my $field = shift;
+	my $data = shift;
 
-	return unless defined $hid and $hid ne '';
-	my $q = "SELECT ${table}_id FROM ${table} WHERE ${table}_hid = '$hid'";
+	if((not defined $data) or  ($data eq '') or (not defined $g{db_fields}{$table}{$field}{ref_hid})) { return $data; }
+	my $ref = $g{db_fields}{$table}{$field}{reference};
+	my $q = "SELECT ${ref}_hid2id('$data')";
 	my $sth = $dbh->prepare_cached($q) or return undef;
 	$sth->execute or return undef;
 	my $d = $sth->fetchrow_arrayref();
 	$sth->finish;
-
 	return $d->[0];
 }
 
-sub DB_PrepareData($$)
+sub DB_DB2HTML($$)
+{
+	$_ = shift;
+	$_ = '' unless defined $_;
+	my $type = shift;
+	s/^\s+//;
+	s/\s+$//;
+
+	if($type eq 'bool') {
+		$_ = (/^(t|true|y|yes|TRUE|1)$/ ? '1' : '0');
+	}
+
+	return $_;
+}
+
+sub DB_HTML2DB($$)
 {
 	$_ = shift;
 	$_ = '' unless defined $_;
@@ -562,8 +592,6 @@ sub DB_PrepareData($$)
 		$_ = ($_ ? '1' : '0');
 	}
 
-	# this is a hack. It should be implemented in GUI.pm or
-	# (better) with a widget-type
 	if($type eq 'numeric') {
 		if(/^(\d*):(\d+)$/) {
 			my $hours = $1 or 0;
@@ -594,11 +622,9 @@ sub DB_DB2Record($$$$)
 		my $type = $fields->{$f}{type};
 		my $data = $dbdata->{$f};
 		
-		if(defined $fields->{$f}{ref_hid}) {
-			# convert ID reference to HID
-			$data = DB_ID2HID($dbh, $fields->{$f}{reference}, $data);
-		}
+		$data = DB_DB2HTML($data, $type);
 
+		$data = DB_ID2HID($dbh, $table, $f, $data);
 		$record->{$f} = $data;
 	}
 	return 1;
@@ -619,12 +645,8 @@ sub DB_Record2DB($$$$)
 		my $type = $fields->{$f}{type};
 		my $data = $record->{$f};
 
-		$data = DB_PrepareData($data, $type);
-		if(defined $fields->{$f}{ref_hid}) {
-			# convert HID reference to ID
-			$data = DB_HID2ID($dbh, $fields->{$f}{reference}, $data);
-		}
-
+		$data = DB_HTML2DB($data, $type);
+		$data = DB_HID2ID($dbh, $table, $f, $data);
 		$dbdata->{$f} = $data;
 	}
 
@@ -668,6 +690,7 @@ sub DB_AddRecord($$$$)
 			$query .= "NULL";
 		}
 	}
+	#$query   .= join("', '",@dbdata{@fields_list});
 	$query   .= ")";
 
 	print "<!-- Executing: $query -->\n";
@@ -766,7 +789,8 @@ sub DB_GetCombo($$$)
 	$sth->execute() or return undef;
 	my $data;
 	while($data = $sth->fetchrow_arrayref()) {
-		push @$combo, [$data->[0], $data->[1]];
+		my $key = DB_DB2HTML($data->[0],'text');
+		push @$combo, [$key, DB_DB2HTML($data->[1],'text')];
 	}
 	#$sth->finish;
 	return 1;
