@@ -1,0 +1,39 @@
+Tobias Oetiker and David Schweikert are proud to announce:
+
+
+        ============================================
+        Gedafe (the Generic Database Frontend) 1.0.0
+        ============================================
+
+
+Introduction
+
+    Gedafe (the Generic Datbase Frontend) is a web-based database
+    frontend that is database-application independent. That means that
+    the (perl) code doesn't contain any information about what tables
+    are present in the database, how the data is organized or how the
+    forms should be made.
+
+    The idea is to put all the application logic in the database along
+    with meta-information on how to present the data and then use a
+    generic frontend that gathers that information and uses it to
+    build the interface presented to the user. The developement time
+    is greatly reduced, since you only have to develop the application
+    at the database level.
+
+    Gedafe does also use a flexible templating system, such that you
+    can completely customize the look of the user interface and "deep
+    linking" (i.e. you can bookmark any viewed page).
+
+    At the moment Gedafe works only with PostgreSQL. Note that this is
+    not a database-administration frontend, but a user-interface
+    frontend.
+
+
+Availability
+
+    Gedafe is released under the GNU General Public License.
+    Read more about it and download at
+
+    >> http://isg.ee.ethz.ch/tools/gedafe
+
