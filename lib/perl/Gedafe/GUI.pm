@@ -1161,7 +1161,7 @@ sub GUI_MakeISearch($$$$$$)
 	$html .= "document.editform.field_$field.value=document.isearch_$field.getID('$value')";
 	$html .= ";\" value=\"I-Search\">&nbsp;";
 	$html .= "<applet id=\"isearch_$field\" name=\"isearch_$field\"";
-	$html .= ' code="ISearch.class" width="70" height="20" archive="java/isearch.jar">'."\n";
+	$html .= ' code="ISearch.class" width="70" height="20" archive="'.$g{conf}{isearch}.'">'."\n";
 	$html .= GUI_AppletParam("url",$targeturl);
 	if($hidisearch){
 	  $html .= GUI_AppletParam("hid","true");
