@@ -3,6 +3,12 @@ Gedafe Examples
 
 This directory contains an example application for Gedafe.
 
+Useful Functions
+================
+
+
+Simple Application
+==================
 It's a very simple ordering system with products, 
 customers and orders.
 
