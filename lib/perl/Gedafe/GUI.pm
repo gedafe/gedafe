@@ -842,16 +842,15 @@ sub GUI_Str2Hash($$)
 	}
 }
 
-sub GUI_WidgetRead($$)
+sub GUI_WidgetRead($$$)
 {
-	my ($s, $f) = @_;
+	my ($s, $input_name, $widget) = @_;
 	my $q = $s->{cgi};
 	my $dbh = $s->{dbh};
-	my $field = $f->{field};
 
-	my ($w, $warg) = DB_ParseWidget($f->{widget});
+	my ($w, $warg) = DB_ParseWidget($widget);
 
-	my $value = $q->param("field_$field");
+	my $value = $q->param($input_name);
 	
 	if($w eq 'file'){
 	    my $file = $value;
@@ -868,18 +867,18 @@ sub GUI_WidgetRead($$)
 		#note that value is set to a reference to the large blob
 		$value=\$blob;
 	    }else{
-		#when we are here the file field has not been set
-		
-		if($q->param("post_action") eq 'edit'){
-		    #no new file therefor preserve old one.
-		    my $table=$q->url_param('table');
-		    my $id=$q->param('id');
-		    my $oldblob = DB_RawField($dbh,$table,$field,$id);
-		    $value = \$oldblob;
-		}else{
-		    #no new file and we are inserting. send undef
-		    $value = undef;
-		}
+		# FIXME: when we are here the file field has not been set
+		#if($q->param("post_action") eq 'edit') {
+		#    #no new file therefor preserve old one.
+		#    my $table=$q->url_param('table');
+		#    my $id=$q->param('id');
+		#    my $oldblob = DB_RawField($dbh,$table,$field,$id);
+		#    $value = \$oldblob;
+		#} else {
+		#    #no new file and we are inserting. send undef
+		#    $value = undef;
+		#}
+		$value = undef;
 	    }
 	}
 	if($w eq 'hid' or $w eq 'hidcombo' or $w eq 'hidisearch') {
@@ -890,7 +889,7 @@ sub GUI_WidgetRead($$)
 	# if it's a combo and no value was specified in the text field...
 	if($w eq 'idcombo' or $w eq 'hidcombo') {
 		if(not defined $value or $value =~ /^\s*$/) {
-			$value = $q->param("combo_$field");
+			$value = $q->param("${input_name}_combo");
 			if($w eq 'hidcombo' and $g{conf}{gedafe_compat} eq '1.0')
 			{
 				# hidcombos in 1.0 had to put the HID as key...
@@ -937,24 +936,11 @@ sub GUI_PostEdit($$$)
 	if($action eq 'add' || $action eq 'edit'){
 	    my %record;
 	    for my $field (@{$g{db_fields_list}{$table}}) {
-		my $f = $g{db_fields}{$table}{$field};
-		my $value = GUI_WidgetRead($s, $f);
+		my $value = GUI_WidgetRead($s, "field_$field", $g{db_fields}{$table}{$field}{widget});
 		if(defined $value) {
 			$record{$field} = $value;
 		}
 	    }
-
-	    # combo
-	    my $p;
-	    foreach $p ($q->param) {
-		if($p =~ /^combo_(.*)/) {
-		    my $f = $1;
-		    if((not defined $record{$f}) or ($record{$f} =~ /^\s*$/)) {
-			$record{$f} = $q->param($p);
-		    }
-		}
-	    }
-
 
 	    if($action eq 'add') {
 		if(!DB_AddRecord($dbh,$table,\%record)) {
@@ -1053,8 +1039,7 @@ sub GUI_Edit($$$)
 		# copy fields from previous add form
 		for my $field (@fields_list) {
 			if($g{db_fields}{$table}{$field}{copy}) {
-				my $f = $g{db_fields}{$table}{$field};
-				my $v = GUI_WidgetRead($s, $f);
+				my $v = GUI_WidgetRead($s, "field_$field", $g{db_fields}{$table}{$field}{widget});
 				$values{$field} = $v if defined $v;
 			}
 		}
@@ -1079,8 +1064,7 @@ sub GUI_Edit($$$)
 			$value = DB_GetDefault($dbh,$table,$field);
 		}
 
-		my $inputelem = GUI_WidgetWrite($s, $dbh, "field_$field", $fields->{$field}{widget},$value,
-					$table, $field);
+		my $inputelem = GUI_WidgetWrite($s, "field_$field", $fields->{$field}{widget},$value);
 
 		$template_args{ELEMENT} = 'editfield';
 		$template_args{FIELD} = $field;
@@ -1142,8 +1126,8 @@ sub GUI_MakeCombo($$$$)
 
 sub GUI_MakeISearch($$$$$$)
 {
-	my $table = shift;
-	my $field = shift;
+	my $table = shift; # FIXME: this is now the 'ref' argument in the widget
+	my $field = shift; # FIXME: this is now 'input_name'
 	my $ticket = shift;
 	my $myurl = shift;
 	my $value = shift;
@@ -1151,7 +1135,6 @@ sub GUI_MakeISearch($$$$$$)
 	
 	$value =~ s/^\s+//;
 	$value =~ s/\s+$//;
-
 
 	my $meta = $g{db_fields}{$table}{$field};
 
@@ -1182,17 +1165,12 @@ sub GUI_AppletParam($$){
 
 
 
-sub GUI_WidgetWrite($$$$$$$)
+sub GUI_WidgetWrite($$$$)
 {
-	my $s = shift;
-	my $dbh = shift;
-	my $input_name = shift;
-	my $widget = shift;
-	my $value = shift;
-	my $table = shift; # this should not be needed, all needed info should be in widget
-	my $field = shift; # this should not be needed, all needed info should be in widget 
+	my ($s, $input_name, $widget, $value) = @_;
 
 	my $q = $s->{cgi};
+	my $dbh = $s->{dbh};
 	my $myurl = MyURL($q);
 
 	if(not defined $value) { $value = ''; }
@@ -1235,7 +1213,8 @@ sub GUI_WidgetWrite($$$$$$$)
 		  $hidisearch=1;
 		}
 		
-		my $combo = GUI_MakeISearch($table,$field,$s->{ticket_value},$myurl,$value,$hidisearch);
+		my $combo = GUI_MakeISearch($warg->{'ref'}, $input_name, $s->{ticket_value},
+			                    $myurl, $value, $hidisearch);
 
 		$out.="<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
 		$out .= " VALUE=\"$value\"";
@@ -1250,10 +1229,10 @@ sub GUI_WidgetWrite($$$$$$$)
 		
 		if($g{conf}{gedafe_compat} eq '1.0') {
 			$value = DB_ID2HID($dbh,$warg->{'ref'},$value) if $w eq 'hidcombo';
-			$combo = GUI_MakeCombo($dbh, $warg->{'combo'}, "combo_$field", $value);
+			$combo = GUI_MakeCombo($dbh, $warg->{'combo'}, "${input_name}_combo", $value);
 		}
 		else {
-			$combo = GUI_MakeCombo($dbh, $warg->{'combo'}, "combo_$field", $value);
+			$combo = GUI_MakeCombo($dbh, $warg->{'combo'}, "${input_name}_combo", $value);
 			$value = DB_ID2HID($dbh,$warg->{'ref'},$value) if $w eq 'hidcombo';
 		}
 		$out.="<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
