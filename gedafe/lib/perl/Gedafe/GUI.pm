@@ -847,7 +847,7 @@ sub GUI_PostEdit($$$)
 
 	if(defined $q->param('button_cancel')) { return; }
 
-	my $table = $q->url_param('table');
+	my $table = $q->param('post_table');
 
 	## delete
 	if($action eq 'delete') {
@@ -956,6 +956,15 @@ sub GUI_Edit($$$)
 		});
 	}
 	else {
+		# use the referer if specified, so that
+		# the edit page can be used from anywhere
+		if(defined $ENV{HTTP_REFERER}) {
+			$cancel_url = MakeURL($ENV{HTTP_REFERER}, {
+				refresh => NextRefresh
+			});
+		}
+		print STDERR "CANCEL_URL: $cancel_url\n";
+		print STDERR "MY_URL    : ".MyURL($q)."\n";
 		$next_url = $cancel_url;
 	}
 
@@ -965,6 +974,7 @@ sub GUI_Edit($$$)
 	# FORM
 	UniqueFormStart($next_url);
 	print "<INPUT TYPE=\"hidden\" NAME=\"post_action\" VALUE=\"$action\">\n";
+	print "<INPUT TYPE=\"hidden\" NAME=\"post_table\" VALUE=\"$table\">\n";
 
 	# Initialise values
 	my $fields = $g{db_fields}{$table};
