@@ -63,7 +63,7 @@ sub GUI_AppletParam($$);
 sub GUI_CheckFormID($$);
 sub GUI_Delete($$$);
 sub GUI_DeleteLink($$$$);
-sub GUI_DumpTable($$$);
+sub GUI_DumpTable($$);
 sub GUI_Edit($$$);
 sub GUI_EditLink($$$$);
 sub GUI_Edit_Error($$$$$$);
@@ -1689,10 +1689,11 @@ sub GUI_Delete($$$)
 	GUI_Footer(\%template_args);
 }
 
-sub GUI_DumpTable($$$){
+sub GUI_DumpTable($$){
 	my $s = shift;
 	my $q = $s->{cgi};
 	my $dbh = shift;
+
 	my $myurl = MyURL($q);
 	my $table = $q->url_param('table');
 	
