@@ -1712,8 +1712,8 @@ my %DB_Format_functions = (
 	'char_to_timestamp' => 'to_timestamp',
 	'char_to_date'      => 'to_date',
 );
-sub DB_Format($$$) {
-	my ($function,$template,$data) = @_;
+sub DB_Format($$$$) {
+	my ($dbh,$function,$template,$data) = @_;
 	my $f = $DB_Format_functions{$function} or die;
 	my $q = "SELECT $f(?,?)";
 	my $sth = $dbh->prepare_cached($q) or die $dbh->errstr;
