@@ -253,21 +253,33 @@ attributes are defined:
 
 =over 2
 
-=item widget
+=item align
 
-Override Gedafe's automatically selected widget (element in the edit form to
-enter the value of a field). A widget definition is written like this:
+In listings of table content, this field overrides the alignment of
+the column. The contents of this field is put directly in the alignment
+section of the <td> tag. It is therefor good practice to put double
+quotes around left,right and center. e.g.: "LEFT" "RIGHT" "CENTER".
 
- widgetname(param1=val1,param2=val2,...)
-
-If no parameters are specified, then the parens can be omitted. See chapter
-L<EDIT WIDGETS> for a description of all available widgets and the available
-parameters.
-
+When not specified the alignment defaults to "LEFT" unless
+the column type is in [numeric,date,time,timestamp,int4,int8,float8].
+In that case, the alignment is "RIGHT" NOWRAP.
+ 
 =item copy
 
 If set to '1', while adding entries to a table, the data for this
 field will be copied from one form to the next.
+
+=item hide_list
+
+Do not show this field in the list (table) view.
+
+=item markup
+
+If set to '1', the data in this field will be scanned for tokens which
+resemble special web objects (currently implemented: e-mail addresses
+and http URLs).  If found, an additional template variable MARKUP will
+be defined in template element 'td' which contains appropriate HTML
+markup of the web object.
 
 =item sortfunc
 
@@ -280,25 +292,17 @@ as this function must be called for each row of the table. A less
 costly approach during selects is the use of a meta_sort field as
 described above (the penalty there is again in inserts and updates).
 
-=item markup
+=item widget
 
-If set to '1', the data in this field will be scanned for tokens which
-resemble special web objects (currently implemented: e-mail addresses
-and http URLs).  If found, an additional template variable MARKUP will
-be defined in template element 'td' which contains appropriate HTML
-markup of the web object.
+Override Gedafe's automatically selected widget (element in the edit form to
+enter the value of a field). A widget definition is written like this:
 
-=item align
+ widgetname(param1=val1,param2=val2,...)
 
-In listings of table content, this field overrides the alignment of
-the column. The contents of this field is put directly in the alignment
-section of the <td> tag. It is therefor good practice to put double
-quotes around left,right and center. e.g.: "LEFT" "RIGHT" "CENTER".
+If no parameters are specified, then the parens can be omitted. See chapter
+L<EDIT WIDGETS> for a description of all available widgets and the available
+parameters.
 
-When not specified the alignment defaults to "LEFT" unless
-the column type is in [numeric,date,time,timestamp,int4,int8,float8].
-In that case, the alignment is "RIGHT" NOWRAP.
- 
 =back
 
 =head1 EDIT WIDGETS

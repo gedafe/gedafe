@@ -555,6 +555,15 @@ END
 	}
 	$sth->finish;
 
+	# if there is a HID field, then hide the ID field
+	for my $table (keys %$tables) {
+		if(defined $fields{$table}{"${table}_hid"} and
+		   defined $fields{$table}{"${table}_id"})
+	   	{
+			$fields{$table}{"${table}_id"}{hide_list}=1;
+		}
+	}
+
 	# go through every table and field and fill-in:
 	# - table information in reference fields
 	# - meta information from meta_fields
@@ -573,6 +582,7 @@ END
 				$f->{sortfunc}  = $m->{sortfunc};
 				$f->{markup}    = $m->{markup};
 				$f->{align}     = $m->{align};
+				$f->{hide_list} = $m->{hide_list};
 			}
 			#if(! defined $f->{widget}) {
 			$f->{widget} = DB_Widget(\%fields, $f);
@@ -614,11 +624,6 @@ sub DB_GetDefault($$$)
 	my $d = $sth->fetchrow_arrayref();
 	my $default = $d->[0];
 	$sth->finish;
-
-	#if($g{db_fields}{$table}{$field}{ref_hid}) {
-	#	my $ref = $g{db_fields}{$table}{$field}{reference};
-	#	$default = DB_ID2HID($dbh, $ref, $default);
-	#}
 
 	return $default;
 }
@@ -808,11 +813,12 @@ sub DB_FetchList($$)
 	my @columns;
 	for my $f (@{$list{fields}}) {
 		$columns[$col] = {
-			field  => $f,
-			align  => $g{db_fields}{$v}{$f}{type},
-			hidden => $g{db_fields}{$v}{$f}{hidden},
-			markup => $g{db_fields}{$v}{$f}{markup},
-			type   => $g{db_fields}{$v}{$f}{type},
+			field     => $f,
+			desc      => $g{db_fields}{$v}{$f}{desc},
+			align     => $g{db_fields}{$v}{$f}{align},
+			hide_list => $g{db_fields}{$v}{$f}{hide_list},
+			markup    => $g{db_fields}{$v}{$f}{markup},
+			type      => $g{db_fields}{$v}{$f}{type},
 		};
 		$col++;
 	}
@@ -823,10 +829,8 @@ sub DB_FetchList($$)
 		my $col;
 		my @row;
 		for($col=0; $col<=$#$data; $col++) {
-			my $name = $list{fields}[$col];
-			my $type = $g{db_fields}{$v}{$name}{type};
 			push @row, $spec->{export} ? $data->[$col] :
-				DB_DB2HTML($data->[$col], $type);
+				DB_DB2HTML($data->[$col], $columns[$col]{type});
 		}
 
 		push @{$list{data}}, [ $data->[0], \@row ];
