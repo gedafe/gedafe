@@ -131,6 +131,11 @@ COMMENT ON COLUMN product.product_url IS 'WWW-URL';
 INSERT INTO meta_fields VALUES (DEFAULT,'product', 'product_description', 'widget', 'area');
 INSERT INTO meta_fields VALUES (DEFAULT,'product', 'product_url', 'markup', 1);
 
+-- make a counting link to orders from product.
+-- see the showref section of the gedafe manual for details
+INSERT INTO meta_tables VALUES (DEFAULT,'product', 'showref', 'orders');
+
+
 -- combo-box
 DROP VIEW product_combo;
 CREATE VIEW product_combo AS
