@@ -27,6 +27,7 @@ Big features
 - multi-level combos
 - editable views
 - drop naming rule (table_field)
+- implement m:n relations (lists in edit forms)
 
 Internal changes
 ----------------
