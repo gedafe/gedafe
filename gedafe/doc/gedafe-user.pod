@@ -109,6 +109,8 @@ as follows:
  	list_rows      => 15,
  	templates      => '/usr/local/gedafe/templates/demo',
  	documentation_url => 'http://mysite.com/demo-docs',
+	show_row_count => 1,
+    	list_buttons   => 'both',
  );
 
 Gedafe gathers information about the database structure when it is
@@ -151,10 +153,21 @@ application is stored.
 
 =item show_row_count
 
+Options: [0,1] 
 If set, show a count of total records returned by each select, along
 with extra navigation links to skip to first and last pages of result set.
 Since this produces slightly higher database overhead (an added
 SELECT COUNT(*) for every SELECT), it is turned off by default.
+
+=item list_buttons
+
+Options: ['top','bottom','both','none']
+This option acts on the buttons that appear with table or view lists, the
+first,previous,add,next,last buttons.
+Top selects only buttons above the list. 
+Bottom selects only buttons below the list.
+None removes all buttons, but doing so wouldn't make much sense.
+When omitted the default is 'both'.
 
 =back
 

@@ -5,7 +5,7 @@ $Id$
 1. Implementation
 
    [ ] a. selectable widgets (david)
-   [ ] b. select in Start() if list buttons should be up, down or both
+   [x] b. select in Start() if list buttons should be up, down or both
    [ ] c. get rid of the alignment hack in the templates and implement
           a real 'align' meta_fields attribute
 
