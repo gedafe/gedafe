@@ -1222,8 +1222,12 @@ sub GUI_Edit($$$)
 		$template_args{ELEMENT} = 'editfield';
 		$template_args{FIELD} = $field;
 		$template_args{LABEL} = $fields->{$field}{desc};
-		$template_args{INPUT} = $inputelem,
-		$template_args{TWOCOL} = $n%2;
+		$template_args{INPUT} = $inputelem;
+		if ( $g{db_tables}{$table}{meta}{twocols}== 1 ){
+		   $template_args{TWOCOL} = $n%2 ;
+		} else {
+		   $template_args{TWOCOL} = 0;
+		}
 		print Template(\%template_args);
 		$n++;
 	}

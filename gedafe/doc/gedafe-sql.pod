@@ -247,6 +247,18 @@ The link is labeled with the number of referencing records.
 
 Nice hack that should be documented. 
 
+=item twocols
+
+If this attribute is defined, it tells gedafe that wou want a 2 columns
+layout in your data add and edit screens for this table. The value should
+be 1 then.
+Gedafe then hands over an Attribute "TWOCOL" to the template editfield.html
+and toggles its value between 0 or 1 between 2 fields.
+So the template knows if a field is to be positioned left or right in a two
+column layout. The template has to evaluate this Attribute, look after the
+"editfield.html" example template.
+
+
 =back
 
 =head2 The B<meta_fields> table
