@@ -184,6 +184,10 @@ The login screen is transparent to the page accessed: whenever a login is
 needed, the login screen is first presented, after which the requested page is
 shown.
 
+Warning: Gedafe will not work with blank passwords. If you want to do anonymous
+logins, you may put the user in the url (as an additional parameter,
+user=xxx&...) and the password sent to the database will be 'anonymous'.
+
 =head2 Forms and Navigation
 
 The navigation and general use of Gedafe should be straightforward. At the
