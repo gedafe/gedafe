@@ -851,6 +851,7 @@ sub DB_SearchWhere($$)
 		}
 
 		$query .= ' AND ' if $query;
+		$query .= '(';
 		for my $search_elem (@{$line->{parsed}}) {
 			my $op = $search_elem->{op};
 			if(not defined $op) {
@@ -877,6 +878,7 @@ sub DB_SearchWhere($$)
 				}
 			}
 		}
+		$query .= ')';
 	}
 	#print STDERR "## search: $query\n";
 	return $query, \@query_params;
