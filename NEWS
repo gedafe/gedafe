@@ -3,6 +3,18 @@
         =========================================
 
 (arrows indicate actions that you should make when upgrading)
+
+------------------------------------------------------------------
+HEAD    (2004-02-12)
+* Made 2 column edit/add layout configurable
+
+  The meta tables attribute "twocol" is used to control
+  one vs two column layout of a table. documentation included
+	(Johannes)
+  MODIFIED FILES:
+        doc/gedafe-sql.pod example/templates/editfield.html
+        lib/perl/Gedafe/GUI.pm
+
 ------------------------------------------------------------------
 HEAD    (2004-02-11)
   * Add draft documentation to the "showref" attribute in meta_tables.
