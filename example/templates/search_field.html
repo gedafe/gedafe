@@ -1,7 +1,18 @@
-<OPTION ##SEARCHFIELD_SELECTED## VALUE="##SEARCHFIELD_TABLEFIELD##">
-#ifdef SEARCHFIELD_ALL
-  All Columns
-#else
-  ##SEARCHFIELD_DESC##
+<tr><td>
+  <SELECT name="##SEARCH_FIELD_NAME##" SIZE="1">
+  ##SEARCH_FIELD_OPTIONS##
+  </SELECT>
+</td><td>
+  <INPUT TYPE="text" NAME="##SEARCH_VALUE_NAME##" VALUE="##SEARCH_VALUE_VALUE##" onKeyPress="return noenter()" >
+</td>
+#ifdef SEARCH_CLEAR_URL
+<td>
+  <a href="##SEARCH_CLEAR_URL##"><IMG SRC="images/delete.gif" ALT="Clear" BORDER="0"></a>
+</td>
 #endif
-</OPTION>
+#ifdef SEARCH_BUTTON
+<td>
+  <INPUT TYPE="submit" NAME="search_button" VALUE="Search">
+</td>
+#endif
+<tr>
