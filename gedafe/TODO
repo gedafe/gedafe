@@ -1,0 +1,22 @@
+Bugs
+----
+- acls not correct for groups?
+
+Small features
+--------------
+- add a widget for referencing fields where only
+  the combo-box is wanted
+- url in templates
+- add the align attribute in meta_fields ?
+- improve README (put what additional software is needed)
+- TUTORIAL ?
+- case-insensitive search
+
+Big features
+------------
+- integrate PearlReports
+  - export to CSV (excel)
+- multi-language
+- rewrite Text::CPPTemplate
+- make nicer templates
+- multi-level combos
