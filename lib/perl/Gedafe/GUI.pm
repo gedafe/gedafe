@@ -317,13 +317,13 @@ sub GUI_Entry_Header($$)
         if ( not defined $actualschema){ # We do not have Schemas
             @schemalist =  (); # Show a empty schema list in the header
         } else {		     # We do have Schemas
-            @schemalist    = keys %{$g{tables_per_schema}};
+            @schemalist    = sort keys %{$g{tables_per_schema}};
             @schemalist =  () if scalar @schemalist == 1;
         }
 
         foreach my $sch ( @schemalist ) {
 		$args->{TABLE_TABLE}=$sch;
-		$args->{TABLE_DESC}= $sch;
+		$args->{TABLE_DESC} = "\u${sch}" ; 
 		$args->{TABLE_URL}=MakeURL($args->{REFRESH_ENTRY_URL}, {
 				table => '',
 				action => '',
