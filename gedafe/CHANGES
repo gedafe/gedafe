@@ -1,3 +1,7 @@
+2001-03-05
+----------
+* remove references to admin_user in start script, since it is not anymore used
+
 2001-02-20
 ----------
 * released 1.0.1

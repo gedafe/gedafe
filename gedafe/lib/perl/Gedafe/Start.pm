@@ -46,7 +46,6 @@ sub Start(%)
 		# defaults
 		$g{conf} = {
 			list_rows  => 10,
-			admin_user => 'admin',
 			tickets_socket => '/tmp/.gedafed.sock',
 		};
 

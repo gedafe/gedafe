@@ -107,7 +107,6 @@ as follows:
  Start(
  	db_datasource  => 'dbi:Pg:dbname=demo',
  	list_rows      => 15,
- 	admin_user     => 'admin',
  	templates      => '/usr/local/gedafe/templates/demo',
  	documentation_url => 'http://mysite.com/demo-docs',
  );
@@ -139,12 +138,6 @@ DBI data-source string specifying the database.
 =item list_rows
 
 Default number of rows to show.
-
-=item admin_user
-
-Name of the administrator user. A tag is passed to the html templates
-when the logged in user matches this username. This tag can, for
-example, be used to change the background color.
 
 =item templates
 
