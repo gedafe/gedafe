@@ -29,6 +29,10 @@ require Exporter;
 	DB_ParseWidget
 	DB_ID2HID
 	DB_HID2ID
+	DB_GetBlobType
+	DB_GetBlobName
+	DB_DumpBlob
+	DB_RawField
 );
 
 sub DB_ReadDatabase($);
@@ -48,6 +52,7 @@ my %type_widget_map = (
 	'text'      => 'text',
 	'name'      => 'text(size=20)',
 	'bool'      => 'checkbox',
+	'bytea'     => 'file',
 );
 
 sub DB_Init($$)
@@ -598,6 +603,7 @@ sub DB_GetNumRecords($$)
 }
 
 sub DB_FetchListSelect($$) {
+
 	my $dbh = shift;
 	my $spec = shift;
 	my $v = $spec->{view};
@@ -608,9 +614,17 @@ sub DB_FetchListSelect($$) {
 	}
 
 	my @fields = @{$g{db_fields_list}{$v}};
+	# update the query to prevent listing binary data
+	my @select_list = @fields;
+	for(@select_list){
+	    if($g{db_fields}{$v}{$_}{type} eq 'bytea'){
+		$_ = "substring($_,1,position(' '::bytea in $_)-1)";
+	    }
+	}
+
 
 	my $query = "SELECT ";
-	$query .= $spec->{countrows} ? "COUNT(*)" : join(', ',@fields);
+	$query .= $spec->{countrows} ? "COUNT(*)" : join(', ',@select_list);
 	$query .= " FROM $v";
 	my $searching=0;
 	if(defined $spec->{search_field} and defined $spec->{search_value}
@@ -684,11 +698,13 @@ sub DB_FetchList($$)
 	# fetch one row more than necessary, so that we
 	# can find out when we are at the end (skip if DB_GetNumRecords)
 	$spec->{limit}++ unless $spec->{countrows};
+	
 
 	my %list = (
 		spec => $spec,
 		acl  => $acl,
 		data => [],
+		
 	);
 	my $sth;
 	($list{fields}, $sth) = DB_FetchListSelect($dbh, $spec);
@@ -699,7 +715,13 @@ sub DB_FetchList($$)
 		$sth->finish or die $sth->errstr;
 		return $data->[0];
 	}
-
+	
+	my %typelist=();
+	for(@{$list{fields}}){
+	    $typelist{$_} = $g{db_fields}{$v}{$_}{type};
+	}
+	$list{type}=\%typelist;
+	
 	while(my $data = $sth->fetchrow_arrayref()) {
 		my $col;
 		my @row;
@@ -707,6 +729,7 @@ sub DB_FetchList($$)
 			my $name = $list{fields}[$col];
 			my $type = $g{db_fields}{$v}{$name}{type};
 			push @row, DB_DB2HTML($data->[$col], $type);
+			
 		}
 
 		my $id = $data->[0] if $can_edit;
@@ -737,11 +760,18 @@ sub DB_GetRecord($$$$)
 	my $record = shift;
 
 	my @fields_list = @{$g{db_fields_list}{$table}};
+	#update the query to prevent listing binary data
+	my @select_list = @fields_list;
+	for(@select_list){
+	    if($g{db_fields}{$table}{$_}{type} eq 'bytea'){
+		$_ = "substring($_,1,position(' '::bytea in $_)-1)";
+	    }
+	}
 
 	# fetch raw data
 	my $data;
 	my $query = "SELECT ";
-	$query .= join(', ', @{$g{db_fields_list}{$table}});
+	$query .= join(', ',@select_list); # @{$g{db_fields_list}{$table}});
 	$query .= " FROM $table WHERE ${table}_id = $id";
 	my $sth;
 	$sth = $dbh->prepare_cached($query) or die $dbh->errstr;
@@ -875,6 +905,58 @@ sub DB_Record2DB($$$$)
 	}
 }
 
+sub DB_ExecQuery($$$$$){
+    my $dbh = shift;
+    my $table = shift;
+    my $query = shift;
+    my $data = shift;
+    my $fields = shift;
+
+    my @stringtypes = qw(date
+			 time
+			 timestamp
+			 int4
+			 int8
+			 numeric
+			 float8
+			 bpchar
+			 text
+			 name
+			 bool);
+    my @binarytypes = ('bytea');
+
+
+
+    my %datatypes = ();
+    for(@$fields){
+	$datatypes{$_} = $g{db_fields}{$table}{$_}{type};
+    }
+
+    print "<!-- Executing: $query -->\n";
+
+    my $sth = $dbh->prepare($query) or die $dbh->errstr;
+    
+    my $paramnumber = 1;
+    for(@$fields){
+	my $type = $datatypes{$_};
+	my $data = $data->{$_};
+	if(grep (/^$type$/,@stringtypes)){
+	    $sth->bind_param($paramnumber,$data);
+	}
+	if(grep (/^$type$/,@binarytypes)){
+	    #note the reference to the large blob
+	    $sth->bind_param($paramnumber,$$data,DBI::SQL_BINARY);
+	}
+	$paramnumber++;
+    }
+    my $res = $sth->execute() or do {
+	# report nicely the error
+	$g{db_error}=$sth->errstr; return undef;
+    };
+    $res == 1 or die "Number of rows affected is not 1! ($res)";
+    return 1;
+}
+
 sub DB_AddRecord($$$)
 {
 	my $dbh = shift;
@@ -894,31 +976,18 @@ sub DB_AddRecord($$$)
 	$query   .= join(', ',@fields_list);
 	$query   .= ") VALUES (";
 	my $first = 1;
-	for(@dbdata{@fields_list}) {
+	for(@fields_list) {
 		if($first) {
 			$first = 0;
 		}
 		else {
 			$query .= ', ';
 		}
-		if(defined $_) {
-			$query .= "'$_'";
-		}
-		else {
-			$query .= "NULL";
-		}
+		$query .= '?'
 	}
 	$query   .= ")";
+        return DB_ExecQuery($dbh,$table,$query,\%dbdata,\@fields_list);
 
-	print "<!-- Executing: $query -->\n";
-	my $sth = $dbh->prepare($query) or die $dbh->errstr;
-	my $res = $sth->execute() or do {
-		# report nicely the error
-		$g{db_error}=$sth->errstr; return undef;
-	};
-	$res == 1 or die "Number of rows affected is not 1! ($res)";
-
-	return 1;
 }
 
 sub DB_UpdateRecord($$$)
@@ -938,28 +1007,17 @@ sub DB_UpdateRecord($$$)
 
 	my @updates;
 	my $query = "UPDATE $table SET ";
+	my @updatefields;
 	for(@fields_list) {
 		if($_ eq "id") { next; }
 		if($_ eq "${table}_id") { next; }
-		if(defined $dbdata{$_}) {
-			push @updates, "$_ = '$dbdata{$_}'";
-		}
-		else {
-			push @updates, "$_ = NULL";
-		}
+		push @updates,"$_ = ?";
+		push @updatefields,$_;
 	}
 	$query .= join(', ',@updates);
 	$query .= " WHERE ${table}_id = $record->{id}";
 
-	print "<!-- Executing: $query -->\n";
-	my $sth = $dbh->prepare($query) or die $dbh->errstr;
-	my $res = $sth->execute() or do {
-		# report nicely the error
-		$g{db_error}=$sth->errstr; return undef;
-	};
-	$res == 1 or die "Number of rows affected is not 1! ($res)";
-
-	return 1;
+        return DB_ExecQuery($dbh,$table,$query,\%dbdata,\@updatefields);
 }
 
 sub DB_GetCombo($$$)
@@ -1006,5 +1064,72 @@ sub DB_DeleteRecord($$$)
 
 	return 1;
 }
+
+
+sub DB_GetBlobName($$$$){
+        my $dbh = shift;
+	my $table = shift;
+	my $field = shift;
+	my $id = shift;
+
+	my $query = "Select substring($field,1,position(' '::bytea in $field)-1) from $table where ${table}_id=$id";
+	my $sth = $dbh->prepare($query);
+	$sth->execute() or return undef;
+	my $data = $sth->fetchrow_arrayref() or return undef;
+      	return $data->[0];
+}
+
+sub DB_GetBlobType($$$$){
+        my $dbh = shift;
+	my $table = shift;
+	my $field = shift;
+	my $id = shift;
+
+	my $query = "Select substring($field,position(' '::bytea in $field)+1,position('#'::bytea in $field)-(position(' '::bytea in $field)+1)) from $table where ${table}_id=$id";
+	my $sth = $dbh->prepare($query);
+	$sth->execute() or return undef;
+	my $data = $sth->fetchrow_arrayref() or return undef;
+      	return $data->[0];
+}
+
+sub DB_DumpBlob($$$$){
+        my $dbh = shift;
+	my $table = shift;
+	my $field = shift;
+	my $id = shift;
+
+	my $query = "Select position('#'::bytea in $field)+1,octet_length($field) from $table where ${table}_id=$id";
+	my $sth = $dbh->prepare($query);
+	$sth->execute() or return -1;
+	my $data = $sth->fetchrow_arrayref() or return -1;
+      	my $startpos = $data->[0] || 0;
+      	my $strlength = $data->[1] || 0;
+	$sth->finish();
+	my $endpos = $strlength-($startpos-1);
+	my $dumpquery = "Select substring($field,?,?) from $table where ${table}_id=$id";
+	my $dumpsth = $dbh->prepare($dumpquery);
+	my $blobdata;
+	$dumpsth->execute($startpos,$endpos) or return -1;
+	$blobdata = $dumpsth->fetchrow_arrayref() or return -1;
+	  # I know it is not nice to do the print here but I don't want to make the memory footprint
+	  # to large so returning the blob to a GUI routine is not possible.
+	print $blobdata->[0];
+	return 1;
+}
+
+sub DB_RawField($$$$){
+        my $dbh = shift;
+	my $table = shift;
+	my $field = shift;
+	my $id = shift;
+
+	my $query = "Select $field from $table where ${table}_id = $id";
+	# print STDERR $query."\n";
+	my $sth = $dbh->prepare($query);
+	$sth->execute() or return undef;
+	my $data = $sth->fetchrow_arrayref() or return undef;
+      	return $data->[0];
+}
+
 
 1;
