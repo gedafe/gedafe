@@ -329,7 +329,7 @@ F<gedafe-sql.pod>, F<gedafe-templates.txt>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000 ETH Zurich, All rights reserved.
+Copyright (c) 2000,2001 ETH Zurich, All rights reserved.
 
 =head1 LICENSE
 

@@ -282,7 +282,7 @@ Example:
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000 ISG / D-ELEK / ETH Zurich, All rights reserved.
+Copyright (c) 2000,2001 ISG / D-ELEK / ETH Zurich, All rights reserved.
 
 =head1 LICENSE
 
