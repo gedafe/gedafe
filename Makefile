@@ -9,11 +9,15 @@ VERSION = $(MAJOR).$(MINOR).$(MMINOR)
 
 TAR = gedafe-$(VERSION).tar.gz
 
-dist:   doc/gedafe-sql.txt doc/gedafe-user.txt
+release: release-tag
+	doc/gedafe-sql.txt doc/gedafe-user.txt
 	shtool mkdir -p gedafe-$(VERSION)
 	gtar -T MANIFEST -cf - | (cd gedafe-$(VERSION) && gtar xf -)
 	gtar --mode=g-s -czvf pub/$(TAR) gedafe-$(VERSION)
 	rm -rf gedafe-$(VERSION)
+	
+release-tag:
+	cvs tag -F v$(MAJOR)_$(MINOR)_$(MMINOR)
 
 .pod.txt:
 	pod2man --release=$(VERSION) --center=gedafe $<  >pod2txt.tmp
