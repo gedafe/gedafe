@@ -16,6 +16,7 @@ use Gedafe::DB qw(
 	DB_DeleteRecord
 	DB_GetDefault
 	DB_ID2HID
+	DB_HID2ID
 );
 use Gedafe::Util qw(
 	ConnectToTicketsDaemon
@@ -832,6 +833,32 @@ sub GUI_Str2Hash($)
 	return \%hash;
 }
 
+sub GUI_WidgetRead($$)
+{
+	my $s = shift;
+	my $q = $s->{cgi};
+	my $dbh = $s->{dbh};
+	my $f = shift;
+	my $field = $f->{field};
+	my $w = $f->{widget_type};
+
+	my $value = $q->param("field_$field");
+
+	if($w eq 'hid' or $w eq 'hidcombo') {
+		if(defined $value and $value !~ /^\s*$/) {
+			$value=DB_HID2ID($dbh,$f->{widget_args}{'ref'},$value);
+		}
+	}
+
+	if($w eq 'idcombo' or $w eq 'hidcombo') {
+		return $value if defined $value and $value !~ /^\s*$/;
+		$value = $q->param("combo_$field");
+		defined $value or die "combo_$field not defined";
+	}
+
+	return $value;
+}
+
 sub GUI_PostEdit($$$)
 {
 	my $s = shift;
@@ -868,23 +895,10 @@ sub GUI_PostEdit($$$)
 	}
 
 
-	## add or edit:
-	my %record;
-	foreach($q->param) {
-		if(/^field_(.*)/) {
-			$record{$1} = $q->param($_);
-		}
-	}
-
-	# combo
-	my $p;
-	foreach $p ($q->param) {
-		if($p =~ /^combo_(.*)/) {
-			my $f = $1;
-			if((not defined $record{$f}) or ($record{$f} =~ /^\s*$/)) {
-				$record{$f} = $q->param($p);
-			}
-		}
+	# add or edit: widget processing
+	my %record = ();
+	for my $field (@{$g{db_fields_list}{$table}}) {
+		$record{$field} = GUI_WidgetRead($s,$g{db_fields}{$table}{$field});
 	}
 
 	if($action eq 'add') {
@@ -1002,7 +1016,7 @@ sub GUI_Edit($$$)
 		if($field eq "${table}_id") { next; }
 
 		my $value = exists $values->{$field} ? $values->{$field} : '';
-		my $inputelem = GUI_WidgetCreate($dbh,$table,$field,$value);
+		my $inputelem = GUI_WidgetWrite($dbh,$table,$field,$value);
 
 		$template_args{ELEMENT} = 'editfield';
 		$template_args{FIELD} = $field;
@@ -1040,9 +1054,9 @@ sub GUI_MakeCombo($$$$$)
 
 	my $str;
 
-	my $meta = $g{db_fields}{$table}{$field};
+	my $f = $g{db_fields}{$table}{$field};
 	my @combo;
-	if(not defined DB_GetCombo($dbh,$meta->{reference},\@combo)) {
+	if(not defined DB_GetCombo($dbh,$f->{reference},\@combo)) {
 		return undef;
 	}
 	$str = "<SELECT SIZE=\"1\" name=\"$name\">\n";
@@ -1063,14 +1077,14 @@ sub GUI_MakeCombo($$$$$)
 	$str .= "</SELECT>\n";
 }
 
-sub GUI_WidgetCreate($$$$)
+sub GUI_WidgetWrite($$$$)
 {
 	my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
 	my $value = shift;
 
-	my $meta = $g{db_fields}{$table}{$field};
+	my $f = $g{db_fields}{$table}{$field};
 
 	# get default from DB
 	if(not defined $value or $value eq '') {
@@ -1080,60 +1094,47 @@ sub GUI_WidgetCreate($$$$)
 		}
 	}
 
-	$meta->{widget} =~ /^(\w+)(\((.*)\))?$/;
-	my ($widget, $warg) = ($1, $3);
-	my %warg;
-	if(defined $warg) {
-		for my $w (split('\s*,\s*',$warg)) {
-			$w =~ s/^\s+//;
-			$w =~ s/\s+$//;
-			$w =~ /^(\w+)\s*=\s*(.*)$/ or die "syntax error in $widget-widget argument: $w";
-			$warg{$1}=$2;
-		}
-	}
-	else {
-		%warg = ();
-	}
+	my ($w, $warg) = ($f->{widget_type}, $f->{widget_args});
 
-
-	if($widget eq 'readonly') {
+	if($w eq 'readonly') {
 		return $value || '&nbsp;';
 	}
-	if($widget eq 'text') {
-		my $size = defined $warg{size} ? $warg{size} : '20';
+	if($w eq 'text') {
+		my $size = defined $warg->{size} ? $warg->{size} : '20';
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"$size\" VALUE=\"".$value."\">";
 	}
-	if($widget eq 'area') {
-		my $rows = defined $warg{rows} ? $warg{rows} : '4';
-		my $cols = defined $warg{cols} ? $warg{cols} : '60';
+	if($w eq 'area') {
+		my $rows = defined $warg->{rows} ? $warg->{rows} : '4';
+		my $cols = defined $warg->{cols} ? $warg->{cols} : '60';
 		return "<TEXTAREA NAME=\"field_$field\" ROWS=\"$rows\" COLS=\"$cols\" WRAP=\"virtual\">".$value."</TEXTAREA>";
 	}
-        if($widget eq 'varchar') {
-		my $size = defined $warg{size} ? $warg{size} : '20';
-		my $maxlength = defined $warg{maxlength} ? $warg{maxlength} : '100';
+        if($w eq 'varchar') {
+		my $size = defined $warg->{size} ? $warg->{size} : '20';
+		my $maxlength = defined $warg->{maxlength} ? $warg->{maxlength} : '100';
                 return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"$size\" MAXLENGTH=\"$maxlength\" VALUE=\"$value\">";
         }
-	if($widget eq 'checkbox') {
-		if($value) {
-			return "<INPUT TYPE=\"checkbox\" NAME=\"field_$field\" VALUE=\"1\" CHECKED>";
-		}
-		else {
-			return "<INPUT TYPE=\"checkbox\" NAME=\"field_$field\" VALUE=\"1\">";
-		}
+	if($w eq 'checkbox') {
+		return "<INPUT TYPE=\"checkbox\" NAME=\"field_$field\" VALUE=\"1\"".($value ? 'CHECKED' : '').">";
 	}
-	if($widget eq 'hid') {
+	if($w eq 'hid') {
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
 	}
-	if($widget eq 'idcombo' or $widget eq 'hidcombo') {
+	if($w eq 'idcombo' or $w eq 'hidcombo') {
 		my $out;
-		# FIXME: search for that ID, if found, use the combo, if not,
-		# use the text.
-		$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=\"$value\">";
-		$out .= GUI_MakeCombo($dbh, $table, $field, "combo_$field", $value);
+		my $combo = GUI_MakeCombo($dbh, $table, $field, "combo_$field", $value);
+		if($w eq 'hidcombo') {
+			# replace value with HID if 'hidcombo'
+			$value = DB_ID2HID($dbh,$warg->{'ref'},$value);
+		}
+		$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10";
+		if($combo !~ /SELECTED/) {
+			$out .= " VALUE=\"$value\"";
+		}
+		$out .= ">\n$combo";
 		return $out;
 	}
 
-	return "Unknown widget: $widget";
+	return "Unknown widget: $w";
 }
 
 sub GUI_Delete($$$)
