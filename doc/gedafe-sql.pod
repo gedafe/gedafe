@@ -63,7 +63,11 @@ Example:
    customer_age INT,
    customer_address TEXT);
 
-
+The reason we are requiering unique nonspeaking ids is twofold. First it is
+good design practice to use nonspeaking keys and second, we need some way to
+uniquely identified each database record. In any event, if you need speaking
+keys, just use a *_hid on top of the *_id, and you are all set.
+ 
 =head2 Table and Field Naming
 
 For the benefit of a friendly presentation, each field and table in
