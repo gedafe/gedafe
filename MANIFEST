@@ -3,7 +3,7 @@ CHANGES
 COPYING
 README
 TODO
-UPGRADE
+NEWS
 bin/daemon-ctl
 bin/gedafed
 bin/gedafed-ctl
