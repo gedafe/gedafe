@@ -51,10 +51,14 @@ sub Die($) {
 		$t{ELEMENT}='header2';
 		print Template(\%t);
 	}
-#	else {
-#		$t{ELEMENT}='errorseparator';
-#		print Template(\%t);
-#	}
+
+	if($s->{in_form}) {
+		print "\n</FORM>\n";
+	}
+
+	if($s->{in_table}) {
+		print Template({ ELEMENT => 'xtable' });
+	}
 
 	$t{ELEMENT}  ='error';
 	$t{ERROR}    = $error_text ? $error_text : '(unknown)';
@@ -64,7 +68,7 @@ sub Die($) {
 	$t{ELEMENT}='footer';
 	print Template(\%t);
 
-	die $error_text;
+	die "GEDAFE ERROR: $error_text";
 }
 
 sub ConnectToTicketsDaemon($) {
@@ -166,10 +170,13 @@ sub DropUnique($$)
 	return 1;
 }
 
-sub UniqueFormStart($)
+sub UniqueFormStart($$)
 {
+	my $s = shift;
 	my $action = shift;
 	print "<FORM ACTION=\"$action\" METHOD=\"POST\">\n";
+
+	$s->{in_form}=1;
 }
 
 sub UniqueFormEnd($$;$)
@@ -184,6 +191,8 @@ sub UniqueFormEnd($$;$)
 	print "<INPUT TYPE=\"hidden\" NAME=\"form_url\" VALUE=\"$form_url\">\n";
 	print "<INPUT TYPE=\"hidden\" NAME=\"next_url\" VALUE=\"$next_url\">\n";
 	print "</FORM>\n";
+
+	delete $s->{in_form};
 }
 
 sub rand_ascii_32
