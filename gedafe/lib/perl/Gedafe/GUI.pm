@@ -796,7 +796,7 @@ sub GUI_ListRep($$$)
 # of '%'.
 sub GUI_URL_Encode($)
 {
-	my @encode_chars = ('&', '+', '>', '<', ' ', '%', '!', '/', '?', ';', "\n", "\r", ':', ',');
+	my @encode_chars = ('&', '+', '>', '<', ' ', '%', '!', '/', '?', ';', "\n", "\r", ':', ',', '"', "'");
 	my $str = shift;
 	my $enc = '';
 	my $c;
