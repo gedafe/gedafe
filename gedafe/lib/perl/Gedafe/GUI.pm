@@ -750,8 +750,8 @@ sub GUI_Search($$$){
 		if($_->{field} =~ /^meta_rc_(.*)_(.*)$/){
 			$template_args->{REFERENCED_SEARCH} = 1;
 			$template_args->{SEARCHFIELD_FIELD} = $name;
-			$template_args->{SEARCHFIELD_FROM} = $2;
-			$template_args->{SEARCHFIELD_TO} = $3;
+			$template_args->{SEARCHFIELD_FROM} = $1;
+			$template_args->{SEARCHFIELD_TO} = $2;
 		}
 		$template_args->{ELEMENT} = 'fieldshead';
 		$template_args->{SEARCHFIELD_NAME} = $name;
