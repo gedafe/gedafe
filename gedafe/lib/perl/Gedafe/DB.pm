@@ -708,6 +708,7 @@ END
 				$f->{markup}	= $m->{markup};
 				$f->{align}	 = $m->{align};
 				$f->{hide_list} = $m->{hide_list};
+				$f->{ordered} = $m->{ordered};
 			}
 			#if(! defined $f->{widget}) {
 			$f->{widget} = DB_Widget(\%fields, $f);
@@ -777,6 +778,7 @@ END
 			$fields{$table}{$meta_mnfield}{align} = $vm->{align};
 			$fields{$table}{$meta_mnfield}{widget} = $vm->{widget};
 			$fields{$table}{$meta_mnfield}{hide_list} = $vm->{hidelist};
+			$fields{$table}{$meta_mnfield}{ordered} = $vm->{ordered};
 		}   
 		
 		defined $fields{$table}{$meta_mnfield}{widget} or  
@@ -1347,18 +1349,25 @@ sub DB_AddRecord($$$)
 	
 	my $ID = _DB_GetID($dbh,$table,$oid);
 	if (defined $ID){
-		if (@mnfields_list and $result){
+		if (scalar(@mnfields_list) ne 0 and $result){
 			for my $vfield (@mnfields_list){       
         			my $mntable = $g{db_fields}{$table}{$vfield}{reference};
 				#first field in mntable
 				my $mntable_first = $g{db_mnfields}{$table}{$vfield}{mnfirstref_name};
                 		@fields_list = @{$g{db_fields_list}{$mntable}};
 				@fields_list = grep !/${mntable}_id/, @fields_list;
+				
+				if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
+					@fields_list = grep !/${mntable}_order/, @fields_list;
+					push @fields_list, "${mntable}_order";
+				}
+
 				my $fname = "field_".$vfield;
               
 				my @mntable_fields = $g{s}{cgi}->param($fname);
-                		
-				if (@mntable_fields){
+                		if (scalar(@mntable_fields) ne 0){
+					my $order = scalar(@mntable_fields);
+						
 					for my $val (@mntable_fields){
 						my @mntable_row;
 						if ( $mntable_first eq $table ){
@@ -1368,7 +1377,12 @@ sub DB_AddRecord($$$)
 							push @mntable_row, $val;
 							push @mntable_row, $ID;
 						}
+						if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
+							push @mntable_row, $order--;
+						}
+						print STDERR ($query);
 						$query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
+						
 						DB_ExecQueryMN($dbh,$mntable,$query,\@fields_list);
 					}
 				}
@@ -1414,9 +1428,8 @@ sub DB_UpdateRecord($$$)
     
 	my $result = DB_ExecQuery($dbh,$table,$query,\%dbdata,\@updatefields);
 	my $ID =  $record->{id};
-    
-	if ($result and @mnfields_list) {$result = _DB_UpdateMN($dbh,$table,\@fields_list,\@mnfields_list,$ID)};
-	
+        
+	if (defined $result and scalar(@mnfields_list) ne 0) {$result = _DB_UpdateMN($dbh,$table,\@fields_list,\@mnfields_list,$ID)};
 	return $result;
 }
 
@@ -1804,13 +1817,15 @@ sub DB_GetMNCombo($$$$$)
 			};
 			$query .= "WHERE   $aid = $mncombo_filter AND ";
 			$query .= "		$mncombo_aid = $aid AND ";
-			$query .= "		$bid = $mncombo_bid)";
-		}
-		if(defined $g{db_tables}{$combo_view}{meta_sort}) {
-			$query .= " ORDER BY meta_sort";
-		}elsif ($op eq ' not in ') {
-			$query .= " ORDER BY text";
-		}
+			$query .= "		$bid = $mncombo_bid ";
+			if ($g{db_fields}{$table}{$vfield}{ordered} eq '1'){
+				$query .= " ORDER BY ".$mncombo_reference."_order DESC";
+			};
+			$query .= ")";
+		
+		};
+		
+		
 		my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
 		$sth->execute() or die $sth->errstr;
 		my $data;
@@ -1831,7 +1846,6 @@ sub DB_ExecQueryMN($$$$)
 	my $table = shift;
 	my $query = shift;
 	my $fields = shift;
-	
 	my $sth = $dbh->prepare($query) or die $dbh->errstr;
 	my $res = $sth->execute() or do {
 		# report nicely the error
@@ -1911,17 +1925,22 @@ sub _DB_UpdateMN($$$){
 	my @mnfields_list =  @$mnfields_listref;
 	
 	my $query;
-	my $result;
-		
+	my $result = 1;
+	
+	print STDERR Dumper(\@mnfields_list);
+	
 	for my $vfield (@mnfields_list){ 
 		my $mntable = $g{db_fields}{$table}{$vfield}{reference};
 		my $mntable_first = $g{db_mnfields}{$table}{$vfield}{mnfirstref_name};
 				@fields_list = @{$g{db_fields_list}{$mntable}};
 		@fields_list = grep !/${mntable}_id/, @fields_list;
+		@fields_list = grep !/${mntable}_order/, @fields_list;
+		
 		my $fname = "field_".$vfield;
+		
 		#new list         
 		my @mntable_fields = $g{s}{cgi}->param($fname);
-             	if (@mntable_fields){
+		if ( scalar(@mntable_fields) ne 0 ){
 			#old list
 			my $mncombo_firstfield = $g{db_mnfields}{$table}{$vfield}{mnfirstfield_name};
 			my $mncombo_secondfield = $g{db_mnfields}{$table}{$vfield}{mnsecondfield_name};
@@ -1930,21 +1949,9 @@ sub _DB_UpdateMN($$$){
 			my $mntable_fields_delete = _DB_Difference($mntable_fields_old, \@mntable_fields);
 			#add list
 			my $mntable_fields_add = _DB_Difference(\@mntable_fields, $mntable_fields_old);
-			if (@$mntable_fields_add){
-				for my $val (@$mntable_fields_add){
-					my @mntable_row = ();
-					if ( $mntable_first eq $table ){
-						push @mntable_row, $ID;
-						push @mntable_row, $val;
-					}else {
-						push @mntable_row, $val;
-						push @mntable_row, $ID;
-					}
-					$query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
-					$result = DB_ExecQueryMN($dbh,$mntable,$query,\@fields_list);
-				}
-			}
-			if (@$mntable_fields_delete){
+			#update order
+			
+			if (scalar(@$mntable_fields_delete) ne 0){
 				for my $val (@$mntable_fields_delete){
 					my @mntable_row = ();
 					if ( $mntable_first eq $table ){
@@ -1955,6 +1962,52 @@ sub _DB_UpdateMN($$$){
 						push @mntable_row, $ID;
 					}
 					$query = _DB_DeleteMN($mntable, \@fields_list,\@mntable_row);
+					$result = DB_ExecQueryMN($dbh,$mntable,$query,\@fields_list);
+				}
+			}
+			if ( scalar(@$mntable_fields_add) ne 0){
+				if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
+					push @fields_list, "${mntable}_order";
+				};
+				my $order = scalar(@mntable_fields);
+				
+				for my $val (@$mntable_fields_add){
+					my @mntable_row = ();
+					if ( $mntable_first eq $table ){
+						push @mntable_row, $ID;
+						push @mntable_row, $val;
+					}else {
+						push @mntable_row, $val;
+						push @mntable_row, $ID;
+					}
+					if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
+							push @mntable_row, $order--;
+					}
+					
+					$query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
+					print STDERR ("Update $query \n");
+					$result = DB_ExecQueryMN($dbh,$mntable,$query,\@fields_list);
+				}
+			}
+			if ( scalar(@mntable_fields) ne 0 and $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
+				@fields_list = grep !/${mntable}_order/, @fields_list;
+				push @fields_list, "${mntable}_order";
+				
+				my $order = 1;#scalar(@mntable_fields);
+				
+				for my $val (@mntable_fields){
+					my @mntable_row = ();
+					if ( $mntable_first eq $table ){
+						push @mntable_row, $ID;
+						push @mntable_row, $val;
+					}else {
+						push @mntable_row, $val;
+						push @mntable_row, $ID;
+					}
+					push @mntable_row, $order++;
+					
+					$query = _DB_UpdateOrderMN($mntable, \@fields_list,\@mntable_row);
+					print STDERR ("UPDATE ORDER $query\n");
 					$result = DB_ExecQueryMN($dbh,$mntable,$query,\@fields_list);
 				}
 			}
@@ -2005,6 +2058,20 @@ sub _DB_DeleteMN($$$){
 	my $query = "DELETE FROM $table WHERE ";
 	
 	for (my $i = @$fields_list - 1; $i > 0; $i--){
+		$query.= "@$fields_list[$i] = @$values[$i] AND "; 
+	}
+	
+	$query.= "@$fields_list[0] = @$values[0]";
+	return $query;
+};
+
+sub _DB_UpdateOrderMN($$$){
+	my $table = shift;
+	my $fields_list = shift;
+	my $values = shift;
+	my $query = "UPDATE $table SET @$fields_list[2] = @$values[2] WHERE ";
+	
+	for (my $i = 1; $i > 0; $i--){
 		$query.= "@$fields_list[$i] = @$values[$i] AND "; 
 	}
 	
@@ -2073,6 +2140,7 @@ sub DB_ExecQueryOID($$$$$)
 		}
 		$paramnumber++;
 	}
+	print STDERR ("DB_ExecQueryOID \n");
 	my $res = $sth->execute() or do {
 		# report nicely the error
 		$g{db_error}=$sth->errstr; return undef;
