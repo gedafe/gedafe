@@ -1,6 +1,12 @@
 
         News and upgrading information for Gedafe
         =========================================
+HEAD	(2003-12-12)
+------------------------------------------------------------------------------
+  * offer a button to copy a record "as new" i.e. "clone" a record. 	
+    Change template td_edit.html, GUI.pm, add th_clone.html and
+    "clone.gif" Button (johannes)
+
 HEAD	(2003-12-2)
 ------------------------------------------------------------------------------
   * Support for user plugin widgets as per Widgets.pm

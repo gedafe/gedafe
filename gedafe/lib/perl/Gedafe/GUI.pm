@@ -155,6 +155,7 @@ sub GUI_InitTemplateArgs($$)
 	my $stripped_url = MakeURL($s->{url}, {
 				filterfirst_button => '',
 				search_button => '',
+                                copyfromid   => '',
 			});
 	$args->{BOOKMARK_URL}=MakeURL($stripped_url, {
 				refresh => '',
@@ -514,6 +515,21 @@ sub GUI_EditLink($$$$)
 	delete $template_args->{EDIT_URL};
 }
 
+sub GUI_AddFromLink($$$$)
+{
+        my ($s, $template_args, $list, $row) = @_;
+        my $add_url;
+        $add_url = MakeURL($s->{url}, {
+                action=>'add',
+                copyfromid=>$row->[0],
+                refresh=>NextRefresh,
+        });
+        $template_args->{ELEMENT}='td_edit';
+        $template_args->{CLONE_URL}=$add_url;
+        print Template($template_args);
+        delete $template_args->{CLONE_URL};
+}
+
 sub GUI_DeleteLink($$$$)
 {
 	my ($s, $template_args, $list, $row) = @_;
@@ -535,6 +551,7 @@ sub GUI_ListTable($$$)
 
 	# user can edit only if they have sql UPDATE privilege, and
 	# this table is a real table, not a report (view)
+	my $can_add = ($list->{acl} =~ /a/);
 	my $can_edit = ($list->{acl} =~ /w/ and !$list->{is_report});
 	my $can_delete = $can_edit;
 
@@ -584,6 +601,11 @@ sub GUI_ListTable($$$)
 		$template_args{ELEMENT}='th_edit';
 		print Template(\%template_args);
 	}
+        if($can_add) {
+                $template_args{ELEMENT}='th_clone';
+                print Template(\%template_args);
+
+        }
 	if($can_delete) {
 		$template_args{ELEMENT}='th_delete';
 		print Template(\%template_args);
@@ -658,6 +680,7 @@ sub GUI_ListTable($$$)
 
 		$template_args{ID} = $row->[0];
 		GUI_EditLink($s, \%template_args, $list, $row) if $can_edit;
+		GUI_AddFromLink($s, \%template_args, $list, $row) if $can_add;
 		GUI_DeleteLink($s, \%template_args, $list, $row) if $can_delete;
 		delete $template_args{ID};
 
@@ -1083,7 +1106,8 @@ sub GUI_Edit($$$)
 		REEDIT => $reedit,
 	);
 
-	my $form_url = MakeURL($s->{url}, { refresh => NextRefresh() });
+	my $form_url = MakeURL($s->{url}, { refresh => NextRefresh(),
+					   copyfromid => ''});
 	my $next_url;
 	my $cancel_url = MakeURL($form_url, {
 		action => 'list',
@@ -1121,6 +1145,9 @@ sub GUI_Edit($$$)
 		DB_GetRecord($dbh,$table,$id,\%values);
 	}
 	elsif($action eq 'add') {
+	    if (defined $q->url_param('copyfromid')){
+		DB_GetRecord($dbh,$table,$q->url_param('copyfromid'),\%values);
+	    } else {
 		# take filterfirst value if set
 		my $ff_field = $g{db_tables}{$table}{meta}{filterfirst};
 		my $ff_value = $q->url_param('filterfirst') || $q->url_param('combo_filterfirst') || '';
@@ -1139,6 +1166,7 @@ sub GUI_Edit($$$)
 				$values{$field} = $v if defined $v;
 			}
 		}
+	    }	
 	}
 
 	if($action eq 'edit') {

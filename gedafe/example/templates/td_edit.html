@@ -6,7 +6,12 @@
 #endif
 >
 #ifdef ID
+#ifdef EDIT_URL
 <A href="##EDIT_URL##"><IMG SRC="images/edit.gif" ALT="Edit" BORDER="0"></A>
+#endif
+#ifdef CLONE_URL
+<A href="##CLONE_URL##"><IMG SRC="images/clone.gif" ALT="Clone" BORDER="0"></A>
+#endif
 #else
 &nbsp;
 #endif
