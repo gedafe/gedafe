@@ -1,0 +1,14 @@
+  </tr>
+</table>
+##SEARCH_HIDDEN##
+</FORM>
+</TD>
+#ifdef EXPORT_AS_CHOICE
+<TD ALIGN="RIGHT" NOWRAP><FORM ACTION="##EXPORT_URL##" METHOD="POST">
+  <INPUT TYPE="submit" NAME="export" VALUE="Export as">
+##EXPORT_CHOICES##
+</FORM></TD>
+#else
+<TD ALIGN="RIGHT"><A href="##EXPORT_URL##">Export</A></TD>
+#endif
+</TR></TABLE>
