@@ -437,6 +437,8 @@ sub DataUnTree($){
 
 sub StripJavascript($){
 	my $suspicious = shift;
+	# skip this, the code is not ready for primetime yet
+	return $suspicious;
 
 	#remove all data-url things except images
 	$suspicious =~ s/data:image/gedafeProtected_DATAURL_IMG/gsi;
