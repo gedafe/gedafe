@@ -6,7 +6,6 @@
 
 package Gedafe::DB;
 use strict;
-use Data::Dumper;
 
 use Gedafe::Global qw(%g);
 
