@@ -509,15 +509,24 @@ sub GUI_WidgetRead($$)
 	my $q = $s->{cgi};
 	my $dbh = $s->{dbh};
 	my $field = $f->{field};
-	my $w = $f->{widget_type};
+
+	my ($w, $warg) = DB_ParseWidget($g{db_fields}, $f->{widget});
 
 	my $value = $q->param("field_$field");
 
 	if($w eq 'hid' or $w eq 'hidcombo') {
 		if(defined $value and $value !~ /^\s*$/) {
-			$value=DB_HID2ID($dbh,$f->{widget_args}{'ref'},$value);
+			$value=DB_HID2ID($dbh,$warg->{'ref'},$value);
 		}
 	}
+	# if it's a combo and no value was specified in the text field...
+	if($w eq 'idcombo' or $w eq 'hidcombo') {
+		if(not defined $value or $value =~ /^\s*$/) {
+			$value = $q->param("combo_$field");
+		}
+	}
+
+	return $value;
 }
 
 sub GUI_PostEdit($$$)
@@ -556,6 +565,11 @@ sub GUI_PostEdit($$$)
 
 	## add or edit:
 	my %record;
+	for my $field (@{$g{db_fields_list}{$table}}) {
+		my $f = $g{db_fields}{$table}{$field};
+		my $value = GUI_WidgetRead($s, $f);
+	}
+
 	foreach($q->param) {
 		if(/^field_(.*)/) {
 			$record{$1} = $q->param($_);
@@ -800,7 +814,7 @@ sub GUI_WidgetWrite($$$$)
 			$value = DB_ID2HID($dbh,$warg->{'ref'},$value);
 		}
 		$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10";
-		if($combo !~ /SELECTED/) {
+		if($combo !~ /SELECTED/ and defined $value) {
 			$out .= " VALUE=\"$value\"";
 		}
 		$out .= ">\n$combo";

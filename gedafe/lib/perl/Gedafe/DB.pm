@@ -394,6 +394,7 @@ END
 			}
 			else {
 				$fields{$table}{$data->[0]} = {
+					field => $data->[0],
 					order => $order++,
 					type => $data->[1],
 					attnum => $data->[2],
