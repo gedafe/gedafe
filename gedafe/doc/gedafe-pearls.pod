@@ -16,8 +16,8 @@ month, so prior to makeing the report you would want to specify a begin and
 end date. This is where Gedafe Pearls come in.
 
 Pearls are object oriented perl modules sitting in sepcial directory. Each
-module has to offer a set of methodes which will be used from withing
-gedafe. To first list the pearl in the Entry screen, then produce a custom
+module has to offer a set of methodes which will be used from within
+Gedafe. First to list the Pearl in the entry screen, then to produce a custom
 form to let the user customize the report (eg select the date range). And
 finally a methode to create the actual report.
 
@@ -29,24 +29,60 @@ finally a methode to create the actual report.
  |                                    |
  |     Orders from: 2002-12-01        |
  |         1 Red Flower               |
- |       12 Bottles of Wather         |
+ |        12 Bottles of Wather        |
  |                                    |
- |    Orders from: 2003-08-14         |
- |       3 Green Software Packages    |
+ |     Orders from: 2003-08-14        |
+ |         3 Green Software Packages  |
  |                                    |
  | 8 - John Miller                    |
  |                                    |
- |    Orders from: 2001-09-29         |
- |      18 Candles                    |
+ |     Orders from: 2001-09-29        |
+ |        18 Candles                  |
  |                                    |
   ------------------------------------
    
 For creating the report you can use the included PearlReports module which
-makes the creation of multilevel report simple. Check the separate documentation.
+makes the creation of multilevel reports very simple. Check the separate documentation.
 
 =head1 USAGE
 
-To be written. Should include documentation on required methodes and services provided by the parent module.
+First you have to tell Gedafe that it should go looking for Pearls. This is
+done by placing the line
+
+ pearl_dir      => '/path/to/pearls',
+
+into the Start command of your Gedafe CGI. Then you have to write a Pearl
+and store it in F</path/to/pearls>. When you restart gedafe it will go
+looking there and integrate all Pearls it finds in its Entry screen.
+
+Pearls are object oriented Perl modles which inherit from F<Gedafe::Pearl>.
+A Pearl has to override the following methodes:
+
+=over
+
+=item info
+
+Returns two values. The name of the Pearl and a short description of the Pearl.
+
+=item template
+
+Returns a pointer to a list of lists. It is used to build a form which is
+presented to the user to setup the report. Each element of the list is a
+list with the following elements: B<name>, B<label>, B<widget>, B<default
+value>, B<test regexp>. The B<widgets> are normal gedafe widgets as you would
+use in a meta table. 
+
+=item run
+
+Returns two values. The first value is the content type, the second is the
+data to be returned to the user.
+
+The run methodes has access to the open database handle as well as to the
+data entered in the form generated with the template method.
+
+=back
+
+See the example below for details.
 
 =head1 EXAMPLE
 
