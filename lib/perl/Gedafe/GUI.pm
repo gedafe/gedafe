@@ -510,8 +510,6 @@ sub GUI_ListTable($$$)
 		ORDERBY => $list->{spec}{orderby},
 	);
 
-	my $fields = $g{db_fields}{$list->{spec}{view}};
-
 	# <TABLE>
 	$template_args{ELEMENT}='table';
 
@@ -525,19 +523,20 @@ sub GUI_ListTable($$$)
 	# header
 	$template_args{ELEMENT}='tr';
 	print Template(\%template_args);
-	for my $f (@{$list->{fields}}) {
+	for my $c (@{$list->{columns}}) {
+		next if $c->{hide_list};
 		my $sort_url;
-		if($list->{spec}{orderby} eq $f) {
+		if($list->{spec}{orderby} eq $c->{field}) {
 			my $d = $list->{spec}{descending} ? '' : 1;
 			$sort_url = MakeURL($s->{url}, { descending => $d });
 		}
 		else {
-			$sort_url = MakeURL($s->{url}, { orderby => "$f", descending=>'' });
+			$sort_url = MakeURL($s->{url}, { orderby => "$c->{field}", descending=>'' });
 		}
 
 		$template_args{ELEMENT}='th';
-		$template_args{DATA}=$fields->{$f}{desc};
-		$template_args{FIELD}=$f;
+		$template_args{DATA}=$c->{desc};
+		$template_args{FIELD}=$c->{field};
 		$template_args{SORT_URL}=$sort_url;
 		print Template(\%template_args);
 	}
@@ -555,8 +554,6 @@ sub GUI_ListTable($$$)
 	$template_args{ELEMENT}='xtr';
 	print Template(\%template_args);
 	
-	my @typelist = map { $list->{type}{$_} } @{$list->{fields}};
-
 	# data
 	$list->{displayed_recs} = 0;
 	for my $row (@{$list->{data}}) {
@@ -568,30 +565,30 @@ sub GUI_ListTable($$$)
 		print Template(\%template_args);
 		my $column_number = 0;
 		for my $d (@{$row->[1]}) {
-			my $type = $typelist[$column_number];
-			my $name = $list->{fields}[$column_number];
-			if($type eq 'bytea' && $d ne '&nbsp;'){
+			my $c = $list->{columns}[$column_number];
+			$column_number++;
+			next if $c->{hide_list};
+			if($c->{type} eq 'bytea' && $d ne '&nbsp;'){
 				my $bloburl = MakeURL($s->{url}, {
 						table => $list->{spec}{view},
 						action => 'dumpblob',
 						id => $row->[0],
-						field => $name,
+						field => $c->{field},
 				});
 				$d = qq{<A HREF="$bloburl" TARGET="_blank">$d</A>};
 			}
-			my $align = $g{db_fields}{$list->{spec}{table}}{$name}{align};
-			defined $align or $align = $numeric_types{$type} ?
+			my $align = $c->{align};
+			defined $align or $align = $numeric_types{$c->{type}} ?
 				'"RIGHT" NOWRAP' : '"LEFT"' unless defined $align;
 			$template_args{ALIGN}=$align;
 			$template_args{ELEMENT}='td';
 			$template_args{DATA}=$d;
-			$template_args{MARKUP}=GUI_HTMLMarkup($d) if $d and $g{db_fields}{$list->{spec}{table}}{$name}{markup};
+			$template_args{MARKUP}=GUI_HTMLMarkup($d) if $d and $c->{markup};
 			print Template(\%template_args);
-			delete $template_args{DATA};
-			delete $template_args{ALIGN};
-			delete $template_args{MARKUP};
-			$column_number++;
 		}
+		delete $template_args{DATA};
+		delete $template_args{ALIGN};
+		delete $template_args{MARKUP};
 
 		$template_args{ID} = $row->[0];
 		GUI_EditLink($s, \%template_args, $list, $row) if $can_edit;
@@ -1082,7 +1079,7 @@ sub GUI_Edit($$$)
 	print Template(\%template_args);
 
 	my $field;
-	my $n;
+	my $n=0;
 	foreach $field (@fields_list) {
 		if($field eq "${table}_id") { next; }
 
