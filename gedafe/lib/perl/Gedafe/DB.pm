@@ -186,6 +186,7 @@ FROM pg_class c
 WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND c.relname !~ '^pg_'
 END
+	}
 	$sth = $dbh->prepare($query) or return undef;
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
