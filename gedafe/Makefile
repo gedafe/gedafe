@@ -15,8 +15,7 @@ dist:   doc/gedafe-sql.txt doc/gedafe-user.txt
 	gtar --mode=g-s -czvf pub/$(TAR) gedafe-$(VERSION)
 	rm -rf gedafe-$(VERSION)
 
-.pod.1:
-	pod2man --release=$(VERSION) --center=mrtg $<  > $@
-
-.1.txt:
-	groff -man -Tascii $< > $@
+.pod.txt:
+	pod2man --release=$(VERSION) --center=gedafe $<  >pod2txt.tmp
+	groff -man -Tascii pod2txt.tmp > $@
+	rm pod2txt.tmp
