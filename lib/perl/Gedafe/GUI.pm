@@ -701,6 +701,9 @@ sub GUI_ReadSearchSpec($)
 			if($value =~ /\G\s+(and|or)\b/gci) {
 				$join_op = ' '.lc($1).' ';
 			}
+			elsif($value =~ /\G\s+/gci) {
+				$join_op = ' and';
+			}
 			
 			# didn't progress? -> syntax error
 			if($value !~ /\G\z/ and $value =~ /\G/gc) {
