@@ -1,3 +1,7 @@
+2001-06-04
+----------
+* README: fix mailing-list subscription instructions
+
 2001-05-21
 ----------
 * fix problem with the last DBD::Pg version (0.98), reported by
