@@ -9,7 +9,7 @@ $Id$
    [ ] c. get rid of the alignment hack in the templates and implement
           a real 'align' meta_fields attribute
 
-2. Documentation
+2. Documentation (docs, NEWS)
 
    [ ] a. combo always reference id even if there is a hid (david)
    [ ] b. selectable widgets (david)
