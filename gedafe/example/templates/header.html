@@ -5,13 +5,7 @@
 #else
 Gedafe
 #endif
-</TITLE>
-<STYLE type="text/css">
-<!--
-H1 { font-size: larger; font-weight: bold; margin-top: 0.5em; margin-bottom: 0.5em; }
--->
-</STYLE>
-</HEAD>
+</TITLE></HEAD>
 <BODY  text="#000000" link="#0000FF" 
 #if ##USER## = admin
 
@@ -25,14 +19,14 @@ bgcolor="#ffffff"
 
 <TABLE WIDTH="100%" CELLPADDING=2 BORDER=0 CELLSPACING=0 ><TR>
 #ifdef DATABASE_DESC
-  <TD WITH="100%"><B>##DATABASE_DESC##</B></TD>
+  <TD WITH="100%"><FONT SIZE=6><B>##DATABASE_DESC##</B></FONT></TD>
 #endif
 #ifdef USER
   <TD>User: <B>##USER##</B></TD>
 #endif
 
 <TD ALIGN="RIGHT"><TABLE BGCOLOR="#a0a0a0" BORDER="0" CELLPADDING="0" CELLSPACING="0"><TR><TD>
-<TABLE BORDER="0" CELLPADDING="3" CELLSPACING="1"><TR>
+<TABLE BORDER="0" CELLPADDING="5" CELLSPACING="1"><TR>
 #ifdef ENTRY_URL
   <TD BGCOLOR="#ffffff"><A href="##ENTRY_URL##">Entry</A></TD>
 #endif

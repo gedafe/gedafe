@@ -21,16 +21,17 @@ require Exporter;
 	MyURL
 	InitTemplate
 	Template
-	Error
+	Die
 	DropUnique
 	UniqueFormStart
 	UniqueFormEnd
 	NextRefresh
 );
 
-sub Error($$) {
-	my $s = shift;
+# Gedafe's die handler
+sub Die($) {
 	my $error_text = shift;
+	my $s = $g{s};
 
 	my %t = (
 		PAGE => 'error',
@@ -50,27 +51,31 @@ sub Error($$) {
 		$t{ELEMENT}='header2';
 		print Template(\%t);
 	}
-#	else {
-#		$t{ELEMENT}='errorseparator';
-#		print Template(\%t);
-#	}
+
+	if($s->{in_form}) {
+		print "\n</FORM>\n";
+	}
+
+	if($s->{in_table}) {
+		print Template({ ELEMENT => 'xtable' });
+	}
 
 	$t{ELEMENT}  ='error';
-	$t{ERROR}    = $error_text;
+	$t{ERROR}    = $error_text ? $error_text : '(unknown)';
 	print Template(\%t);
 	delete $t{ERROR};
 
 	$t{ELEMENT}='footer';
 	print Template(\%t);
 
-	exit;
+	die "GEDAFE ERROR: $error_text";
 }
 
 sub ConnectToTicketsDaemon($) {
 	my $s = shift;
 	my $file = $g{conf}{tickets_socket};
 	my $socket = IO::Socket::UNIX->new(Peer => $file)
-		or Error($s, "Couldn't connect to gedafed daemon: $!");
+		or Die("Couldn't connect to gedafed daemon: $!");
 	return $socket;
 }
 
@@ -142,7 +147,7 @@ sub GetUnique($)
 	$_ = <$socket>;
 	close($socket);
 	if(! /^([\w-]+)$/) {
-		Error($s, "Couldn't understand ticket daemon reply: $_");
+		Die("Couldn't understand ticket daemon reply: $_");
 	}
 	return $1;
 }
@@ -165,10 +170,13 @@ sub DropUnique($$)
 	return 1;
 }
 
-sub UniqueFormStart($)
+sub UniqueFormStart($$)
 {
+	my $s = shift;
 	my $action = shift;
 	print "<FORM ACTION=\"$action\" METHOD=\"POST\">\n";
+
+	$s->{in_form}=1;
 }
 
 sub UniqueFormEnd($$;$)
@@ -183,6 +191,8 @@ sub UniqueFormEnd($$;$)
 	print "<INPUT TYPE=\"hidden\" NAME=\"form_url\" VALUE=\"$form_url\">\n";
 	print "<INPUT TYPE=\"hidden\" NAME=\"next_url\" VALUE=\"$next_url\">\n";
 	print "</FORM>\n";
+
+	delete $s->{in_form};
 }
 
 sub rand_ascii_32

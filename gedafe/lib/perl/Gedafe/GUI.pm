@@ -22,7 +22,6 @@ use Gedafe::Util qw(
 	MakeURL
 	MyURL
 	Template
-	Error
 	DropUnique
 	UniqueFormStart
 	UniqueFormEnd
@@ -42,7 +41,6 @@ require Exporter;
 	GUI_PostEdit
 	GUI_Edit
 	GUI_Delete
-	GUI_Export
 );
 
 sub GUI_DB2HTML($$)
@@ -300,7 +298,7 @@ sub GUI_FilterFirst($$$$)
 	if(defined $filterfirst_field)
 	{
 		if(not defined $g{db_fields}{$view}{$filterfirst_field}{ref_combo}) {
-			Error($s, "combo not found for $filterfirst_field.");
+			die "combo not found for $filterfirst_field";
 		}
 		else {
 			my $filterfirst_combo = GUI_MakeCombo($dbh, $view, $filterfirst_field, "combo_filterfirst", $filterfirst_value);
@@ -420,7 +418,7 @@ sub GUI_List($$$)
 
 	# does the view/table exist?
 	if(not defined $g{db_fields_list}{$view}) {
-		Error($s, "no such table: $view\n");
+		die "no such table: $view\n";
 	}
 
 	my %template_args = (
@@ -429,7 +427,6 @@ sub GUI_List($$$)
 		URL => $myurl,
 		TABLE => $table,
 		TITLE => "$g{db_tables}{$table}{desc}",
-		EXPORT_URL => MakeURL($myurl, { action => 'export' }),
 	);
 	
 	my @fields_list = @{$g{db_fields_list}{$view}};
@@ -448,6 +445,9 @@ sub GUI_List($$$)
 	# TABLE
 	$template_args{ELEMENT}='table';
 	print Template(\%template_args);
+
+	# die will put a </TABLE>
+	$s->{in_table}=1;
 
 	my $f;
 	my $skip_id = 0;
@@ -509,14 +509,11 @@ sub GUI_List($$$)
 	my $fetch_state=0;
 	my $data;
 	my $fetched = 0;
-	my $fetchamount = $q->url_param('list_rows') ||
-		$g{db_tables}{$view}{meta}{list_rows} ||
-		$g{conf}{list_rows};
-	my $error=undef;
-	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,\$error,
+	my $fetchamount = $q->url_param('list_rows') || $g{conf}{list_rows};
+	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,
 		-descending => $descending,
 		-orderby => $orderby,
-		-limit => ($fetchamount>0 ? $fetchamount+1 : -1),
+		-limit => $fetchamount+1,
 		-offset => $offset,
 		-fields => \@fields_list,
 		-search_field => $search_field,
@@ -525,7 +522,7 @@ sub GUI_List($$$)
 		-filter_value => $filterfirst_value)))
 	{
 		$fetched++;
-		next if $fetchamount>0 and $fetched>$fetchamount;
+		if($fetched>$fetchamount) { next; }
 		my $id = $data->[0];
 
 		if($fetched%2) { $template_args{EVENROW}=1; }
@@ -622,9 +619,8 @@ sub GUI_List($$$)
 	$template_args{ELEMENT}='xtable';
 	print Template(\%template_args);
 
-	if(defined $error) {
-		Error($s, $error);
-	}
+	# die won't put a </TABLE>
+	delete $s->{in_table};
 
 	# buttons
 	my $nextoffset = $fetched == $fetchamount+1 ? $offset+$fetchamount : $offset;
@@ -663,7 +659,6 @@ sub GUI_ListRep($$$)
 		TITLE => $g{db_tables}{$view}{desc},
 		URL => $myurl,
 		TABLE => $view,
-		EXPORT_URL => MakeURL($myurl, { action => 'export' }),
 	);
 	
 	if(not defined $g{db_fields_list}{$view}) {
@@ -729,15 +724,11 @@ sub GUI_ListRep($$$)
 	my $fetch_state=0;
 	my $data;
 	my $fetched = 0;
-	my $fetchamount = $q->url_param('listrep_rows') ||
-		$q->url_param('list_rows') ||
-		$g{db_tables}{$view}{meta}{list_rows} ||
-		$g{conf}{list_rows};
-	my $error=undef;
-	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,\$error,
+	my $fetchamount = $q->url_param('listrep_rows') || $q->url_param('list_rows') || $g{conf}{list_rows};
+	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,
 		-descending => $descending,
 		-orderby => $orderby,
-		-limit => ($fetchamount>0 ? $fetchamount+1 : -1),
+		-limit => $fetchamount+1,
 		-offset => $offset,
 		-search_field => $search_field,
 		-search_value => $search_value,
@@ -745,7 +736,7 @@ sub GUI_ListRep($$$)
 		-filter_value => $filterfirst_value)))
 	{
 		$fetched++;
-		next if $fetchamount>0 and $fetched>$fetchamount;
+		if($fetched>$fetchamount) { next; }
 
 		if($fetched%2) { $template_args{EVENROW}=1; }
 		else           { $template_args{ODDROW}=1; }
@@ -779,10 +770,6 @@ sub GUI_ListRep($$$)
 	$template_args{ELEMENT}='xtable';
 	print Template(\%template_args);
 
-	if(defined $error) {
-		Error($s, $error);
-	}
-
 	# buttons
 	my $nextoffset = $fetched == $fetchamount+1 ? $offset+$fetchamount : $offset;
 	my $prevoffset = $offset-$fetchamount; if($prevoffset<=0) { $prevoffset=''; }
@@ -798,105 +785,17 @@ sub GUI_ListRep($$$)
 	GUI_Footer(\%template_args);
 }
 
-sub GUI_Export($$$)
-{
-	my $s = shift;
-	my $q = $s->{cgi};
-	my $user = shift;
-	my $dbh = shift;
-	my $myurl = MyURL($q);
-	my $table = $q->url_param('table');
-	my $orderby = $q->url_param('orderby') || '';
-	my $descending = $q->url_param('descending') || '';
-
-	# select view / table
-	my $view = exists $g{db_tables}{"${table}_list"} ? "${table}_list" : $table;
-
-	# does the view/table exist?
-	exists $g{db_tables}{$view} or Error($s, "no such table: $view\n");
-
-	my @fields_list = @{$g{db_fields_list}{$view}};
-	my $fields = $g{db_fields}{$view};
-
-	# search and filterfirst
-	my $search_field = $q->url_param('search_field') || '';
-	my $search_value = $q->url_param('search_value') || '';
-	my $filterfirst_field = $g{db_tables}{$view}{meta}{filterfirst};
-	my $filterfirst_value = $q->url_param('filterfirst') || $q->url_param('combo_filterfirst') || '';
-	$search_value =~ s/^\s+//; $search_value =~ s/\s+$//;
-	$filterfirst_value =~ s/^\s+//; $filterfirst_value =~ s/\s+$//;
-	if($filterfirst_value eq '') { $filterfirst_value = undef; }
-
-	my $skip_id = 0;
-	# if hid, then do not show id.
-	if(grep /^${table}_hid$/, @fields_list) {
-		$skip_id = 1;
-	}
-	# orderby
-	if($orderby eq '') {
-		if(not defined $g{db_tables}{$view}{meta_sort}) {
-			$orderby = $skip_id ? $fields_list[1] : $fields_list[0];
-		}
-	}
-
-	# field names
-	for my $i ($skip_id..$#fields_list) {
-		my $f = $fields_list[$i];
-		my $str = $fields->{$f}{desc};
-		$str =~ s/\t/        /g;
-		print $str;
-		print "\t" unless $i >= $#fields_list;
-	}
-	print "\n";
-
-	# data
-	my $fetch_state=0;
-	my $data;
-	my $error=undef;
-	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,\$error,
-		-descending => $descending,
-		-orderby => $orderby,
-		-fields => \@fields_list,
-		-search_field => $search_field,
-		-search_value => $search_value,
-		-filter_field => $filterfirst_field,
-		-filter_value => $filterfirst_value)))
-	{
-		my $skip_first = $skip_id;
-		my $is_first = 0;
-		my $i=0;
-		my $lasti = $#$data - ($skip_id ? 1 : 0);
-		foreach my $d (@$data) {
-			if($skip_first) { $skip_first=0; next; }
-
-			my $field_name = $g{db_fields_list}{$view}[$i];
-			my $field_type = $g{db_fields}{$view}{$field_name}{type};
-			#my $str = GUI_DB2HTML($d, $field_type);
-			my $str = $d;
-			$str =~ s/\t/        /g;
-			print $str;
-			print "\t" unless $i >= $lasti;
-			$i++;
-		}
-		print "\n";
-	}
-
-	if(defined $error) {
-		print "ERROR: $error\n";
-	}
-}
-
 # CGI.pm already encodes/decodes parameters, but we want to do it ourselves
 # since we need to differentiate for example in reedit_data between a comma
 # as value and a comma as separator. Therefore we use the escape '!' instead
 # of '%'.
 sub GUI_URL_Encode($)
 {
-	my $str = shift;
+	$str = shift;
 	defined $str or $str = '';
-        $str =~ s/!/gedafe_PROTECTED_eXclamatiOn/g;
-        $str =~ s/\W/'!'.sprintf('%2X',ord($&))/eg;
-        $str =~ s/gedafe_PROTECTED_eXclamatiOn/'!'.sprintf('%2X',ord('!'))/eg;
+	$str =~ s/!/gedafe_PROTECTED_eXclamatiOn/g;
+	$str =~ s/\W/'!'.sprintf('%2X',ord($&))/eg;
+	$str =~ s/gedafe_PROTECTED_eXclamatiOn/'!'.sprintf('%2X',ord('!'))/eg;
 	return $str;
 }
 
@@ -943,7 +842,7 @@ sub GUI_PostEdit($$$)
 
 	if(defined $q->param('button_cancel')) { return; }
 
-	my $table = $q->param('post_table');
+	my $table = $q->url_param('table');
 
 	## delete
 	if($action eq 'delete') {
@@ -955,10 +854,10 @@ sub GUI_PostEdit($$$)
 			);
 			GUI_InitTemplateArgs($q, \%template_args);
 			GUI_Header($s, \%template_args);
-			Error($s, $dbh->errstr);
+			GUI_DB_Error($g{db_error}, MyURL($q));
 			
 			$template_args{ELEMENT}='db_error';
-			$template_args{ERROR}=$dbh->errstr;
+			$template_args{ERROR}=$g{db_error};
 			$template_args{NEXT_URL}=MyURL($q);
 			print Template(\%template_args);
 
@@ -987,18 +886,16 @@ sub GUI_PostEdit($$$)
 	}
 
 	if($action eq 'add') {
-		my $err;
-		if(!DB_AddRecord($dbh,$table,\%record,\$err)) {
+		if(!DB_AddRecord($dbh,$table,\%record)) {
 			my $data = GUI_Hash2Str(\%record);
-			GUI_Edit_Error($s, $user, $err, $q->param('form_url'), $data, $action);
+			GUI_Edit_Error($s, $user, $g{db_error}, $q->param('form_url'), $data, $action);
 		}
 	}
 	elsif($action eq 'edit') {
 		$record{id} = $q->param('id');
-		my $err;
-		if(!DB_UpdateRecord($dbh,$table,\%record,\$err)) {
+		if(!DB_UpdateRecord($dbh,$table,\%record)) {
 			my $data = GUI_Hash2Str(\%record);
-			GUI_Edit_Error($s, $user, $err, $q->param('form_url'), $data, $action);
+			GUI_Edit_Error($s, $user, $g{db_error}, $q->param('form_url'), $data, $action);
 		}
 	}
 }
@@ -1020,7 +917,7 @@ sub GUI_Edit($$$)
 	}
 
 	if(not exists $g{db_tables}{$table}) {
-		Error($s, "Error: no such table ($table).");
+		die "Error: no such table ($table)";
 	}
 
 	my $title = $g{db_tables}{$table}{desc};
@@ -1052,13 +949,6 @@ sub GUI_Edit($$$)
 		});
 	}
 	else {
-		# use the referer if specified, so that
-		# the edit page can be used from anywhere
-		if(defined $ENV{HTTP_REFERER}) {
-			$cancel_url = MakeURL($ENV{HTTP_REFERER}, {
-				refresh => NextRefresh
-			});
-		}
 		$next_url = $cancel_url;
 	}
 
@@ -1066,9 +956,8 @@ sub GUI_Edit($$$)
 	GUI_Header($s, \%template_args);
 
 	# FORM
-	UniqueFormStart($next_url);
+	UniqueFormStart($s, $next_url);
 	print "<INPUT TYPE=\"hidden\" NAME=\"post_action\" VALUE=\"$action\">\n";
-	print "<INPUT TYPE=\"hidden\" NAME=\"post_table\" VALUE=\"$table\">\n";
 
 	# Initialise values
 	my $fields = $g{db_fields}{$table};
@@ -1113,7 +1002,7 @@ sub GUI_Edit($$$)
 		if($field eq "${table}_id") { next; }
 
 		my $value = exists $values{$field} ? $values{$field} : '';
-		my $inputelem = GUI_EditField($dbh,$table,$field,$value);
+		my $inputelem = GUI_EditField($s,$dbh,$table,$field,$value);
 
 		$template_args{ELEMENT} = 'editfield';
 		$template_args{FIELD} = $field;
@@ -1178,6 +1067,7 @@ sub GUI_MakeCombo($$$$$)
 
 sub GUI_EditField($$$$)
 {
+	my $s = shift;
 	my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
@@ -1196,7 +1086,7 @@ sub GUI_EditField($$$$)
 	}
 
 	if($widget eq 'readonly') {
-		return $value eq '' ? '&nbsp;' : $value;
+		return $value || '&nbsp;';
 	}
 
 	if($widget eq 'area') {
@@ -1272,13 +1162,12 @@ sub GUI_Delete($$$)
 
 	GUI_InitTemplateArgs($q, \%template_args);
 	GUI_Header($s, \%template_args);
-	UniqueFormStart($next_url);
+	UniqueFormStart($s, $next_url);
 
 	$template_args{ELEMENT}='delete';
 	print Template(\%template_args);
 
 	print "<INPUT TYPE=\"hidden\" NAME=\"post_action\" VALUE=\"delete\">\n";
-	print "<INPUT TYPE=\"hidden\" NAME=\"post_table\" VALUE=\"$table\">\n";
 	print "<INPUT TYPE=\"hidden\" NAME=\"id\" VALUE=\"$id\">\n";
 	UniqueFormEnd($s, $next_url, $next_url);
 	GUI_Footer(\%template_args);

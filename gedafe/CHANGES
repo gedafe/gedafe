@@ -1,60 +1,28 @@
-2002-04-29
-----------
-* added support for list_rows in meta_tables
-
-2002-04-11
-----------
-* released 1.0.7
-* added documentation about configuration of password or crypt
-  authentication in PostgreSQL (in gedafe-user.pod)
-* PostgreSQL 7.2.1 wasn't correctly detected (reported by 
-  Freek Zindel <freek@zindel.nl>)
-
-2002-03-17
-----------
-* released 1.0.6
-* implemented PostgreSQL 7.2 compatibility
-
 2002-02-27
 ----------
-* table and field names in meta tables are now case insensitive (SQL semantics)
+* Case-insensitive table and field names in meta tables
 
-2002-02-18
-----------
-* released 1.0.5
-* Implemented "export" functionality (export to tab-separated-values). Just
-  replace 'action=list' with 'action=export'.
-* Fix product_combo view in demo1.sql
 
 2002-01-20
 ----------
 * Return to referer after action=edit
-* released 1.0.4
 
 2001-11-07
 ----------
 * Error when deleting didn't work (undefined subroutine GUI_DB_Error)
 
-2001-09-17
-----------
-* '-->' in records could break debug comments
-
 2001-08-24
 ----------
-* display correctly '0' in readonly fields (Nico Latzer <nico.latzer@r-kom.de>)
-
-2001-08-13
-----------
-* example templates: remove FONT SIZE from header for application title,
-  make header buttons a bit smaller, add CSS for smaller H1
+* display correctly '0' in read-only fields
 
 2001-08-06
 ----------
 * example templates: fix table borders for browsers other than netscape
 
-2001-07-26
+2001-08-05
 ----------
-* released 1.0.3
+* rewrite widget handling, implement meta-customizable widgets
+* always use ID in combo-boxes
 
 2001-06-07
 ----------
@@ -64,15 +32,22 @@
 ----------
 * README: fix mailing-list subscription instructions
 
-2001-05-21
-----------
 * fix problem with the last DBD::Pg version (0.98), reported by
   David Joerg <joerg@iamexwi.unibe.ch>
 
 2001-05-16
 ----------
-* released 1.0.2
 * port to PostgreSQL 7.1
+
+2001-04-11
+----------
+* fix reporting of errors when <TABLE> is open
+
+2001-04-08
+----------
+* add DIE handler and use standard 'die' for internal error reporting,
+  instead of 'Error'
+* begin unstable tree 1.1.0
 
 2001-03-05
 ----------

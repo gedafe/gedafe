@@ -87,7 +87,6 @@ stdfooter =
 	- TABLE
 	- URL
 	- ORDERBY
-	- EXPORT_URL
 	
 	> filterfirst
 		- FILTERFIRST_FIELD
@@ -138,7 +137,6 @@ stdfooter =
 	- TABLE
 	- URL
 	- ORDERBY
-	- EXPORT_URL
 	
 	> filterfirst
 		- FILTERFIRST_FIELD
