@@ -356,7 +356,7 @@ sub GUI_FilterFirst($$$$)
 	$template_args->{FILTERFIRST_FIELD_DESC}=$g{db_fields}{$view}{$ff_field}{desc};
 	$template_args->{FILTERFIRST_COMBO}=$ff_combo;
 	$template_args->{FILTERFIRST_HIDDEN}=$ff_hidden;
-	$template_args->{FILTERFIRST_ACTION}=$s->{url};
+	$template_args->{FILTERFIRST_ACTION}=$q->url;
 	print Template($template_args);
 	delete $template_args->{ELEMENT};
 	delete $template_args->{FILTERFIRST_FIELD};
@@ -401,7 +401,7 @@ sub GUI_Search($$$)
 		$search_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
 	}
 	$template_args->{ELEMENT} = 'search';
-	$template_args->{SEARCH_ACTION} = $s->{url};
+	$template_args->{SEARCH_ACTION} = $q->url;
 	$template_args->{SEARCH_COMBO} = $search_combo;
 	$template_args->{SEARCH_HIDDEN} = $search_hidden;
 	$template_args->{SEARCH_VALUE} = $search_value;
