@@ -727,6 +727,11 @@ sub GUI_Search($$$){
 	
 	my @fields = @{$g{db_fields_list}{$view}};
 	unshift @fields, '#ALL#';
+	# remove duplicates (can happen when you have a HID and you also show the ID -> include twice the ID in the view
+	{
+		my (%fields, $i); map { $fields{$_}=$i++ } @fields;
+		@fields = sort { $fields{$a} <=> $fields{$b} } keys %fields;
+	}
 
 	my %search_combos = ();
 
