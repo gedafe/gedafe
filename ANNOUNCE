@@ -7,6 +7,7 @@ Tobias Oetiker and David Schweikert are proud to announce:
 
 
 Introduction
+------------
 
     Gedafe (the Generic Datbase Frontend) is a web-based database
     frontend that is database-application independent. That means that
@@ -30,7 +31,15 @@ Introduction
     frontend.
 
 
+Release Notes
+-------------
+
+    This is the first public version. The program has been used internally
+    for three months without problems.
+
+
 Availability
+------------
 
     Gedafe is released under the GNU General Public License.
     Read more about it and download at
