@@ -880,6 +880,7 @@ sub GUI_ListTable($$$)
 
 	for my $c (@{$list->{columns}}) {
 		next if $c->{hide_list};
+
 		my $sort_url;
 		if($list->{spec}{orderby} eq $c->{field}) {
 			my $d = $list->{spec}{descending} ? '' : 1;
@@ -921,13 +922,21 @@ sub GUI_ListTable($$$)
 
 
 	# data
+
 	my $view = $list->{spec}{view};
 	my $table = $list->{spec}{table};
+	our $bgcolourfieldindex = $g{db_tables}{$view} ->{bgcolor_field_index};
 	$list->{displayed_recs} = 0;
 	for my $row (@{$list->{data}}) {
 		$list->{displayed_recs}++;
 		if($list->{displayed_recs}%2) { $template_args{EVENROW}=1; }
 		else                          { $template_args{ODDROW}=1; }
+
+                # If there is a field in this table containing the Background
+                # Colour, get it by its index.
+                if (defined $bgcolourfieldindex){
+                    $template_args{LINE_BGCOLOUR}=$row->[1][ $bgcolourfieldindex ] ;
+                }
 
 		$template_args{ELEMENT}='tr';
 		print Template(\%template_args);
@@ -940,7 +949,7 @@ sub GUI_ListTable($$$)
 		delete $template_args{ID};
 	}
 
-		my $column_number = 0;
+		my $column_number = 0;  
 		for my $d (@{$row->[1]}) {
 			delete $template_args{ALIGN};
 			delete $template_args{ELEMENT};
