@@ -147,7 +147,7 @@ Defines the data the report should be based on. This involves
 configuring the parameters for accessing the database server as well
 as defining the query string.
 
-If you are working with the OO interface you can use b<new> instead
+If you are working with the OO interface you can use B<new> instead
 of create to be more in line with established naming conventions.
 
 =over
