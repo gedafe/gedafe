@@ -26,7 +26,7 @@ $Id$
 
    [x] a. go through gedafe-sql.pod and test all features / see if
           documentation still up-to-date
-   [ ] b. package pre-release and announce it to gedafe mailing list (david)
+   [x] b. package pre-release and announce it to gedafe mailing list (david)
 
 4. Release
 
