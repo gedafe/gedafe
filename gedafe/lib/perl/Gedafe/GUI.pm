@@ -1232,7 +1232,7 @@ sub GUI_EditField($$$$)
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"30\" VALUE=\"$escval\">";
 	}
 	if($type eq 'text') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"40\" VALUE=\"$escval\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"70\" VALUE=\"$escval\">";
 	}
         if($type eq 'varchar') {                                                                                            
                 return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" MAXLENGTH=\"$length\" VALUE=\"$escval\">";        
