@@ -22,4 +22,5 @@ Start(
     widget_dir      => '/usr/local/gedafe/example/mywidgets',
     isearch        => 'java/isearch.jar',
     show_row_count => 0,
+    edit_buttons_left => 0,
 );

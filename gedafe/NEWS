@@ -4,6 +4,11 @@
 
 (arrows indicate actions that you should make when upgrading)
 ------------------------------------------------------------------
+HEAD    (2004-03-19)
+	You can move the Edit/Clone/Delete buttons in the list
+	view to the left. Supply the new parameter edit_buttons_left
+	and set it to 1 in the Start() function
+------------------------------------------------------------------
 HEAD    (2004-03-12)
 	Long comments 
 	Long comments can be saved per table in meta_tables. This
