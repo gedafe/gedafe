@@ -152,3 +152,7 @@ COMMENT ON VIEW due_shipments_rep IS 'Due Product Shipments';
 COMMENT ON COLUMN due_shipments_rep.orders_total IS 'Orders';
 
 GRANT SELECT ON due_shipments_rep TO PUBLIC;
+
+GRANT ALL ON customer_customer_id_seq TO PUBLIC;
+GRANT ALL ON product_product_id_seq TO PUBLIC;
+GRANT ALL ON orders_orders_id_seq TO PUBLIC;
