@@ -336,6 +336,16 @@ sub GUI_FilterFirst($$$$)
 	}
 
 	my $ff_combo = GUI_MakeCombo($dbh, $ff_combo_name, "combo_filterfirst", $ff_value);
+
+	# ID->HID: if referenced table has a hid, assume the hid is shown in
+	# this view and search that instead. In Gedafe 1.0 mode, the
+	# combo-boxes always referenced the hid, so it is already done
+	if($g{conf}{gedafe_compat} ne '1.0') {
+		if(defined $g{db_fields}{$ff_ref}{"${ff_ref}_hid"}) {
+			$ff_value = DB_ID2HID($dbh,$ff_ref,$ff_value);
+		}
+	}
+
 	my $ff_hidden = '';
 	foreach($q->url_param) {
 		next if /^filterfirst/;
