@@ -25,7 +25,7 @@ use Gedafe::GUI qw(
 	GUI_Edit
 	GUI_Delete
 );
-use Gedafe::Util qw(MakeURL MyURL InitTemplate Template Error NextRefresh);
+use Gedafe::Util qw(Die MakeURL MyURL InitTemplate Template NextRefresh);
 
 sub Start(%)
 {
@@ -35,7 +35,16 @@ sub Start(%)
 	my $user = '';
 	my $cookie;
 
+	# %s is the session global state, so that we don't have
+	# to pass everything as single arguments to each sub
 	my %s = ( cgi => $q);
+
+	# store the session state in the global state for the Die handler
+	# \%s should be passed normally as argument...
+	$g{s}=\%s;
+
+	# install Gedafe's die handler
+	$SIG{__DIE__}=\&Die;
 
 	if(defined $q->url_param('reload')) {
 		%g = ();
@@ -87,7 +96,7 @@ sub Start(%)
 	GUI_CheckFormID(\%s, $user);
 
 	my $dbh = AuthConnect(\%s, \$user, \$cookie) or do {
-		Error(\%s, "Couldn't connect to database or database error.");
+		die "Couldn't connect to database or database error";
 	};
 
 	my $action = $q->url_param('action') || '';
