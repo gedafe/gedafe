@@ -5,17 +5,29 @@ class ITextField extends Panel{
 
     private TextField f;
     public String name;
+    public String column;
     private int h=40;
     private int wmax=250;
     private int wmin=70;
     private int wpref=100;
 
-    public ITextField(String name,String value){
+    public ITextField(String col,String value){
 	super();
-	this.name = name;
+	this.column = col;
+	this.name = stripTable(col);
 	f = new TextField(value);
 	setLayout(null);
 	add(f);
+    }
+
+    public String stripTable(String colname){
+	if(colname.indexOf("_")!=-1)
+		colname=colname.substring(
+					  colname.indexOf("_")+1,
+					  colname.length()
+					  );
+	
+	return colname;
     }
 
     public ITextField(String name){

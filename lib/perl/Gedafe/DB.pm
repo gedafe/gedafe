@@ -650,6 +650,7 @@ sub DB_FetchListSelect($$) {
 	    }
 	}
 
+	my @query_parameters = ();
 
 	my $query = "SELECT ";
 	$query .= $spec->{countrows} ? "COUNT(*)" : join(', ',@select_list);
@@ -659,14 +660,23 @@ sub DB_FetchListSelect($$) {
 		and $spec->{search_field} ne '' and $spec->{search_value} ne '')
 	{
 		my $type = $g{db_fields}{$v}{$spec->{search_field}}{type};
+
+
 		if($type eq 'date') {
-			$query .= " WHERE $spec->{search_field} = '$spec->{search_value}'";
+		  $query .= " WHERE $spec->{search_field} = ? ";
+			 push @query_parameters, "$spec->{search_value}";
 		}
 		elsif($type eq 'bool') {
-			$query .= " WHERE $spec->{search_field} = '$spec->{search_value}'";
+		  $query .= " WHERE $spec->{search_field} = ? ";
+			 push @query_parameters, "$spec->{search_value}";
+		}
+		elsif($type eq 'bytea') {
+		  $query .= " WHERE position(?::bytea in $spec->{search_field}) != 0";
+			 push @query_parameters, "$spec->{search_value}";
 		}
 		else {
-			$query .= " WHERE $spec->{search_field} ~* '.*$spec->{search_value}.*'";
+		  $query .= " WHERE $spec->{search_field} ~*  ? ";
+			 push @query_parameters, ".*$spec->{search_value}.*";
 		}
 		$searching=1;
 	}
@@ -677,7 +687,8 @@ sub DB_FetchListSelect($$) {
 		else {
 			$query .= ' WHERE';
 		}
-		$query .= " $spec->{filter_field} = '$spec->{filter_value}'";
+		$query .= " $spec->{filter_field} = ? ";
+		push @query_parameters, "$spec->{filter_value}";
 	}
 	unless ($spec->{countrows}) {
 		if (defined $spec->{orderby} and $spec->{orderby} ne '') {
@@ -713,8 +724,20 @@ sub DB_FetchListSelect($$) {
 			$query .= " OFFSET $spec->{offset}";
 		}
 	}
-	print "\n<!-- $query -->\n" unless $spec->{export};
+
+	
+	# print "\n<!-- $query -->\n" unless $spec->{export};
+	# this is kind of useless now that query's are made with the ? placeholders.
+
 	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
+	
+	for(1..scalar(@query_parameters)){
+	  #count from 1 to number_of_parameters including.
+	  #sql parameters start at 1. 
+
+	  $sth->bind_param($_,shift @query_parameters);
+	}
+
 	$sth->execute() or die $sth->errstr;
 	return (\@fields, $sth);
 }
@@ -847,9 +870,9 @@ sub DB_HID2ID($$$)
 	my $hid = shift;
 
 	return unless defined $hid and $hid ne '';
-	my $q = "SELECT ${table}_id FROM ${table} WHERE ${table}_hid = '$hid'";
+	my $q = "SELECT ${table}_id FROM ${table} WHERE ${table}_hid = ?";
 	my $sth = $dbh->prepare_cached($q) or die $dbh->errstr;
-	$sth->execute or die $sth->errstr;
+	$sth->execute($hid) or die $sth->errstr;
 	my $d = $sth->fetchrow_arrayref();
 	die $sth->errstr if $sth->err;
 
@@ -865,8 +888,12 @@ sub DB_PrepareData($$)
 	s/\s+$//;
 
 	# quoting for the SQL statements
-	s/\\/\\\\/g;
-	s/'/\\'/g;
+	# obsolete since migration to placeholder querys
+	# insert ... values(?,?) etc.
+	
+	
+	#s/\\/\\\\/g;
+	#s/'/\\'/g;
 
 	if($type eq 'bool') {
 		$_ = ($_ ? '1' : '0');
@@ -1159,6 +1186,7 @@ sub DB_DumpTable($$$){
 	$query .= join(', ',@select_list);
 	$query .= " FROM $view";
 	
+	# fix this for placeholders
 
 	my $first = 1;
 	for my $field (keys(%$atribs)){
