@@ -1,3 +1,12 @@
+2002-12-22
+----------
+* added multiple choice of export data formats, depending on auto-detected
+  perl modules (currently supported: Text::CSV_XS for comma-separated values)
+  Adi Fairbank <adi@adiraj.org>
+* added new meta_fields features 'log_create_time' and 'log_modify_time'
+  which set date, time, or timestamp fields to NOW on INSERT or UPDATE
+  Adi Fairbank <adi@adiraj.org>
+
 2002-11-28
 ----------
 * try to enforce strict ordering to make the scrolling while sorting on a
