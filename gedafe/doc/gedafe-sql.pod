@@ -150,8 +150,8 @@ view called I<table>B<*_combo>. This view must have two columns one called
 B<id> and one called B<text>. The B<id> column contains the id of the
 referenced record. You can select the view to be taken for a certain field
 instead of the one chosen automatically be Gedafe by explicitely using the
-'idcombo' or 'hidcombo' widget attribute in meta_fields like explained in
-L<EDIT WIDGETS>.
+'idcombo', 'hidcombo' or 'combo' widget attribute in meta_fields like explained
+in L<EDIT WIDGETS>.
 
 If you want to order the contents of the combo-box, then this can be
 done using an extra B<meta_sort> column as explained below. By
@@ -341,6 +341,10 @@ write views for combo-boxes.
 Like C<idcombo>, but the text field references the C<hid> in the referenced
 table. Additionally to I<combo>, the mandatory parameter I<ref> specifies the
 name of the referenced table (so that the C<hid> can be converted to C<id>).
+
+=item combo
+
+Like C<idcombo> but just the combo-box without text entry.
 
 =item isearch
 

@@ -4,6 +4,11 @@
 
 (arrows indicate actions that you should make when upgrading)
 
+1.2.1 (2003-FIXME)
+------------------------------------------------------------------------------
+  * New widget: combo (just the combo-box without text entry)
+
+
 1.2.0 (2003-09-27)
 ------------------------------------------------------------------------------
   * PearlReports have been integrated with gedafe. It is now possible

@@ -410,7 +410,7 @@ sub DB_ParseWidget($)
 	}
 
 	# verify
-	if($type eq 'idcombo' or $type eq 'hidcombo') {
+	if($type eq 'idcombo' or $type eq 'hidcombo' or $type eq 'combo') {
 		defined $args{'combo'} or
 			die "widget $widget: mandatory argument 'combo' not defined";
 	}

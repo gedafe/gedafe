@@ -943,7 +943,7 @@ sub GUI_WidgetRead($$$)
 		}
 	}
 	# if it's a combo and no value was specified in the text field...
-	if($w eq 'idcombo' or $w eq 'hidcombo') {
+	if($w eq 'idcombo' or $w eq 'hidcombo' or $w eq 'combo') {
 		if(not defined $value or $value =~ /^\s*$/) {
 			$value = $q->param("${input_name}_combo");
 			if($w eq 'hidcombo' and $g{conf}{gedafe_compat} eq '1.0')
@@ -1365,6 +1365,9 @@ sub GUI_WidgetWrite($$$$)
 		}
 		$out .= ">\n$combo";
 		return $out;
+	}
+	elsif($w eq 'combo') {
+		return GUI_MakeCombo($dbh, $warg->{'combo'}, "${input_name}_combo", $value);
 	}
 	elsif($w eq 'file'){
 		my $filename = $value ne ''  ? $value : "(none)";
