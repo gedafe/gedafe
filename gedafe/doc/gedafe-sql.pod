@@ -465,6 +465,15 @@ read-only text
 Text field. The optional argument I<size> specifies the width of the text field
 in characters (default: 20).
 
+=item format_number, format_date, format_timestamp
+
+Formatted text input. The mandatory argument I<template> specifies how the
+string should be converted from/to the number/date/timestamp. The corresponding
+PostgreSQL B<to_char>, B<to_number>, or B<to_timestamp> function will be used
+with the given I<template>.
+
+Example: format_date(template=Mon DD YYYY)
+
 =item area
 
 Use a C<TEXTAREA> widget for this field, such that longer amounts of text
