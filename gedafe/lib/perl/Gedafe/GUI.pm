@@ -726,9 +726,6 @@ sub GUI_Search($$$){
 	unshift @fields, '#ALL#';
 
 	my %search_combos = ();
-	my ($name,$field,$value);
-	my $counter = 1;
-	my @clears = ();
 
 	$template_args->{PAGE} = 'search';
 	$template_args->{ELEMENT} = 'head';
@@ -736,55 +733,37 @@ sub GUI_Search($$$){
 	print Template($template_args);
 	delete $template_args->{SEARCH_ACTION};
 
+	my $counter = 1;
 	for my $search_elem (@$search_fields, { field => '#ALL#', value => '' } ){
-		$name = 'search_field'.$counter;
-		$field = $search_elem->{field};
-		$value = $search_elem->{value};
-
-		#perhaps this is a referenced link
-		if($search_elem->{field} =~ /^meta_rc_(.*)_(.*)$/){
-			$template_args->{REFERENCED_SEARCH} = 1;
-			$template_args->{SEARCHFIELD_FIELD} = $name;
-			$template_args->{SEARCHFIELD_FROM} = 
-			    $g{db_tables}{$1}{desc};
-			$template_args->{SEARCHFIELD_TO} = 
-			    $g{db_tables}{$2}{desc};
-		}
-		$template_args->{ELEMENT} = 'fieldshead';
-		$template_args->{SEARCHFIELD_NAME} = $name;
-		print Template($template_args);
-		delete $template_args->{SEARCHFIELD_NAME};
-		delete $template_args->{REFERENCED_SEARCH};
-		delete $template_args->{SEARCHFIELD_FIELD};
-		delete $template_args->{SEARCHFIELD_FROM};
-		delete $template_args->{SEARCHFIELD_TO};
-
-		foreach my $tablefield (@fields) {
-			$template_args->{ELEMENT} = 'field';
-			$template_args->{SEARCHFIELD_ALL} = 1 if $tablefield eq '#ALL#';
-			$template_args->{SEARCHFIELD_DESC} 
-			    = $g{db_fields}{$view}{$tablefield}{desc};
-			$template_args->{SEARCHFIELD_SELECTED} 
-			    = $tablefield =~ /^$field$/ ? "SELECTED" : '';
-			$template_args->{SEARCHFIELD_TABLEFIELD} = $tablefield;
-			print Template($template_args);
-			delete $template_args->{SEARCHFIELD_ALL};
-			delete $template_args->{SEARCHFIELD_DESC};
-			delete $template_args->{SEARCHFIELD_SELECTED};
-			delete $template_args->{SEARCHFIELD_TABLEFIELD};
+		my $search_field_options='';
+		foreach my $f (@fields) {
+			my $selected = $f eq $search_elem->{field} ? ' SELECTED' : '';
+			my $desc = $g{db_fields}{$view}{$f}{desc};
+			$desc = 'All Columns' if $f eq '#ALL#';
+			$search_field_options .=
+				"<OPTION$selected VALUE=\"$f\">$desc</OPTION>\n";
 		}
 
-		$template_args->{ELEMENT} = 'fieldsfoot';
-		$template_args->{SEARCHVALUE_NAME} = 'search_value'.$counter;
-		$template_args->{SEARCHVALUE_VALUE} = $value;
+		$template_args->{ELEMENT} = 'field';
+		$template_args->{SEARCH_FIELD_NAME}    = 'search_field'.$counter;
+		$template_args->{SEARCH_FIELD_OPTIONS} = $search_field_options;
+		$template_args->{SEARCH_VALUE_NAME}    = 'search_value'.$counter;
+		$template_args->{SEARCH_VALUE_VALUE}   = $search_elem->{value};
+		$template_args->{SEARCH_CLEAR_URL}     = MakeURL($s->{url}, {
+								"search_field$counter" => undef,
+								"search_value$counter" => undef,
+							});
+		delete $template_args->{SEARCH_CLEAR_URL} if $counter == $#$search_fields+2;
+		$template_args->{SEARCH_BUTTON} = 1 if $counter == $#$search_fields+2;
 		print Template($template_args);
-		delete $template_args->{SEARCHVALUE_NAME};
-		delete $template_args->{SEARCHVALUE_VALUE};
 
-		#add clear button to all rows except the last one.
-		push @clears, "search_clear$counter" unless($counter == 1);
 		$counter++;
 	} 
+	delete $template_args->{SEARCH_FIELD_NAME};
+	delete $template_args->{SEARCH_FIELD_OPTIONS};
+	delete $template_args->{SEARCH_VALUE_NAME};
+	delete $template_args->{SEARCH_VALUE_VALUE};
+	delete $template_args->{SEARCH_CLEAR_VALUE};
 
 	my $search_hidden = '';
 	foreach my $p ($q->url_param) {
@@ -797,28 +776,6 @@ sub GUI_Search($$$){
 		next if $p =~ /^offset$/;
 		$search_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$p\" VALUE=\"".$q->url_param($p)."\">\n";
 	}
-
-	$template_args->{ELEMENT} = 'button';
-	$template_args->{SEARCH_SHOWALL} = MakeURL(MyURL($q), {},
-						   [ 'search_value.*',
-						     'search_button.*',
-						     'search_field.*']);
-	print Template($template_args);
-	delete $template_args->{SEARCH_SHOWALL};
-
-	$template_args->{ELEMENT} = 'clearhead';
-	print Template($template_args);
-
-	$template_args->{ELEMENT} = 'clear';
-	for my $c (@clears){
-		$template_args->{SEARCH_CLEAR_NAME} = $c;
-		print Template($template_args);
-	}
-	delete $template_args->{SEARCH_CLEAR_NAME};
-	
-
-	$template_args->{ELEMENT} = 'clearfoot';
-	print Template($template_args);
 
 	$template_args->{ELEMENT} = 'foot';
 	$template_args->{SEARCH_HIDDEN} = $search_hidden;
@@ -1038,14 +995,14 @@ sub GUI_ListTable($$$)
 				$d = qq{<A HREF="$refurl">$d</A>};
 			}
 			
-			if($c->{refcount}){
-				my $refurl = MakeURL($s->{url}, {
-						table => $c->{table},
-						action => 'list',
-						search_field1 => 'meta_rc_'.$c->{tar_field},
-						search_value1 => '='.$row->[0]},['search_value','search_field','offset','orderby']);
-				$d = qq {<A HREF="$refurl">$d items</a>};
-			}
+			#if($c->{refcount}){
+			#	my $refurl = MakeURL($s->{url}, {
+			#			table => $c->{table},
+			#			action => 'list',
+			#			search_field1 => 'meta_rc_'.$c->{tar_field},
+			#			search_value1 => '='.$row->[0]},['search_value','search_field','offset','orderby']);
+			#	$d = qq {<A HREF="$refurl">$d items</a>};
+			#}
 			if($c->{type} eq 'date' && 
 			   $g{db_fields}{$table}{$field}{widget}){
 				my ($w,$args) = 

@@ -913,7 +913,6 @@ sub DB_FetchListSelect($$)
 		my @showrefs = split(/,/,
 				     $g{db_tables}{$spec->{table}}{meta}{showref});
 	    
-	    
 		for my $showref(@showrefs){	
 				
   			my $showrefindex = 0;
