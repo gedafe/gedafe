@@ -14,6 +14,8 @@ Small features
 - TUTORIAL ?
 - meta_fields: combo
 - meta_database, default_hide
+- Better error reporting when just permissions problems on meta_tables
+  for example -> Authentication error
 
 Big features
 ------------
