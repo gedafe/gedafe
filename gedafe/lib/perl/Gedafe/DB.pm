@@ -38,6 +38,7 @@ require Exporter;
 	DB_DumpTable
 	DB_FetchReferencedId
 	DB_ReadDatabase
+	DB_Format
 );
 
 
@@ -528,16 +529,30 @@ sub DB_ParseWidget($)
 	# verify
 	if($type eq 'idcombo' or $type eq 'hidcombo' or $type eq 'combo') {
 		defined $args{'combo'} or
-			die "widget $widget: mandatory argument 'combo' not defined";
+			die "widget $widget: mandatory argument 'combo' not defined\n";
 	}
 	if($type eq 'hidcombo' or $type eq 'hidisearch') {
 		my $r = $args{'ref'};
 		defined $r or
-			die "widget $widget: mandatory argument 'ref' not defined";
+			die "widget $widget: mandatory argument 'ref' not defined\n";
 		defined $g{db_tables}{$r} or
 			die "widget $widget: no such table: $r";
 		defined $g{db_fields}{$r}{"${r}_hid"} or
 			die "widget $widget: table $r has no HID";
+	}
+	if($type eq 'format_number') {
+		my $t = $args{'template'};
+		defined $t or
+			die "widget $widget: mandatory argument 'template' not defined\n";
+		$t =~ /(0|9|\.|,|PR|S|L|D|G|MI|PL|SG|RN|TH|th|V|EEEE)+/  or
+			die "widget $widget: template '$t' doesn't seem to be valid\n";
+	}
+	if($type eq 'format_date' or $type eq 'format_timestamp') {
+		my $t = $args{'template'};
+		defined $t or
+			die "widget $widget: mandatory argument 'template' not defined\n";
+		$t =~ /((FM|TH|th|FX|SP)?(HH|HH12|HH24|MI|SS|MS|US|SSS|AM|[aApP]\.?[mM]\.?|Y,YYY|Y{1,4}|[bB]\.?[cC]\.?|[aA]\.?[dD]\.?|MONTH|[mM]onth|month|MON|[mM]on|MM|DAY|[dD]ay|D[yY]|dy|D{1,3}|WW?|IW|CC|J|Q|RM|rm|TZ|tz))+/  or
+			die "widget $widget: template '$t' doesn't seem to be valid\n";
 	}
 
 	return ($type, \%args);
@@ -1689,5 +1704,23 @@ sub DB_filenameSql($){
   return "decode(replace(replace(encode(substring($column,1,position(' '::bytea in $column)-1),'escape'), 'gedafe_PROTECTED_sPace'::text, ' '::text), 'gedafe_PROTECTED_hAsh'::text, '#'::text),'escape')";
 }
 
+my %DB_Format_functions = (
+	'number_to_char'    => 'to_char',
+	'timestamp_to_char' => 'to_char',
+	'date_to_char'      => 'to_char',
+	'char_to_number'    => 'to_number',
+	'char_to_timestamp' => 'to_timestamp',
+	'char_to_date'      => 'to_date',
+);
+sub DB_Format($$$) {
+	my ($function,$template,$data) = @_;
+	my $f = $DB_Format_functions{$function} or die;
+	my $q = "SELECT $f(?,?)";
+	my $sth = $dbh->prepare_cached($q) or die $dbh->errstr;
+	$sth->execute($data,$template) or die $sth->errstr;
+	my $d = $sth->fetchrow_arrayref();
+	die $sth->errstr if $sth->err;
+	return $d->[0];
+}
 
 1;
