@@ -320,7 +320,10 @@ sub GUI_ListTable($$$)
 {
 	my ($s, $list, $page) = @_;
 
-	my $can_edit = ($list->{acl} =~ /w/);
+	# user can edit only if they have sql UPDATE privilege, and
+	# this table is a real table, not a report (view)
+	my $can_edit = ($list->{acl} =~ /w/ and
+			!$g{db_tables}{$list->{spec}->{table}}{report});
 	my $can_delete = $can_edit;
 
 	my %template_args = (
