@@ -1,3 +1,7 @@
+2003-05-02
+----------
+* bugfix: PG 7.3 dropped columns
+
 2003-03-18
 ----------
 * bugfix: wrong size of INPUT field for bare VARCHAR (reported by George Loyer)
