@@ -52,8 +52,7 @@ called I<table>B<_hid>.
 
 Often the I<table>B<_hid> will be presented to the user of the
 database, while internally the I<table>B<_id> is used as
-reference. Therefore for each such I<table>B<_hid> and I<table>B<_id>
-pair two translation functions must be defined.
+reference.
 
 Example:
 
@@ -63,13 +62,6 @@ Example:
    customer_name TEXT, 
    customer_age INT,
    customer_address TEXT);
-
- CREATE FUNCTION "customer_hid2id" (bpchar ) RETURNS int4 AS 
-	'SELECT customer_id FROM customer WHERE customer_hid = $1 ' 
-	LANGUAGE 'SQL';
- CREATE FUNCTION "customer_id2hid" (int4 ) RETURNS bpchar AS 
-	'SELECT customer_hid FROM customer WHERE customer_id = $1' 
-	LANGUAGE 'SQL';
 
 
 =head2 Table and Field Naming
@@ -303,3 +295,5 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 Tobias Oetiker E<lt>oetiker@ee.ethz.chE<gt>
 
 David Schweikert E<lt>dws@ee.ethz.chE<gt>
+
+Fritz Zaucker E<lt>zaucker@ee.ethz.chE<gt>
