@@ -547,6 +547,7 @@ sub DB_FetchList($$$$;%)
 		my $query = "SELECT ";
 		$query .= join(', ',@fields);
 		$query .= " FROM $table";
+		my $searching=0;
 		if(defined $search_field and defined $search_value
 			and $search_field ne '' and $search_value ne '')
 		{
@@ -555,19 +556,21 @@ sub DB_FetchList($$$$;%)
 				$query .= " WHERE $search_field = '$search_value'";
 			}
 			elsif($type eq 'bool') {
-				$search_value = 1 if $search_value =~ /^ysjt/i;
-				$search_value = 0 if $search_value =~ /^nf/i;
 				$query .= " WHERE $search_field = '$search_value'";
 			}
 			else {
 				$query .= " WHERE $search_field ~* '.*$search_value.*'";
 			}
-			if(defined $filter_field and defined $filter_value) {
-				$query .= " AND";
-			}
+			$searching=1;
 		}
 		if(defined $filter_field and defined $filter_value) {
-			$query .= " WHERE $filter_field = '$filter_value'";
+			if($searching) {
+				$query .= ' AND';
+			}
+			else {
+				$query .= ' WHERE';
+			}
+			$query .= " $filter_field = '$filter_value'";
 		}
 		if(defined $orderby and $orderby ne '') {
 			if(defined $g{db_fields}{$table}{$orderby}{sortfunc}) {

@@ -1,6 +1,7 @@
 2001-02-11
 ----------
 * fix the encoding of values in urls for reedit_data. Use '!' instead of '%'.
+* fix searching a filterfirst-filtered view
 
 2001-02-08
 ----------
