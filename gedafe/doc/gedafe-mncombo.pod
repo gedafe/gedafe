@@ -1,0 +1,174 @@
+=head1 NAME
+
+gedafe-mncombo - Gedafe MNCombo Widget 
+
+=head1 OVERVIEW
+
+
+MNCombo is a new Gedafe widget that provides interface for editing 
+tables describing the M:N relationship. M:N relationship describes 
+association between two tables A and B where tuple (row) from table
+A can be associated with more then one tuple from table B without 
+restricting number of their occurences. For example, this relationship
+appears when we want to model a simple 'Publications' database, where:
+ 
+- one publication can be written by more then one author
+- one author can write more then one publication
+- additionaly, we may think of preserving the order of authors on the
+publication. 
+
+In ER diagram this can be shown graphically as:
+
+	 -------------	M	 		      	  N  --------
+	| publication | ----------------------- | author |
+	 -------------		              		 --------
+    (publication_id)                       (author_id)
+    
+where publication_id and author_id are primary keys of tables 'publication'
+and 'author' respectively.
+    
+M:N relationship between two tables obeys to database schema normalisation
+rules. After applying these rules, M:N relationship is represented with
+a new table storing primary keys of tables building this relationship.
+In our example, we called this table 'publauthors'.
+
+	 -------------	 	   ---------------------         --------
+	| publication |       |     publauthors     |       | author |
+	 -------------	       ---------------------       	 --------
+    (publication_id)     (publication_id,author_id)     (author_id)
+    
+
+As provided by Gedafe, the way of inserting data into these tables is provided by
+three forms (for each table one form). So steps of filling in database would be:
+
+1.	enter 'author' data through Gedafe's 'author' form;
+	commit insertion.
+2.	enter 'publication' data through Gedafe's 'publication' form;
+	commit insertion.
+3.	enter associtions between these two tables by editing 'publauthors' table 
+through Gedafe's 'publauthors' form;
+	commit insertion.
+
+The idea of introducing the MNCombo widget is to eliminate third step by integrating it 
+with the one of the first two. To do this, we need to provide sufficient 
+information to Gedafe stating that when we e.g. want to insert 'publication' data,
+we want through the same form to specify an appropriate list of the authors. So,
+steps would be now:
+ 
+1.	enter 'author' data through Gedafe's 'author' form;
+	commit insertion.
+2.	enter 'publication' data through Gedafe's 'publication' form;
+	select the appropriate list of authors;
+	commit insertion.
+
+As shown on the following picture, mncombo widget consists of:
+- list of already choosen items, labeled as "ALREADY SELECTED"
+- two buttons labeld as "Up" and "Down". With these buttons is possible to 
+change an order from the "ALREADY SELECTED" list. They have meaning only
+if the mncombo is declared to preserve an order
+- alphabeticaly sorted list of remained items, labeld as "NEW TO CHOOSE"
+- field for in-word case insensitive first match search through the 
+list "NEW TO CHOOSE"
+- two buttons to move a selected item from one list to the other
+Moving is possible with double click too.
+ 
+    ==================================================================
+ 	|																 |
+ 	| 	 --------------------------------------------------------	 |
+	|	| publication_title                                      |	 |
+	|	 --------------------------------------------------------	 |
+	|																 |
+	==================================================================
+	|																 |
+	|																 |
+	|			 ALREADY SELECTED:              NEW TO CHOOSE: 		 |
+	|			 -----------------              -----------------	 |
+	| 	 ----	| author01      |^|    ----    | author04      |^|	 |
+	|	| Up |	| author02      | |   | => |   | author06      | |	 |
+	| 	 ----	| author03      | |    ----    |               | |	 |
+	| 	 ----	|               | |    ----    |               | |	 |
+	|	|Down|	|               | |   | <= |   |               | |	 |
+	|	 ----	|               |v|    ----    |               |v|	 |
+	|			 ----------------               -----------------	 |
+	|							 			    -----------------	 |
+	|										   | list search     |	 |
+	|			 							    -----------------	 |
+    ==================================================================
+
+
+As it is aready mentioned, the M:N relationship in the database is represented
+by introducing a new table. Following the naming rules of Gedafe, part of the 
+database schema describing tables from the example looks like:
+
+ CREATE TABLE publication (
+   publication_id			SERIAL NOT NULL PRIMARY KEY, 
+   publication_title		TEXT NOT NULL
+ );
+ 
+ CREATE TABLE author (
+   author_id			SERIAL NOT NULL PRIMARY KEY, 
+   author_name			TEXT NOT NULL
+ );
+
+ CREATE TABLE publauthors (
+   publauthors_id			SERIAL NOT NULL PRIMARY KEY, 
+   publauthors_publication	INT NOT NULL REFERENCES publication,
+   publauthors_author		INT NOT NULL REFERENCES author
+ );
+ 
+Now we need to provide a structure that will hold an information about existence
+of a 'virtual' field 'publication_authors' in the table 'publication' referencing 
+table 'publathors'. For this purpous it is introduced a new meta table 'meta_mncombo'.
+
+ CREATE TABLE meta_mncombo (
+    -- Table name to which we'll atach a virtual field
+    meta_mncombo_atable       NAME NOT NULL,
+    -- Virtual field name
+    meta_mncombo_vfield		  TEXT NOT NULL,
+    -- Referenced table
+    meta_mncombo_reference    NAME NOT NULL
+ );
+
+ In our example we insert following:
+ 
+ INSERT INTO meta_mncombo VALUES ('publication','publication_authors','publauthors');
+ 
+ Information about virtual field order, description and other parameters is stored 
+ in a usuall Gedafe defined manner, e.g. :
+ 
+ INSERT INTO meta_fields VALUES ('publication','publication_authors','desc','Authors');
+ 
+ Concerning the widget if nothing defined it is assumed existence of the *_combo view,
+ where * stays in the place of the another table referenced by M:N table. In our case
+ that is table 'author'.
+ 
+ If we want to specify another *_combo view, e.g. 'myauthor_combo':
+ 
+ CREATE VIEW myauthor_combo AS
+ 	SELECT person_id AS id,
+ 	person_name as text
+ 	FROM person
+ 	ORDER BY person_name;
+ 
+ this can be done on the following way:
+  	
+ INSERT INTO meta_fields VALUES ('publication','publication_authors',
+ 							'widget','mncombo(combo=author_combo)');
+ 
+ As already supported by Gedafe, if not needed, the table 'publauthors' 
+ can be hided from the menu bar by:
+ 
+ INSERT INTO meta_tables VALUES ('publauthors','hide','true');
+
+=head1 The ordered MNCombo-box
+
+ 
+ INSERT INTO meta_fields VALUES ('publication','publication_authors','ordered','1');
+ 
+ CREATE TABLE publauthors (
+   publauthors_id			SERIAL NOT NULL PRIMARY KEY, 
+   publauthors_publication	INT NOT NULL REFERENCES publication,
+   publauthors_author		INT NOT NULL REFERENCES author,
+   publauthors_order		INT NOT NULL DEFAULT 0
+ );
+
