@@ -726,12 +726,13 @@ sub GUI_Search($$$){
 	my $search_fields = GUI_ReadSearchSpec($s);
 	
 	my @fields = @{$g{db_fields_list}{$view}};
+	# put the ID field at the end and with a special name (it is not a
+	# shown field but it could be useful to search by it)
+	my $id_field = shift @fields;
+	push @fields, $id_field;
+
+	# add 'All Columns' pseudo-field
 	unshift @fields, '#ALL#';
-	# remove duplicates (can happen when you have a HID and you also show the ID -> include twice the ID in the view
-	{
-		my (%fields, $i); map { $fields{$_}=$i++ } @fields;
-		@fields = sort { $fields{$a} <=> $fields{$b} } keys %fields;
-	}
 
 	my %search_combos = ();
 
@@ -748,6 +749,7 @@ sub GUI_Search($$$){
 			my $selected = $f eq $search_elem->{field} ? ' SELECTED' : '';
 			my $desc = $g{db_fields}{$view}{$f}{desc};
 			$desc = 'All Columns' if $f eq '#ALL#';
+			$desc = $f if $f eq $id_field;
 			$search_field_options .=
 				"<OPTION$selected VALUE=\"$f\">$desc</OPTION>\n";
 		}
