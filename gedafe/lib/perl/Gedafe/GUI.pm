@@ -286,6 +286,112 @@ sub GUI_Entry($$$)
 	GUI_Footer(\%template_args);
 }
 
+sub GUI_FilterFirst($$$$)
+{
+	my $s = shift;
+	my $q = $s->{cgi};
+	my $dbh = shift;
+	my $view = shift;
+	my $template_args = shift;
+	my $myurl = MyURL($q);
+	my $filterfirst_field = $g{db_tables}{$view}{meta}{filterfirst};
+	my $filterfirst_value = $q->url_param('filterfirst') || $q->url_param('combo_filterfirst') || '';
+
+	# filterfirst
+	if(defined $filterfirst_field)
+	{
+		if(not defined $g{db_fields}{$view}{$filterfirst_field}{ref_combo}) {
+			Error($s, "combo not found for $filterfirst_field.");
+		}
+		else {
+			my $filterfirst_combo = GUI_MakeCombo($dbh, $view, $filterfirst_field, "combo_filterfirst", $filterfirst_value);
+			my $filterfirst_hidden = '';
+			foreach($q->url_param) {
+				next if /^filterfirst/;
+				next if /button$/;
+				$filterfirst_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
+			}
+			$template_args->{ELEMENT}='filterfirst';
+			$template_args->{FILTERFIRST_FIELD}=$filterfirst_field;
+			$template_args->{FILTERFIRST_FIELD_DESC}=$g{db_fields}{$view}{$filterfirst_field}{desc};
+			$template_args->{FILTERFIRST_COMBO}=$filterfirst_combo;
+			$template_args->{FILTERFIRST_HIDDEN}=$filterfirst_hidden;
+			$template_args->{FILTERFIRST_ACTION}=$s->{url};
+			print Template($template_args);
+			delete $template_args->{ELEMENT};
+			delete $template_args->{FILTERFIRST_FIELD};
+			delete $template_args->{FILTERFIRST_FIELD_DESC};
+			delete $template_args->{FILTERFIRST_COMBO};
+			delete $template_args->{FILTERFIRST_HIDDEN};
+			delete $template_args->{FILTERFIRST_ACTION};
+		}
+		if($filterfirst_value eq '') { $filterfirst_value = undef; }
+	}
+
+	return ($filterfirst_field, $filterfirst_value);
+}
+
+sub GUI_Search($$$)
+{
+	my $s = shift;
+	my $q = $s->{cgi};
+	my $view = shift;
+	my $template_args = shift;
+	my $search_field = $q->url_param('search_field') || '';
+	my $search_value = $q->url_param('search_value') || '';
+
+	$search_field =~ s/^\s*//; $search_field =~ s/\s*$//;
+	$search_value =~ s/^\s*//; $search_value =~ s/\s*$//;
+	my $fields = $g{db_fields}{$view};
+	my $search_combo = "<SELECT name=\"search_field\" SIZE=\"1\">\n";
+	foreach(@{$g{db_fields_list}{$view}}) {
+		next if /${view}_id/;
+		if(/^$search_field$/) {
+			$search_combo .= "<OPTION SELECTED VALUE=\"$_\">$fields->{$_}{desc}</OPTION>\n";
+		}
+		else {
+			$search_combo .= "<OPTION VALUE=\"$_\">$fields->{$_}{desc}</OPTION>\n";
+		}
+	}
+	$search_combo .= "</SELECT>\n";
+	my $search_hidden = '';
+	foreach($q->url_param) {
+		next if /^search/;
+		next if /^button/;
+		next if /^offset$/;
+		$search_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
+	}
+	$template_args->{ELEMENT} = 'search';
+	$template_args->{SEARCH_ACTION} = $s->{url};
+	$template_args->{SEARCH_COMBO} = $search_combo;
+	$template_args->{SEARCH_HIDDEN} = $search_hidden;
+	$template_args->{SEARCH_VALUE} = $search_value;
+	$template_args->{SEARCH_SHOWALL} = MakeURL(MyURL($q), { search_value=>'', search_button=>'', search_field=>'' });
+	print Template($template_args);
+	delete $template_args->{ELEMENT};
+	delete $template_args->{SEARCH_ACTION};
+	delete $template_args->{SEARCH_COMBO};
+	delete $template_args->{SEARCH_HIDDEN};
+	delete $template_args->{SEARCH_VALUE};
+	delete $template_args->{SEARCH_SHOWALL};
+
+	# search date = TODAY
+	if($search_field ne '') {
+		if($g{db_fields}{$view}{$search_field}{type} eq 'date') {
+			if($search_value =~ /^today$/i) {
+				$search_value = POSIX::strftime("%Y-%m-%d", localtime);
+			}
+			elsif($search_value =~ /^yesterday$/i) {
+				my $time = time;
+				$time -= 3600 * 24;
+				$search_value = POSIX::strftime("%Y-%m-%d", localtime($time));
+			}
+		}
+	}
+
+	return ($search_field, $search_value);
+}
+
 sub GUI_EditLink($$$$)
 {
 	my ($s, $template_args, $list, $row) = @_;
@@ -524,6 +630,14 @@ sub GUI_List($$$)
 		orderby => $q->url_param('orderby') || '',
 		descending => $q->url_param('descending') || 0,
 	);
+
+	# filterfirst
+	($spec{filter_field}, $spec{filter_value}) =
+	  GUI_FilterFirst($s, $dbh, $table, \%template_args);
+
+	# search
+	($spec{search_field}, $spec{search_value}) =
+	  GUI_Search($s, $spec{view}, \%template_args);
 
 	# fetch list
 	my $list = DB_FetchList($s, \%spec);
