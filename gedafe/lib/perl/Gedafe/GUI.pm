@@ -835,11 +835,12 @@ sub GUI_Export($$$)
 	}
 
 	# field names
-	foreach my $f (@fields_list[$skip_id..$#fields_list]) {
+	for my $i ($skip_id..$#fields_list) {
+		my $f = $fields_list[$i];
 		my $str = $fields->{$f}{desc};
 		$str =~ s/\t/        /g;
 		print $str;
-		print "\t" unless $f >= $#fields_list;
+		print "\t" unless $i >= $#fields_list;
 	}
 	print "\n";
 
