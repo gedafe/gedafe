@@ -141,21 +141,17 @@ other commented table field in the database.
 
 =head2 The Combo-box
 
-When editing fields that are a reference to a row in another table it
-is useful to have some help in filling out the field. Best is to
-provide a list of all possible values. The widget used to present this
-information to the user is called combo-box. In order to make this
-possible, each table which gets referenced by another table must be
-accompanied by a special view called I<table>B<*_combo>. This view
-must have two columns one called B<id> and one called B<text>. The
-B<id> column contains the value a user might want to enter in the
-field containing the reference. If the table has an I<table>B<_hid>
-column then B<id> values must be taken from there instead of the
-standard I<table>B<_id> column. The reasoning behind this is that even
-if there is no combo-box, the user should be able to enter references
-using I<table>B<_hid> values whenever possible. In order not to create
-an incongruence the combo-box must then also provide the
-I<table>B<_hid>.
+When editing fields that are a reference to a row in another table it is
+useful to have some help in filling out the field. Best is to provide a
+list of all possible values. The widget used to present this information to
+the user is called combo-box. In order to make this possible, each table
+which gets referenced by another table must be accompanied by a special
+view called I<table>B<*_combo>. This view must have two columns one called
+B<id> and one called B<text>. The B<id> column contains the id of the
+referenced record. You can select the view to be taken for a certain field
+instead of the one chosen automatically be Gedafe by explicitely using the
+'idcombo' or 'hidcombo' widget attribute in meta_fields like explained in
+L<EDIT WIDGETS>.
 
 If you want to order the contents of the combo-box, then this can be
 done using an extra B<meta_sort> column as explained below. By

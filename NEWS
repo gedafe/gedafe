@@ -4,70 +4,93 @@
 
 (arrows indicate actions that you should make when upgrading)
 
-1.2.0
------
-* blobs (files) can now be inserted into bytea columns if you have
-  Postgresql >= 7.2
-* Referencing large tables can now be done trough a java applet instead
-  of a html select widget. This makes large (>100 rows or a few kb)
-  tables more easy to use. See documentation for details.
-* dates can now be entered with a special date widget.
-* data can now be scanned for tokens resembling web objects (e.g. e-mail
-  addresses, http urls), and automatically marked up to be hyper links;
-  set the 'markup' value in meta_fields for the desired column
+1.2.0 (2003-07-FIXME)
+------------------------------------------------------------------------------
+  * Combo-boxes must always reference the 'id' of the table and not the
+    'hid' if the table has one. The old behaviour was confusing and was
+    thus changed, but you can still tell Gedafe to behave like that
+    by setting 'gedafe_compat' to '1.0' in the Start function.
 
-* Gedafe can now count the total number of results returned from the
-  database.  This is helpful for seeing the number of items found by a
-  search, and in skipping to the beginning end or of a result set.
-  When enabled, you will see extra navigation links "First", and "Last"
-  on every page, as well as the index of the rows shown in relation to
-  total rows.  To enable this feature, call Start() with the
-    'show_row_count' => 1,
-  parameter.  It is turned off by default due to slightly higher database
-  overhead.
+    -> Change all combo-boxes where the 'hid' is referenced in the
+       'id' field of the view to reference the 'id' of the table
 
-* If you have the Text::CSV_XS Perl module installed (available from CPAN),
-  gedafe automatically detects it, and gives the option of exporting data
-  either in CSV format (comma-separated-values), or in tab-delimited format.
-  CSV format is useful for data with embedded newlines characters.
+    OR
 
-1.0.6
------
-* 'action=export' instead of 'action=list' or 'action=listrep' returns
-  a comma-separated-values listing of all rows of the table. You can use
-  the EXPORT_URL variable in the templates to reference the correct
-  URL.
+    -> Put the following in the Start function of the cgi script:
 
-1.0.5
------
+         gedafe_compat => '1.0'
 
-* The edit view now returns to the "Referer" if it is provided by the browser.
-  This makes it possible to jump internally directly to an edit view (from
-  the list view of another table for example)
+  * More widgets: the 'widget' attribute of the meta_fields
+    can now specify more widgets and widgets can now have parameters. For
+    example with 'idcombo(combo=...)' another combo-box can be selected
+    instead of the one chosen by Gedafe. See 'EDIT WIDGETS' in
+    gedafe-sql.pod for a description of all widgets.
 
-1.0.1
------
+  * Blobs (files) can now be inserted into bytea columns if you have
+    Postgresql >= 7.2
 
-* The old pre-0.9.16 meta_tables and meta_fields structure is not anymore
-  supported.
+  * Referencing large tables can now be done trough a java
+    applet instead of a html select widget. This makes large (>100 rows or
+    a few kb) tables more easy to use. See documentation about 'isearch'
+    for details.
 
-* New template: error.html used for unexpected internal errors.
+  * Dates can now be entered with a special 'date' widget.
 
-  -> put the new error.html in your templates directories
+  * Data can now be scanned for tokens resembling web objects (e.g.
+    e-mail addresses, http urls), and automatically marked up to be hyper
+    links. Set the 'markup' attribute to 1 in meta_fields for the desired
+    column.
+  
+  * Gedafe can now count the total number of results returned from the
+    database.  This is helpful for seeing the number of items found by a
+    search, and in skipping to the beginning end or of a result set.
+    When enabled, you will see extra navigation links "First", and "Last"
+    on every page, as well as the index of the rows shown in relation to
+    total rows.  To enable this feature, call Start() with the
+      'show_row_count' => 1,
+    parameter.  It is turned off by default due to slightly higher
+    database overhead.
+  
+  * If you have the Text::CSV_XS Perl module installed (available from CPAN),
+    gedafe automatically detects it, and gives the option of exporting data
+    either in CSV format (comma-separated-values), or in tab-delimited format.
+    CSV format is useful for data with embedded newlines characters.
 
-* The escaping characted for encoding data in reedit_data has changed
-  from '%' to '!', so any old pre-built urls with reedit_data set won't work.
+1.0.6 (2002-03-17)
+------------------------------------------------------------------------------
+  * 'action=export' instead of 'action=list' or 'action=listrep' returns
+    a comma-separated-values listing of all rows of the table. You can use
+    the EXPORT_URL variable in the templates to reference the correct
+    URL.
 
-* searches are now case insensitive
+1.0.5 (2002-02-18)
+------------------------------------------------------------------------------
+  * The edit view now returns to the "Referer" if it is provided by the browser.
+    This makes it possible to jump internally directly to an edit view (from
+    the list view of another table for example)
 
-* gedafed has changed
-
-  -> replace gedafed and restart it
-
-* app_site and app_path are not anymore needed in the startup script
-
-  -> remove app_site and app_path from the startup scripts
-
-* all the templates have a new variable: DATABASE_DESC containing the comment set
-  on the database. You thus can take the original example/template/header.html and
-  use it for your application.
+1.0.1 (2001-02-20)
+------------------------------------------------------------------------------
+  * The old pre-0.9.16 meta_tables and meta_fields structure is not anymore
+    supported.
+  
+  * New template: error.html used for unexpected internal errors.
+  
+    -> put the new error.html in your templates directories
+  
+  * The escaping characted for encoding data in reedit_data has changed
+    from '%' to '!', so any old pre-built urls with reedit_data set won't work.
+  
+  * searches are now case insensitive
+  
+  * gedafed has changed
+  
+    -> replace gedafed and restart it
+  
+  * app_site and app_path are not anymore needed in the startup script
+  
+    -> remove app_site and app_path from the startup scripts
+  
+  * all the templates have a new variable: DATABASE_DESC containing the comment set
+    on the database. You thus can take the original example/template/header.html and
+    use it for your application.
