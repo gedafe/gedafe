@@ -87,7 +87,7 @@ my %type_widget_map = (
 	'text'      => 'text',
 	'name'      => 'text(size=20)',
 	'bool'      => 'checkbox',
-	'bytea'     => 'file',
+	'bytea'     => 'file'
 );
 
 
@@ -539,7 +539,10 @@ sub DB_ParseWidget($)
 		defined $args{'combo'} or
 			die "widget $widget: mandatory argument 'combo' not defined";
 	}
-	
+	if($type eq 'file2fs') {
+		defined $args{'server'} or
+			die "widget $widget: mandatory argument 'server' not defined";
+	}
 	return ($type, \%args);
 }
 
@@ -2132,7 +2135,7 @@ sub DB_ExecQueryOID($$$$$)
 		my $type = $datatypes{$_};
 		my $data = $data->{$_};
 		if(grep (/^$type$/,@stringtypes)){
-			$sth->bind_param($paramnumber,$data);
+				$sth->bind_param($paramnumber,$data);
 		}
 		if(grep (/^$type$/,@binarytypes)){
 			#note the reference to the large blob

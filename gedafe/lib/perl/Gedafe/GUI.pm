@@ -5,7 +5,6 @@
 # released under the GNU General Public License
 
 package Gedafe::GUI;
-
 use strict;
 
 use Gedafe::Global qw(%g);
@@ -1256,6 +1255,28 @@ sub GUI_WidgetRead($$$)
 			}
 		}
 	}
+	if($w eq 'file2fs'){
+		my $file = $value;
+		my $deletefile = $q->param("file_delete_$input_name");
+		if($deletefile) {
+			$value="";
+		}
+		else {
+			if($file) {
+				my $filename = $file;
+				$filename =~ s/.*[\\\/]//; #strip path
+				$filename =~ 
+				    s/ /gedafe_PROTECTED_sPace/g;
+				$filename =~ 
+				    s/#/gedafe_PROTECTED_hAsh/g;
+				    $value="$warg->{'server'}/$filename";
+			}
+			else {
+				#when we are here the file field has not been set
+				$value = undef;
+			}
+		}
+	}
 
 	if($w eq 'hid' or $w eq 'hidcombo' or $w eq 'hidisearch' or $w eq 'hjsisearch') {
 		if(defined $value and $value !~ /^\s*$/) {
@@ -1392,7 +1413,6 @@ sub GUI_Edit($$$)
 	GUI_Header($s, \%template_args);
 
 	our $edit_mask = $g{db_tables}{$table}{meta}{editmask};
-	print STDERR "editmask: $edit_mask\n\n";
 	GUI_InitTemplateArgs($s, \%template_form_args) if defined $edit_mask;
 
 
@@ -1439,7 +1459,7 @@ sub GUI_Edit($$$)
 	    }	
 	}
 
-	if($action eq 'edit') {
+    if($action eq 'edit') {
 		print "<INPUT TYPE=\"hidden\" NAME=\"id\" VALUE=\"$id\">\n";
 	}
 
@@ -1654,7 +1674,6 @@ sub GUI_MakeRadio($$$$$$)
 	}
 
 	if ( $shownull == 1 ){	
-		print STDERR "shownull = $shownull, nulltext = $nulltext\n";
 		#$nulltext = " " unless defined $nulltext;
 		$str .= "<input type=\"radio\" name=\"$name\" value=\"\" ";
 
@@ -1990,7 +2009,7 @@ sub GUI_WidgetWrite($$$$)
 		return $value || '&nbsp;';
 	}
 	elsif($w eq 'text') {
-		my $size = defined $warg->{size} ? $warg->{size} : '20';
+		my $size = defined $warg->{size} ? $warg->{size} : '60';
 		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"$size\" VALUE=\"".$escval."\">";
 	}
 	elsif($w eq 'hidden') {
@@ -2097,10 +2116,20 @@ sub GUI_WidgetWrite($$$$)
 		if($value){
 		  $out.="<input type=\"hidden\" name=\"$input_name"."_CURRENT_FILEXXX\" value=\"$value->[1]\">\n";
 		}
-		$out .= "Current file: <b>$filename</b>\n";
+		$out .= "Current plugin file: <b>$filename</b>\n";
 		$out .= "<br>Enter filename to update.<br><INPUT TYPE=\"file\" NAME=\"$input_name\">\n";
 		return $out;
 	}
+	elsif($w eq 'file2fs'){
+		my $filename = $value ne ''  ? $value : "(none)";
+		my $out = "Current uploaded file: <b>$filename</b>";
+		if($value ne ''){
+			$out .= "<br>Delete file?: <INPUT TYPE=\"checkbox\" NAME=\"file_delete_$input_name\">";
+		}
+		$out .= "<br>Enter filename to update.<br><INPUT TYPE=\"file\" NAME=\"$input_name\">";
+		return $out;
+	}
+
 	if($w eq 'localdate'){
 		my $format = lc($warg->{'format'});
 		$value = GUI_FormatDate($value,$format);
@@ -2111,7 +2140,7 @@ sub GUI_WidgetWrite($$$$)
 	}elsif($w eq 'mncombo') {
 		my $combo;
 		$combo = GUI_MakeMNCombo($s, $dbh, $warg->{'mncombo'}, $input_name, $value);
-        return $combo;
+        	return $combo;
 	}
 
 	return "Unknown widget: $w";
@@ -2372,7 +2401,7 @@ sub GUI_Oyster($)
 					$p->{param}{$field} = GetFile($s,$p->{param}{$field});
 				}
 			}
-		}
+		}f
 
 		$validate = $p->validate($previousstate);
 		die("validate for plugin $oyster does not return a hash reference for state $previousstate.\n") unless ref($validate) eq 'HASH';
@@ -2501,17 +2530,17 @@ sub GUI_MakeMNCombo($$$$$)
 		return undef;
 	}
 	
-	$str .= "<table id=\"mncombo\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n";
+	$str .= "<table id=\"mncombo\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"width: 650px;\">\n";
 	$str .= "<tr><td>";
 	$str .= "<table><tr><td>";
 	$str .= "<INPUT TYPE=button NAME=\"direction\" VALUE=\"Up\" onClick=\"moveUp(document.editform.$input_name);\"/>";
 	$str .= "</td></tr><tr><td>";
 	$str .= "<INPUT TYPE=button NAME=\"direction\" VALUE=\"Dn\" onClick=\"moveDown(document.editform.$input_name);\"/>";
 	$str .= "</td></tr></table>";
-	$str .= "</td><td valign=\"top\" style=\"width: 300;\">\n";
+	$str .= "</td><td valign=\"top\" style=\"width: 300px;\">\n";
 	
 	$str .= "Already Selected:<br>\n";
-	$str .= "<select name=\"$input_name\" size=\"5\" style=\"width: 300;\" ";
+	$str .= "<select name=\"$input_name\" size=\"5\" style=\"width: 300px;\" ";
 	$str .= "onDblClick=\"move(document.editform.$input_name,document.editform.$input_name$s->{mncombo});";
 	$str .= "sortSelect(document.editform.$input_name$s->{mncombo},compareText);\" ";
 	$str .= "multiple>\n";
@@ -2537,8 +2566,10 @@ sub GUI_MakeMNCombo($$$$$)
 
 	$str .= "New to Choose:<br>\n";
 	$str .= "<select name=\"$input_name$s->{mncombo}\" size=\"5\" style=\"width: 300;\" ";
-	$str .= "onDblClick=\"move(document.editform.$input_name$s->{mncombo},document.editform.$input_name);\"";
-	$str .= ">\n";
+	$str .= "onDblClick=\"move(document.editform.$input_name$s->{mncombo},document.editform.$input_name);\" ";
+	$str .= "onChange=\"this.form.filtercombobox$s->{mncombo}.value=";
+	$str .= "this.$input_name$s->{mncombo}";
+	$str .= "[this.$input_name$s->{mncombo}.selectedIndex].value\">\n";
 	
 	foreach(@acombo) {
 		my $id = $_->[0];
@@ -2551,8 +2582,8 @@ sub GUI_MakeMNCombo($$$$$)
 		}
 	}
 	$str .= "</SELECT><br>\n";
-	$str .= "<INPUT TYPE=\"text\" VALUE=\"\" NAME=\"filtercombobox\" ";
-	$str .= "onKeyUp=\"selectMe(document.editform.$input_name$s->{mncombo},value);\">";	
+	$str .= "<INPUT TYPE=\"text\" VALUE=\"\" NAME=\"filtercombobox$s->{mncombo}\" ";
+	$str .= "onKeyUp=\"findInWord(this,this.form.$input_name$s->{mncombo},'text',true);\">";
 	$str .= "</td></tr>\n";
 	$str .= "</tr>\n";
 	$str .= "</table>\n";
