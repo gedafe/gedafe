@@ -1267,11 +1267,10 @@ sub DB_Record2DB($$$$)
 sub DB_ExecQuery_OID($$)
 {
 	my ($dbh, $query) = @_;
-
 	my $sth = $dbh->prepare($query) or die $dbh->errstr;
 	my $res = $sth->execute() or do {
 		# report nicely the error
-		$g{db_error}=$sth->errstr; return undef;
+		$g{db_error}=$sth->errstr."\n<!-- DB_ExecQuery_OID: $query -->\n"; return undef;
 	};
 	if($res ne 1 and $res ne '0E0') {
 		die "Number of rows affected is not 1! ($res)";
@@ -1291,7 +1290,7 @@ sub DB_ExecQuery_Fields($$$$$)
 		$datatypes{$_} = $g{db_fields}{$table}{$_}{type};
 	}
 	
-	my $sth = $dbh->prepare($query) or die $dbh->errstr;
+	my $sth = $dbh->prepare($query) or die $dbh->errstr."\n<!-- DB_ExecQuery_OID: $query -->\n";
 	
 	my $paramnumber = 1;
 	for(@$fields){
@@ -1309,7 +1308,7 @@ sub DB_ExecQuery_Fields($$$$$)
 	
 	my $res = $sth->execute() or do {
 		# report nicely the error
-		$g{db_error}=$sth->errstr; return undef;
+		$g{db_error}=$sth->errstr."\n<!-- DB_ExecQuery_Fields: $query -->\n"; return undef;
 	};
 	if($res ne 1 and $res ne '0E0') {
 		die "Number of rows affected is not 1! ($res)";
@@ -1415,7 +1414,7 @@ sub DB_GetCombo($$$)
 	}
 	#print STDERR "$query\n";
 	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
-	$sth->execute() or die $sth->errstr;
+	$sth->execute() or die $sth->errstr."\n<!-- DB_GetCombo: $query -->\n";
 	my $data;
 	while($data = $sth->fetchrow_arrayref()) {
 		$data->[0]='' unless defined $data->[0];
@@ -1465,11 +1464,10 @@ sub DB_DeleteRecord($$$)
 	}
 	my $query = "DELETE FROM $table WHERE ${table}_id = $id";
 
-	#print "<!-- Executing: $query -->\n";
 	my $sth = $dbh->prepare($query) or die $dbh->errstr;
 	$sth->execute() or do {
 		# report nicely the error
-		$g{db_error}=$sth->errstr; return undef;
+		$g{db_error}=$sth->errstr."\n<!-- DB_DeleteRecord: $query -->\n"; return undef;
 	};
 	# the record was removed savely, so lets delete any files we found referenced
 	# and real
@@ -1954,7 +1952,7 @@ sub _DB_UpdateMN($$$$){
 		if(scalar(@$mntable_fields_add) > 0){
 			for my $val (@$mntable_fields_add){
 				# no ordering yet, this happens in the update query we just add a fake order number
-				$query = _DB_InsertMN($table, $vfield, $ID, defined $val,$g{db_fields}{$table}{$vfield}{ordered} && 99 );
+				$query = _DB_InsertMN($table, $vfield, $ID, $val,defined $g{db_fields}{$table}{$vfield}{ordered} && 99 );
 				($result,$oid) = DB_ExecQuery_OID($dbh,$query);
 			}
 		}
