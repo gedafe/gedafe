@@ -202,12 +202,24 @@ currently defined:
 
 =item filterfirst
 
-If a table tends to be big, it is possible to suggest a field to
-filter on before a table is displayed. This is done by specifying the
-field name as value for this attribute.
+If a table tends to be big, it is possible to suggest a field to filter on
+before a table is displayed. This is done by specifying the field name as
+value for this attribute. If you have a _list view for that long table, the
+filterfirst must be set on the _list table and one of its attributes.
+Because views will not contain any information about which table a certain
+attribute potentially references, this information must be specified in the
+meta_fields table accordingly.
 
-Note, that the specified field must, of course, be part of the table
-or the corresponding B<*_list> view.
+Example:
+
+I have this view called task_list which I want to filterfirst on the pack_id
+attribut. The combo I want to see comes from the pack table.
+
+ INSERT INTO meta_tables VALUES ('task_list', 'filterfirst','my_pack');
+ INSERT INTO meta_fields VALUES ('task_list', 'my_pack','reference','pack');
+
+Note, that if pack had a _hid attribute, gedafe would figure it out and use
+this instead of the standard _id, assuming you would prefer _hid over _id.
 
 =item hide
 
