@@ -471,11 +471,11 @@ sub DB_GetDefault($$$)
 	my $default = $d->[0];
 	$sth->finish or return undef;
 
-#	if($g{db_fields}{$table}{$field}{ref_hid}) {
-#		my $ref = $g{db_fields}{$table}{$field}{reference};
-#		$default = DB_ID2HID($dbh, $ref, $default);
-#	}
-#
+	if($g{db_fields}{$table}{$field}{ref_hid}) {
+		my $ref = $g{db_fields}{$table}{$field}{reference};
+		$default = DB_ID2HID($dbh, $ref, $default);
+	}
+
 	return $default;
 }
 
@@ -698,10 +698,10 @@ sub DB_DB2Record($$$$)
 		my $type = $fields->{$f}{type};
 		my $data = $dbdata->{$f};
 		
-#		if(defined $fields->{$f}{ref_hid}) {
-#			# convert ID reference to HID
-#			$data = DB_ID2HID($dbh, $fields->{$f}{reference}, $data);
-#		}
+		if(defined $fields->{$f}{ref_hid}) {
+			# convert ID reference to HID
+			$data = DB_ID2HID($dbh, $fields->{$f}{reference}, $data);
+		}
 
 		$record->{$f} = $data;
 	}
@@ -724,10 +724,10 @@ sub DB_Record2DB($$$$)
 		my $data = $record->{$f};
 
 		$data = DB_PrepareData($data, $type);
-#		if(defined $fields->{$f}{ref_hid}) {
-#			# convert HID reference to ID
-#			$data = DB_HID2ID($dbh, $fields->{$f}{reference}, $data);
-#		}
+		if(defined $fields->{$f}{ref_hid}) {
+			# convert HID reference to ID
+			$data = DB_HID2ID($dbh, $fields->{$f}{reference}, $data);
+		}
 
 		$dbdata->{$f} = $data;
 	}

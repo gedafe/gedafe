@@ -448,12 +448,11 @@ sub GUI_List($$$)
 	print Template(\%template_args);
 
 	my $f;
-	# 2001-06-01: never skip anything (can be made with views)
-#	my $skip_id = 0;
+	my $skip_id = 0;
 	# if hid, then do not show id.
-#	if(grep /^${table}_hid$/, @fields_list) {
-#		$skip_id = 1;
-#	}
+	if(grep /^${table}_hid$/, @fields_list) {
+		$skip_id = 1;
+	}
 	# orderby
 	if($orderby eq '') {
 		if(not defined $g{db_tables}{$view}{meta_sort}) {
