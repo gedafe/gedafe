@@ -231,6 +231,28 @@ Parse::RecDescent is present on the system. See also: gedafe-search.pod
 If set to 1, the buttons for edit, clone and delete are shown on
 the left, which is useful for very wide tables.
 
+=item edit_show_id 
+
+F<edit_show_id> = 'edit' makes the id column visible in EDIT screens. 
+(F<edit_show_id> = 'edit+add' makes the id column visible also in NEW screens.
+This has the side effect of incrementing serial id's even if you
+abort inserting a new value. Also the id jumps in steps of 2)
+The id is always "read-only".  This can be used in two ways:
+
+=over
+
+=item *
+
+The id column has a default, but you want to know the id value while editing
+(or inserting) a record. 
+
+=item * 
+
+You want editable id values or you want to supply the id values by hand. 
+This will not work. In this case we recommend to use a HID column.
+
+=back
+
 =back
 
 =head2 The gedafed Daemon
