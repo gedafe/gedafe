@@ -3,6 +3,20 @@
         =========================================
 
 (arrows indicate actions that you should make when upgrading)
+------------------------------------------------------------------
+HEAD    (2004-03-09)
+	Fixed minor warnings in DB.pm and GUI.pm 
+			Johannes
+------------------------------------------------------------------
+HEAD    (2004-03-05) 
+	fix schema code when no schema is defined
+			author: dws
+	Re-Tested by Johannes
+------------------------------------------------------------------
+HEAD    (2004-03-01)
+
+* Fixed schema support: Add default value for "schema" config value.
+	Patch waiting for Freek Zindels Comments.
 
 ------------------------------------------------------------------
 HEAD    (2004-02-13)

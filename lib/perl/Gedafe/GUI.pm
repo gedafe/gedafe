@@ -1223,7 +1223,8 @@ sub GUI_Edit($$$)
 		$template_args{FIELD} = $field;
 		$template_args{LABEL} = $fields->{$field}{desc};
 		$template_args{INPUT} = $inputelem;
-		if ( $g{db_tables}{$table}{meta}{twocols}== 1 ){
+		if ( defined $g{db_tables}{$table}{meta}{twocols} 
+		     and  $g{db_tables}{$table}{meta}{twocols}== 1 ){
 		   $template_args{TWOCOL} = $n%2 ;
 		} else {
 		   $template_args{TWOCOL} = 0;

@@ -1076,7 +1076,7 @@ sub DB_PrepareData($$)
        # remove blanks and other non-numeric characters 			
        if ($type eq 'numeric' ){
 
-             s/[.,]([\d\s]+)$/p\1/;
+             s/[.,]([\d\s]+)$/p$1/;
              s/[,.]//g ;
              s/p/./;
 	     s/[-;_#\/\\|\s]//g
