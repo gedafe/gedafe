@@ -42,7 +42,7 @@ sub Start(%)
 		$g{conf} = {
 			list_rows  => 10,
 			admin_user => 'admin',
-			tickets_socket => '/tmp/.gpw3fd.sock',
+			tickets_socket => '/tmp/.gedafed.sock',
 		};
 
 		# init config
@@ -113,7 +113,6 @@ sub Start(%)
 	} else {
 		print $q->header(-expires=>$expires,-cookie=>$cookie);
 	}
-#	print "<p><FONT SIZE=2>DEBUG: user=$user</FONT>\n";
 
 	GUI_PostEdit($q, $user, $dbh);
 

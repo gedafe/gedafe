@@ -11,7 +11,6 @@ use Gedafe::DB;
 use Gedafe::Util;
 
 use CGI;
-#use CGI::Carp; 
 use POSIX;
 
 use vars qw(@ISA @EXPORT);
@@ -40,13 +39,6 @@ sub rand_ascii_32
 sub GUI_NextRefresh(;$)
 {
 	return rand_ascii_32;
-	#my $q = shift;
-	#my $refresh = $q->url_param('refresh') || 0;
-	#$refresh++;
-	#if($refresh >= 1000) {
-	#	$refresh=0;
-	#}
-	#return $refresh;
 }
 
 sub GUI_DB2HTML($$)
@@ -56,16 +48,18 @@ sub GUI_DB2HTML($$)
 
 	# undef -> ''
 	$str = '' unless defined $str;
+
 	# trim space
 	$str =~ s/^\s+//;
 	$str =~ s/\s+$//;
 
-	if($type eq 'bool') {
-		$str = ($str =~ /^(t|true|y|yes|TRUE|1)$/ ? 'yes' : 'no');
+	if($type eq 'text') {
+		$str =~ s/\n/<BR>/g;
 	}
 	if($str eq '') {
 		$str = '&nbsp;';
 	}
+
 	return $str;
 }
 
@@ -247,7 +241,6 @@ sub GUI_xForm($;$)
 {
 	my $form_url = shift;
 	my $next_url = shift || $form_url;
-	#my $form_data = shift;
 
 	my $form_id = GUI_GetUnique;
 
@@ -256,27 +249,6 @@ sub GUI_xForm($;$)
 	print "<INPUT TYPE=\"hidden\" NAME=\"next_url\" VALUE=\"$next_url\">\n";
 	print "</FORM>\n";
 }
-
-#$sub GUI_CheckUniqueID($$)
-#{
-#	my $user = shift;
-#	my $q = shift;
-#
-#	my %template_args = (
-#		PAGE => 'doubleurl',
-#		USER => $user,
-#		TITLE => "Duplicate Action URL",
-#	);
-#
-#	if(!GUI_DropUnique($q->url_param('unique_id'))) {
-#		print $q->header;
-#		GUI_Header($q, \%template_args);
-#		$template_args{ELEMENT}='doubleurl';
-#		print Template(\%template_args);
-#		GUI_Footer("doubleurl");
-#		exit;
-#	}
-#}
 
 sub GUI_CheckFormID($$)
 {
@@ -904,9 +876,6 @@ sub GUI_Str2Hash($$)
 		if(/^(.*?):(.*)$/) {
 			$hash->{$1} = GUI_URL_Decode($2);
 		}
-#		else {
-#			print "<P>ERROR: $_\n";
-#		}
 	}
 }
 
@@ -1020,6 +989,7 @@ sub GUI_Edit($$$)
 	});
 	if($action eq 'add') {
 		$next_url = MakeURL($form_url, {
+			action => $action,
 			reedit_action => '',
 			reedit_data => '',
 		});
@@ -1125,12 +1095,13 @@ sub GUI_MakeCombo($$$$$)
 			return undef;
 		}
 		$str = "<SELECT SIZE=\"1\" name=\"$name\">\n";
-                # the emptz option must not be empty! else the MORE ... disapears off screen
+                # the empty option must not be empty! else the MORE ... disapears off screen
 		$str .= "<OPTION VALUE=\"\">Make your Choice ...</OPTION>\n";
 		foreach(@combo) {
 			my $id = $_->[0];
 			$id=~s/^\s+//; $id=~s/\s+$//;
-			my $text = "$_->[0] -- $_->[1]";
+			#my $text = "$_->[0] -- $_->[1]";
+			my $text = $_->[1];
 			if($value eq $id) {
 				$str .= "<OPTION SELECTED VALUE=\"$id\">$text</OPTION>\n";
 			}
