@@ -1916,6 +1916,7 @@ sub GUI_DumpJSIsearch($$$){
 	for my $fieldname (@fields_list){
 		my $field_data = $q->param("field_".$fieldname);
 		$fieldsrows .= Template({FIELDNAME=>$fieldname,
+					 FIELDDESC=>$g{db_fields}{$view}{$fieldname}{desc},
 					 DATA=>$field_data,
 					 PAGE=>'jsisearch',
 					 ELEMENT=>'field'});
