@@ -18,6 +18,7 @@ Small features
 - case-insensitive search
 - meta_fields: combo
 - use CGI in Auth.pm?
+- use versions when importing external modules (e.g. use CGI 1.5)
 
 Big features
 ------------
