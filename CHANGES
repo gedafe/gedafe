@@ -1,3 +1,9 @@
+2000-11-25
+----------
+* if a comment is not defined for a field, take the comment for a
+  field with the same name
+* if a comment is not defined for a xy_list view, take it from the xy table
+
 2000-11-23
 ----------
 * released version 0.9.13

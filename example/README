@@ -7,9 +7,13 @@ It's a very simple ordering system with products,
 customers and orders.
 
 demo1.sql contains the PostgreSQL command to create the database. You have to
-first create a database called 'demo1' and then execute:
+first create a database called 'demo1':
+ 
+  $ createdb -U postgres demo1
 
-  psql -U postgres -f demo1.sql demo1
+and then execute:
+
+  $ psql -U postgres -f demo1.sql demo1
 
 demo1.cgi is the Gedafe startup script for this application. Note that you have
 to adjust the paths in demo1.cgi to match up with the place you have installed
