@@ -633,6 +633,7 @@ sub GUI_ReadSearchSpec($$){
 	while($name=$q->url_param('search_field'.$fieldcount)){
 		$name =~ s/^\s*//; $name =~ s/\s*$//;
 		$value = $q->url_param('search_value'.$fieldcount) || '';
+		$value = "" if($q->url_param('search_clear'.$fieldcount));
 		$value =~ s/^\s*//; $value =~ s/\s*$//;
 		if($value){
 			if($name ne '#ALL#' && 
@@ -746,8 +747,11 @@ sub GUI_Search($$$){
 		}
 		$search_combos{$name} .= "</SELECT>\n";
 		$search_combos{$name} .= "<INPUT TYPE=\"text\" NAME=\"search_value$counter\" VALUE=\"$value\">\n";
+
+		#add clear button to all rows except the last one.
+		$search_combos{$name} .= "<INPUT TYPE=\"submit\" NAME=\"search_clear$counter\" VALUE=\"Clear\">\n" unless($counter == 1);
 		$counter++;
-	}
+	} 
 	my $search_hidden = '';
 	foreach($q->url_param) {
 		#FIXME
