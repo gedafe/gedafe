@@ -1,6 +1,6 @@
 Bugs
 ----
-- none known :-)
+- Database errors sometimes do not get printed
 
 Documentation
 -------------
