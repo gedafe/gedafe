@@ -92,17 +92,6 @@ CREATE VIEW product_combo AS
 	FROM product;
 GRANT SELECT ON product_combo TO PUBLIC ;
 
--- hid2id and back
-DROP FUNCTION product_hid2id(CHAR(5));
-CREATE FUNCTION product_hid2id(CHAR(5)) returns INT4
-	AS 'SELECT product_id FROM product WHERE product_hid = $1'
-	LANGUAGE 'sql';
-DROP FUNCTION product_id2hid(INT4);
-CREATE FUNCTION product_id2hid(INT4) returns CHAR(5)
-	AS 'SELECT product_hid FROM product WHERE product_id = $1'
-	LANGUAGE 'sql';
-
-
 --#######
 -- Order
 --#######
