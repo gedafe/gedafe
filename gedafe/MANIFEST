@@ -8,6 +8,8 @@ bin/gedafed-ctl
 doc/gedafe-sql.pod
 doc/gedafe-templates.txt
 doc/gedafe-user.pod
+doc/gedafe-sql.txt
+doc/gedafe-user.txt
 example/images/bookmark.gif
 example/images/delete.gif
 example/images/edit.gif
