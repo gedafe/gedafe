@@ -38,6 +38,7 @@ require Exporter;
 	DB_ReadDatabase
 );
 
+
 sub DB_AddRecord($$$);
 sub DB_Connect($$$);
 sub DB_DB2HTML($$);
@@ -67,6 +68,7 @@ sub DB_ReadTables($$);
 sub DB_Record2DB($$$$);
 sub DB_UpdateRecord($$$);
 sub DB_Widget($$);
+sub DB_filenameSql($);
 
 my %type_widget_map = (
 	'date'      => 'text(size=12)',
@@ -84,6 +86,7 @@ my %type_widget_map = (
 	'bool'      => 'checkbox',
 	'bytea'     => 'file',
 );
+
 
 sub DB_Init($$)
 {
@@ -167,6 +170,8 @@ sub DB_ReadTables($$)
 	my ($dbh, $database) = @_;
 	my %tables = ();
 	my ($query, $sth, $data);
+	
+
 
 	# combo
 	# 7.0: views have relkind 'r'
@@ -241,6 +246,7 @@ END
 		$tables{$data->[0]}{desc} = $data->[1];
 	}
 	$sth->finish;
+	
 
 	# set not-defined table descriptions
 	for my $table (keys %tables) {
@@ -616,6 +622,7 @@ END
 				$m = $meta_fields{$table}{$field};
 			}
 			if(defined $m) {
+			        $f->{javascript}= $m->{javascript};
 				$f->{widget}    = $m->{widget};
 				$f->{reference} = $m->{reference};
 				$f->{copy}      = $m->{copy};
@@ -723,6 +730,7 @@ sub DB_GetNumRecords($$)
 	return DB_FetchList($s, $spec);
 }
 
+
 sub DB_FetchListSelect($$)
 {
 	my $dbh = shift;
@@ -739,7 +747,7 @@ sub DB_FetchListSelect($$)
 	my @select_fields;
 	for my $f (@fields) {
 		if($g{db_fields}{$v}{$f}{type} eq 'bytea') {
-			push @select_fields, "substring($f,1,position(' '::bytea in $f)-1)";
+			push @select_fields, DB_filenameSql($f);
 		}
 		else {
 			push @select_fields, $f;
@@ -993,7 +1001,7 @@ sub DB_GetRecord($$$$)
 	my @select_fields = @fields_list;
 	for(@select_fields){
 		if($g{db_fields}{$table}{$_}{type} eq 'bytea'){
-			$_ = "substring($_,1,position(' '::bytea in $_)-1)";
+			$_ = DB_filenameSql($_);
 		}
 	}
 
@@ -1087,7 +1095,6 @@ sub DB_PrepareData($$)
        # that should be made configurable. Also 
        # remove blanks and other non-numeric characters 			
        if ($type eq 'numeric' ){
-
              s/[.,]([\d\s]+)$/p$1/;
              s/[,.]//g ;
              s/p/./;
@@ -1256,6 +1263,7 @@ sub DB_GetCombo($$$)
 	else {
 		$query .= " ORDER BY text";
 	}
+	print STDERR "$query\n";
 	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
 	$sth->execute() or die $sth->errstr;
 	my $data;
@@ -1287,7 +1295,7 @@ sub DB_DeleteRecord($$$)
 	return 1;
 }
 
-sub DB_GetBlobName($$$$)
+sub DB_GetBlobMetaData($$$$)
 {
 	my $dbh = shift;
 	my $table = shift;
@@ -1301,32 +1309,38 @@ sub DB_GetBlobName($$$$)
 		$idcolumn = $g{db_fields_list}{$table}[0];
 	}
 
-	my $query = "Select substring($field,1,position(' '::bytea in $field)-1) from $table where $idcolumn=$id";
+
+	my $query = "Select substring($field,1,position('#'::bytea in $field)-1) from $table where $idcolumn=$id";
 	my $sth = $dbh->prepare($query);
 	$sth->execute() or return undef;
 	my $data = $sth->fetchrow_arrayref() or return undef;
-	return $data->[0];
+	my $metadata = $data->[0];
+
+	$metadata =~ /(.*) (.+)$/ or die('blob metadata: $metadata incorrect');
+	my $filename = $1;
+	$filename =~ s/gedafe_PROTECTED_sPace/ /g;
+	$filename =~ s/gedafe_PROTECTED_hAsh/#/g;
+	return ($filename,$2);
+}
+
+sub DB_GetBlobName($$$$)
+{
+    my $dbh = shift;
+    my $table = shift;
+    my $field = shift;
+    my $id = shift;
+    my @metadata= DB_GetBlobMetaData($dbh,$table,$field,$id);
+    return $metadata[0];
 }
 
 sub DB_GetBlobType($$$$)
 {
-	my $dbh = shift;
-	my $table = shift;
-	my $field = shift;
-	my $id = shift;
-
-	my $idcolumn = "${table}_id";
-	if($table =~ /\w+_list/){
-		#tables that end with _list are actualy views and have their
-		# id column as the first column of the view
-		$idcolumn = $g{db_fields_list}{$table}[0];
-	}
-
-	my $query = "Select substring($field,position(' '::bytea in $field)+1,position('#'::bytea in $field)-(position(' '::bytea in $field)+1)) from $table where $idcolumn=$id";
-	my $sth = $dbh->prepare($query);
-	$sth->execute() or return undef;
-	my $data = $sth->fetchrow_arrayref() or return undef;
-	return $data->[0];
+    my $dbh = shift;
+    my $table = shift;
+    my $field = shift;
+    my $id = shift;
+    my @metadata= DB_GetBlobMetaData($dbh,$table,$field,$id);
+    return $metadata[1];
 }
 
 sub DB_DumpBlob($$$$)
@@ -1390,7 +1404,7 @@ sub DB_DumpTable($$$)
 	my @select_fields = @fields;
 	for(@select_fields){
 		if($g{db_fields}{$view}{$_}{type} eq 'bytea'){
-			$_ = "substring($_,1,position(' '::bytea in $_)-1)";
+			$_ = DB_filenameSql($_);
 		}
 	}
 
@@ -1429,6 +1443,8 @@ sub DB_DumpTable($$$)
 	
 	$first = 1;
 	my $numcolumns = scalar @select_fields;
+	my $maxsize = $g{conf}{max_dumpsize};
+	$maxsize = 10000 unless($maxsize);
 	while(@row = $sth->fetchrow_array()) {
 		$first = 1;
 		for (0..$numcolumns-1){
@@ -1446,13 +1462,14 @@ sub DB_DumpTable($$$)
 			$field =~ s/[\r\f]//gm;
 			
 			$data .= $field;
+			if(length($data) > $maxsize){
+			    $data = "Resultset exeeds desirable size.\n";
+			}
+
 		}
 		$data .= "\n";
 	}
 	$sth->finish();
-	if(length($data)>20000){
-		$data = "Resultset exeeds desirable size.\n";
-	}
 	return $data;
 }
 
@@ -1469,7 +1486,7 @@ sub DB_DumpJSITable($$$)
 	my @select_fields = @fields;
 	for(@select_fields){
 		if($g{db_fields}{$view}{$_}{type} eq 'bytea'){
-			$_ = "substring($_,1,position(' '::bytea in $_)-1)";
+			$_ = DB_filenameSql($_);
 		}
 	}
 
@@ -1477,7 +1494,7 @@ sub DB_DumpJSITable($$$)
 	$query .= join(', ',@select_fields);
 	$query .= " FROM $view";
 	
-	# fix this for placeholders
+	
 
 	my $first = 1;
 	for my $field (keys(%$atribs)){
@@ -1567,5 +1584,11 @@ sub DB_DumpJSITable($$$)
 	$sth->finish();
 	print $jsfooter;
 }
+
+sub DB_filenameSql($){
+  my $column = shift;
+  return "decode(replace(replace(encode(substring($column,1,position(' '::bytea in $column)-1),'escape'), 'gedafe_PROTECTED_sPace'::text, ' '::text), 'gedafe_PROTECTED_hAsh'::text, '#'::text),'escape')";
+}
+
 
 1;

@@ -21,6 +21,7 @@ require Exporter;
 	MyURL
 	InitTemplate
 	InitPearls
+	InitOysters
 	InitWidgets
 	Template
 	Die
@@ -30,7 +31,17 @@ require Exporter;
 	FormEnd
 	UniqueFormEnd
 	NextRefresh
+	StoreFile
+	GetFile
+	DataTree
+	DataUnTree
+	Gedafe_URL_Decode
+	Gedafe_URL_Encode
+	StripJavascript
 );
+
+sub DataTree($);
+sub DataUnTree($);
 
 # Gedafe's die handler
 sub Die($) {
@@ -277,6 +288,194 @@ sub InitWidgets($){
 	$g{widgets} = \%widgets;
 }
 
+sub InitOysters($){
+	return if defined $g{oysters};
+	my $path = shift;
+	my %oysters;
+	chdir $path || 	Die "switching to 'oyster_dir ($path)': $!\n";
+	my @modules = <*.pm>;
+	foreach my $module (@modules) {
+		$module =~ s/\.pm$//;
+		$oysters{$module} = eval "local \$SIG{__DIE__} = 'IGNORE';
+		                         require $module;
+		                         $module->new()";
+		if ($@) {
+			Die "Unable to load oyster $module: $@";
+		}
+	}
+	$g{oysters} = \%oysters;
+}
+
+sub StoreFile($$$$)
+{
+	my $s = shift;
+	my $blob = shift;
+	my $name = shift;
+	my $type = shift;
+	my $length = length $blob;
+	my $socket = ConnectToTicketsDaemon($s);
+	print $socket "SITE $s->{path}/$s->{script}\n";
+	<$socket>;
+	print $socket "FILE $s->{ticket_value} $name $type $length\n";
+	$_ = <$socket>;
+	if(! /OK/){
+		Die("Ticket deamon does not want your file $name: $_");
+		close($socket);
+	}
+	print $socket $blob;
+	$_ = <$socket>;
+	if(! /FILE OK/){
+		Die("Ticket deamon does not like the taste of your file $name: $_");
+	}
+}
+
+sub GetFile($$)
+{
+	my $s = shift;
+	my $name = shift;
+	my $socket = ConnectToTicketsDaemon($s);
+	print $socket "SITE $s->{path}/$s->{script}\n";
+	<$socket>;
+	print $socket "GETFILE $s->{ticket_value} $name\n";
+	$_ = <$socket>;
+	if(! /^OK ([\w\/-]+) (\d+)$/) {
+		Die("Couldn't understand ticket daemon reply: $_");
+		close($socket);
+	}
+	my $type = $1;
+	my $length = $2;
+	my $blob;
+	read($socket,$blob,$length);
+	return [$blob,$name,$type];
+}
+
+# CGI.pm already encodes/decodes parameters, but we want to do it ourselves
+# since we need to differentiate for example in reedit_data between a comma
+# as value and a comma as separator. Therefore we use the escape '!' instead
+# of '%'.
+sub Gedafe_URL_Encode($)
+{
+	my ($str) = @_;
+	defined $str or $str = '';
+	$str =~ s/!/gedafe_PROTECTED_eXclamatiOn/g;
+	$str =~ s/\W/'!'.sprintf('%02X',ord($&))/eg;
+	$str =~ s/gedafe_PROTECTED_eXclamatiOn/'!'.sprintf('%2X',ord('!'))/eg;
+	return $str;
+}
+
+sub Gedafe_URL_Decode($)
+{
+	my ($str) = @_;
+	$str =~ s/!([0-9a-fA-F]{2})/pack("c",hex($1))/ge;
+	return $str;
+}
+
+
+
+sub DataTree($){
+    my $input = shift;
+    my ($tmp,$s,$ret,$count,$data,$ds,$name,$value);
+    if($input =~ /^s(.*)/){
+	$ret =  Gedafe_URL_Decode($1);
+    }elsif($input =~/^l(.*)/){
+	$tmp = $1;
+	$ret = [];
+	$count = 0;
+	while($tmp ne ''){
+	    die("encoded string $tmp does not parse as a list")
+		unless($tmp=~/(\d+)-/);
+	    my $ds = index($tmp,'-')+1;
+	    $data = substr($tmp,$ds,$1);
+	    $tmp = substr($tmp,$ds+$1);
+	    $ret->[$count++] = DataTree($data);
+	}
+    }elsif($input =~/^h(.*)/){
+	$tmp = $1;
+	$ret = {};
+	while($tmp ne ''){
+	    die("encoded string $tmp does not parse as a list")
+		unless($tmp=~/(\d+)_(\d+)-/);
+	    my $ds = index($tmp,'-')+1;
+	    $name = Gedafe_URL_Decode(substr($tmp,$ds,$1));
+	    $value = substr($tmp,$ds+$1,$2);
+	    $tmp = substr($tmp,$ds+$1+$2);
+	    $ret->{$name} = DataTree($value);
+	}
+    }else{
+	die "String $input does not parse to a value.";
+    }
+    return $ret;
+}
+
+
+sub DataUnTree($){
+    my $var = shift;
+    my $type = ref($var);
+    return 's'.Gedafe_URL_Encode($var) if(!$type);
+    my $retstr;
+    my $tmp;
+    my $name;
+    if($type eq 'ARRAY'){
+	$retstr = 'l';
+	for(@$var){
+	    $tmp = DataUnTree($_);
+	    $retstr.=length($tmp).'-'.$tmp;
+	}
+	return $retstr;
+    }
+    if($type eq 'HASH'){
+	$retstr = 'h';
+	for(keys(%$var)){
+	    $name = Gedafe_URL_Encode($_);
+	    $tmp = DataUnTree($var->{$_});
+	    $retstr.=length($name).'_'.length($tmp).'-'.$name.$tmp;
+	}
+	return $retstr;
+    }
+    die("data of type: $type cannot be untree-ed yet. post something to the gedafe mailing list");
+}
+
+sub StripJavascript($){
+	my $suspicious = shift;
+
+	#remove all data-url things except images
+	$suspicious =~ s/data:image/gedafeProtected_DATAURL_IMG/gsi;
+	$suspicious =~ s/data:/d\@ta:/gsi;
+	$suspicious =~ s/gedafeProtected_DATAURL_IMG/data:image/gsi;
+
+	#scripts, javascript urls and iframes are way to
+	#dangerous to leave around.
+	#Same goes for stylesheets and <link tags
+
+	$suspicious =~ s/<script/<scr\|pt/gsi;
+	$suspicious =~ s/javascript/javascr\|pt/gsi;
+	$suspicious =~ s/<iframe/<\|frame/gsi;
+	$suspicious =~ s/<link/<l\|nk/gsi;
+	$suspicious =~ s/<style/<sty\|e/gsi;
+
+	#some eventhandlers that shouldnt be touched.
+	$suspicious =~ s/onAbort/on_Abort/gsi;
+	$suspicious =~ s/onBlur/on_Blur/gsi;
+	$suspicious =~ s/onChange/on_Change/gsi;
+	$suspicious =~ s/onClick/on_Click/gsi;
+	$suspicious =~ s/onDblClick/on_DblClick/gsi;
+	$suspicious =~ s/onError/on_Error/gsi;
+	$suspicious =~ s/onFocus/on_Focus/gsi;
+	$suspicious =~ s/onKeydown/on_KeyDown/gsi;
+	$suspicious =~ s/onKeyup/on_Keyup/gsi;
+	$suspicious =~ s/onLoad/on_Load/gsi;
+	$suspicious =~ s/onMousedown/on_Mousedown/gsi;
+	$suspicious =~ s/onMousemove/on_Mousemove/gsi;
+	$suspicious =~ s/onMouseout/on_Mouseout/gsi;
+	$suspicious =~ s/onMouseover/on_Mouseover/gsi;
+	$suspicious =~ s/onMouseup/on_Mouseup/gsi;
+	$suspicious =~ s/onReset/on_Reset/gsi;
+	$suspicious =~ s/onSelect/on_Select/gsi;
+	$suspicious =~ s/onSubmit/on_Submit/gsi;
+	$suspicious =~ s/onUnload/on_Unload/gsi;
+	my $mostly_harmless = $suspicious;
+	return $mostly_harmless;
+}
 
 
 1;

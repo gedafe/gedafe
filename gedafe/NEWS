@@ -4,6 +4,17 @@
 
 (arrows indicate actions that you should make when upgrading)
 ------------------------------------------------------------------
+HEAD    (2004-03-30)
+	Javascript protection enabled on all tables.
+	See gedafe-javascript.pod for details.
+	------------
+	Here are some more descriptions for people browsing
+	through this file with a text search utility:
+	script broken
+	script error
+	script missing
+	script removed
+------------------------------------------------------------------
 HEAD    (2004-03-22)
 	You can now supply a hand-crafted edit mask template
 
@@ -54,6 +65,27 @@ HEAD    (2004-03-01)
 
 * Fixed schema support: Add default value for "schema" config value.
 	Patch waiting for Freek Zindels Comments.
+
+------------------------------------------------------------------
+HEAD	(2004-02-16)
+
+  * The documentation on navigational aids has finally been written.
+    It's the showref and 'columnname eq ref => link' stuff in 
+    gedafe-sql.pod (freek) 
+
+  * Oysters is a new plugin mechanism that works like Pearls but focusses
+    on the dialogue with a user. In this dialogue you no longer need to
+    worry about double forms, maintaining input and other html
+    related troubles. It's not strictly 'application in the database'
+    but there is stuff that a database won't do for you.(freek)
+
+    -> Oysters save their state to the gedafe-daemon. This is a new
+       Feature for the daemon.
+       Replace your existing daemon with the new one. 
+
+  * Files in bytea columns can now have funny characters, like spaces
+    When vieuwing these files with older versions of gedafe
+    you will see the escaped problem characters. (freek)
 
 ------------------------------------------------------------------
 HEAD    (2004-02-13)

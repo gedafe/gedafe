@@ -25,6 +25,7 @@ use Gedafe::DB qw(
 	DB_DumpTable
 	DB_DumpJSITable
 	DB_FetchReferencedId
+	DB_Connect
 );
 
 use Gedafe::Util qw(
@@ -38,7 +39,16 @@ use Gedafe::Util qw(
 	UniqueFormEnd
 	FormEnd
 	NextRefresh
+	StoreFile
+	GetFile
+	DataTree
+	DataUnTree
+	Gedafe_URL_Decode
+	Gedafe_URL_Encode
+	StripJavascript
 );
+
+use Gedafe::StdoutBuffer;
 
 use POSIX;
 
@@ -54,9 +64,12 @@ require Exporter;
 	GUI_Delete
 	GUI_Export
 	GUI_DumpTable
+	GUI_DecodeDate
+	GUI_FormatDate
 	GUI_DumpJSIsearch
 	GUI_Pearl
 	GUI_WidgetRead
+	GUI_Oyster
 );
 
 sub GUI_AppletParam($$);
@@ -73,7 +86,6 @@ sub GUI_ExportData($$);
 sub GUI_FilterFirst($$$$);
 sub GUI_Footer($);
 sub GUI_HTMLMarkup($);
-sub GUI_Hash2Str($);
 sub GUI_Header($$);
 sub GUI_InitTemplateArgs($$);
 sub GUI_List($$$);
@@ -83,12 +95,12 @@ sub GUI_MakeCombo($$$$);
 sub GUI_MakeISearch($$$$$$);
 sub GUI_PostEdit($$$);
 sub GUI_Search($$$);
-sub GUI_Str2Hash($$);
-sub GUI_URL_Decode($);
-sub GUI_URL_Encode($);
 sub GUI_WidgetRead($$$);
 sub GUI_WidgetWrite($$$$);
 sub GUI_WidgetWrite_Date($$$);
+sub GUI_DecodeDate($$);
+sub GUI_FormatDate($$);
+
 
 my %numeric_types = (
 	time      => 1,
@@ -213,6 +225,11 @@ sub GUI_InitTemplateArgs($$)
 				reedit_action => '',
 				reedit_data => '',
 				pearl=>'',
+				oyster=>'',
+				state=>'',
+				previousstate=>'',
+				datastate=>'',
+				
 			});
 	$args->{ENTRY_URL}=$entry_url;
 	$args->{REFRESH_ENTRY_URL}=MakeURL($entry_url, {
@@ -413,6 +430,32 @@ sub GUI_Entry($$$)
 				$template_args{REPORT}=1;
 			}
 			print Template(\%template_args);
+		}
+	}
+
+	if(defined $g{oysters} and scalar %{$g{oysters}}) {
+		$template_args{ELEMENT}='oyster_list_header';
+		print Template(\%template_args);
+
+		$template_args{ELEMENT}='entrytable';
+		foreach my $t (sort {$a cmp $b} keys %{$g{oysters}}) {
+			if (ref $g{oysters}{$t}
+			    and $g{oysters}{$t}->access($user)) {
+				@template_args{qw(TABLE_DESC TABLE_INFO)}=($g{oysters}{$t}->info);
+				$template_args{TABLE_URL}= MakeURL($s->{url}, 
+								   {
+								    action => 'oyster',
+								    oyster=> $t,
+								    table  => undef,
+								    state  => 1,
+								    refresh => $refresh,
+								   });
+				$template_args{REPORT}=1;
+				print Template(\%template_args);
+			} elsif (!ref($g{oysters}{$t})){
+				die("Plugin $t is not an object.");
+			}
+
 		}
 	}
 
@@ -672,7 +715,11 @@ sub GUI_ListTable($$$)
 	$template_args{ELEMENT}='xtr';
 	print Template(\%template_args);
 	
+
+
 	# data
+	my $view = $list->{spec}{view};
+	my $table = $list->{spec}{table};
 	$list->{displayed_recs} = 0;
 	for my $row (@{$list->{data}}) {
 		$list->{displayed_recs}++;
@@ -699,9 +746,19 @@ sub GUI_ListTable($$$)
 			my $c = $list->{columns}[$column_number];
 			$column_number++;
 			next if $c->{hide_list};
+
+			my $field = $c->{field};
+			
+			if(!($list->{spec}{export} or
+			     $g{db_fields}{$view}{$field}{javascript})){
+				$d = StripJavascript($d)
+			}
+
 			if($c->{type} eq 'bytea' && $d ne '&nbsp;'){
+				#table => view is correct here:
+				#since bytea's can also be extracted from views
 				my $bloburl = MakeURL($s->{url}, {
-						table => $list->{spec}{view},
+						table => $view, 
 						action => 'dumpblob',
 						id => $row->[0],
 						field => $c->{field},
@@ -733,6 +790,15 @@ sub GUI_ListTable($$$)
 						search_value => $row->[0]});
 				$d = qq {<A HREF="$refurl">$d items</a>};
 			}
+			if($c->{type} eq 'date' && 
+			   $g{db_fields}{$table}{$field}{widget}){
+				my ($w,$args) = 
+				    DB_ParseWidget($g{db_fields}{$table}{$field}{widget});
+				if($w eq 'localdate'){
+					$d = GUI_FormatDate($d,$args->{'format'});
+				}
+			}
+
 			
 			defined $align or $align = $numeric_types{$c->{type}} ?
 				'"RIGHT" NOWRAP' : '"LEFT"' unless defined $align;
@@ -988,47 +1054,6 @@ sub GUI_Export($$$)
 	GUI_ExportData($s, $list);
 }
 
-# CGI.pm already encodes/decodes parameters, but we want to do it ourselves
-# since we need to differentiate for example in reedit_data between a comma
-# as value and a comma as separator. Therefore we use the escape '!' instead
-# of '%'.
-sub GUI_URL_Encode($)
-{
-	my ($str) = @_;
-	defined $str or $str = '';
-	$str =~ s/!/gedafe_PROTECTED_eXclamatiOn/g;
-	$str =~ s/\W/'!'.sprintf('%2X',ord($&))/eg;
-	$str =~ s/gedafe_PROTECTED_eXclamatiOn/'!'.sprintf('%2X',ord('!'))/eg;
-	return $str;
-}
-
-sub GUI_URL_Decode($)
-{
-	my ($str) = @_;
-	$str =~ s/!([0-9a-fA-F]{2})/pack("c",hex($1))/ge;
-	return $str;
-}
-
-sub GUI_Hash2Str($)
-{
-	my ($record) = @_;
-	my @data = ();
-	for my $f (keys %$record) {
-		my $d = GUI_URL_Encode($record->{$f});
-		push @data, "$f:$d";
-	}
-	return join(',', @data);
-}
-
-sub GUI_Str2Hash($$)
-{
-	my ($str, $hash) = @_;
-	for my $s (split(/,/, $str)) {
-		if($s =~ /^(.*?):(.*)$/) {
-			$hash->{$1} = GUI_URL_Decode($2);
-		}
-	}
-}
 
 sub GUI_WidgetRead($$$)
 {
@@ -1043,6 +1068,10 @@ sub GUI_WidgetRead($$$)
 	if(grep {/^$w$/} keys %{$g{widgets}}){
 		return $g{widgets}{$w}->WidgetRead($s,$input_name,$value,$warg);
 	}
+	if($w eq 'localdate'){
+	  $value = GUI_DecodeDate($value,lc($warg->{'format'})); 
+
+	}
 	if($w eq 'file'){
 		my $file = $value;
 		my $deletefile = $q->param("file_delete_$input_name");
@@ -1052,13 +1081,15 @@ sub GUI_WidgetRead($$$)
 		else {
 			if($file) {
 				my $filename = scalar $file;
-				$filename =~ s/ /_/g;
-				$filename =~ /([\w\d\.]+$)/;
-				$filename = $1;
+				$filename =~ s/.*[\\\/]//; #strip path
+				$filename =~ 
+				    s/ /gedafe_PROTECTED_sPace/g;
+				$filename =~ 
+				    s/#/gedafe_PROTECTED_hAsh/g;
 				my $mimetype = $q->uploadInfo($file)->{'Content-Type'};
 				my $blob=$filename.' '.$mimetype.'#';
 				my $buffer; 
-				while(read($file,$buffer,1024)){
+				while(read($file,$buffer,4096)){
 					$blob .=$buffer;
 				}
 				#note that value is set to a reference to the large blob
@@ -1070,6 +1101,29 @@ sub GUI_WidgetRead($$$)
 			}
 		}
 	}
+	if($w eq 'pluginfile'){
+		my $file = $value;
+		if($file) {
+			my $filename = scalar $file;
+			$filename =~ s/.*[\\\/]//; #strip path
+			$filename =~ s/ /_/;
+			my $mimetype = $q->uploadInfo($file) ? $q->uploadInfo($file)->{'Content-Type'} : 'application/octet-stream';
+			my $blob;
+			my $buffer; 
+			while(read($file,$buffer,4096)){
+				$blob .=$buffer;
+			}
+			$value=[$blob,$filename,$mimetype];
+		} else {
+			#when we are here the file field has not been set
+			if($q->param($input_name.'_CURRENT_FILEXXX')){
+				$value = $q->param($input_name.'_CURRENT_FILEXXX');
+			}else{
+				$value = undef;
+			}
+		}
+	}
+
 	if($w eq 'hid' or $w eq 'hidcombo' or $w eq 'hidisearch' or $w eq 'hjsisearch') {
 		if(defined $value and $value !~ /^\s*$/) {
 			$value=DB_HID2ID($dbh,$warg->{'ref'},$value);
@@ -1133,7 +1187,7 @@ sub GUI_PostEdit($$$)
 	}
 	if($action eq 'add') {
 		if(!DB_AddRecord($dbh,$table,\%record)) {
-			my $data = GUI_Hash2Str(\%record);
+			my $data = DataUnTree(\%record);
 			GUI_Edit_Error($s, $user, $g{db_error},
 				$q->param('form_url'), $data, $action);
 		}
@@ -1141,7 +1195,7 @@ sub GUI_PostEdit($$$)
 	elsif($action eq 'edit') {
 		$record{id} = $q->param('id');
 		if(!DB_UpdateRecord($dbh,$table,\%record)) {
-			my $data = GUI_Hash2Str(\%record);
+			my $data = DataUnTree(\%record);
 			GUI_Edit_Error($s, $user, $g{db_error},
 			$q->param('form_url'), $data, $action);
 		}
@@ -1217,7 +1271,7 @@ sub GUI_Edit($$$)
 	my @fields_list = @{$g{db_fields_list}{$table}};
 	my %values = ();
 	if($reedit) {
-		GUI_Str2Hash($q->param('reedit_data'), \%values);
+		%values = %{DataTree($q->param('reedit_data'))};
 	}
 	elsif($action eq 'edit') {
 		my %record = ();
@@ -1267,6 +1321,24 @@ sub GUI_Edit($$$)
 			$value = DB_GetDefault($dbh,$table,$field);
 		}
 
+
+		#protect users from malicious javascripts
+		if(!$g{db_fields}{$table}{$field}{javascript}){
+			my $safevalue = StripJavascript($value);
+			if ($safevalue ne $value){
+				die <<end;
+<p>The information you have requested from the database contains<br>
+HTML and/or javascript tags that could compromise your personal information<br>
+Such as, but not limited to, all information that you can access in the database.<br>
+To prevent this, this page has been blocked.<br>
+In order to accept the javascript/html risk, you can tell gedafe
+to ignore this threat for this specific piece of the database in the
+meta_fields table.<br> Please contact your administrator to resolve the issue.<br>
+If you are the administrator, please see the javascript section of the
+gedafe documentation.</p>
+end
+			};
+		}
 		my $inputelem = GUI_WidgetWrite($s, "field_$field", $fields->{$field}{widget},$value);
 
                if (defined $edit_mask){
@@ -1399,7 +1471,7 @@ sub GUI_MakeCombo($$$$)
 		return undef;
 	}
 
-	$str = "<SELECT SIZE=\"1\" name=\"$name\">\n";
+	$str = "<!-- |$value| -->\n<SELECT SIZE=\"1\" name=\"$name\">\n";
 	# the empty option must not be empty! else the MORE ... disapears off screen
 	$str .= "<OPTION VALUE=\"\">Make your Choice ...</OPTION>\n";
 	foreach(@combo) {
@@ -1407,6 +1479,7 @@ sub GUI_MakeCombo($$$$)
 		$id=~s/^\s+//; $id=~s/\s+$//;
 		#my $text = "$_->[0] -- $_->[1]";
 		my $text = $_->[1];
+		$text = StripJavascript($text);
 		if($value eq $id) {
 			$str .= "<OPTION SELECTED VALUE=\"$id\">$text</OPTION>\n";
 		}
@@ -1452,6 +1525,7 @@ sub GUI_MakeRadio($$$$$$)
 		if($value eq $id) {
 			$str .= " checked=\"checked\" ";
 		}
+		$text = StripJavascript($text);
 		$str .= ">$text&nbsp\n";
 	}
 	return $str;
@@ -1593,6 +1667,159 @@ sub GUI_AppletParam($$){
 	return "<param name=\"$name\" value=\"$value\">\n";
 }
 
+sub GUI_DecodeDate($$){
+  # date separator characters
+  my $dsc = '-\/\\, ';
+  my $value = shift;
+  my $format = shift; 
+  #print STDERR "$value $format\n";
+  my $year = 0;
+  my $month = 0;
+  my $day = 0;
+  my $d1;
+  my $d2;
+  my $d3;
+  
+  if($format){
+    if($format=~/\w+[$dsc]\w+[$dsc]\w+/){
+      
+      $value=~/(\d+)[$dsc](\d+)[$dsc](\d+)/;
+      $d1=$1;$d2=$2;$d3=$3;
+      if($format=~/y+[$dsc]m+[$dsc]d+/){
+	$year=$d1;$month=$d2;$day=$d3;
+      }
+      if($format=~/y+[$dsc]d+[$dsc]m+/){
+	$year=$d1;$month=$d3;$day=$d2;
+      }
+      if($format=~/m+[$dsc]y+[$dsc]d+/){
+	$year=$d2;$month=$d1;$day=$d3;
+      }
+      if($format=~/m+[$dsc]d+[$dsc]y+/){
+	$year=$d3;$month=$d1;$day=$d2;
+      }
+      if($format=~/d+[$dsc]y+[$dsc]m+/){
+	$year=$d2;$month=$d3;$day=$d1;
+      }
+      if($format=~/d+[$dsc]m+[$dsc]y+/){
+	$year=$d3;$month=$d2;$day=$d1;
+      }
+    }else{
+      if($format=~/yyyy\w{4}/){
+	$value =~ /(\d\d\d\d)(\d\d)(\d\d)/;
+	$year = $1;
+	$d2=$2;
+	$d3=$3;
+	if($format=~/yyyymmdd/){
+	  $month = $d2;
+	  $day = $d3;
+	}elsif($format=~/yyyyddmm/){
+	  $month = $d3;
+	  $day = $d2;
+	}
+      }
+      if($format=~/\w\wyyyy\w\w/){
+	$value =~ /(\d\d)(\d\d\d\d)(\d\d)/;
+	$year = $2;
+	$d1=$1;
+	$d3=$3;
+	if($format=~/mmyyyydd/){
+	  $month = $d1;
+	  $day = $d3;
+	}elsif($format=~/ddyyyymm/){
+	  $month = $d3;
+	  $day = $d1;
+	}
+      }
+      if($format=~/\w{4}yyyy/){
+	$value =~ /(\d\d)(\d\d)(\d\d\d\d)/;
+	$year = $3;
+	$d2=$2;
+	$d1=$1;
+	if($format=~/ddmmyyyy/){
+	  $month = $d2;
+	  $day = $d1;
+	}elsif($format=~/mmddyyyy/){
+	  $month = $d1;
+	  $day = $d2;
+	}
+      }
+    }
+  }else{
+    if($value =~ /(\d{4})[$dsc](\d\d?)[$dsc](\d\d?)/){
+      #asume english format yyyy-mm?-dd?;
+      $year = $1;
+      $month = $2;
+      $day = $3;
+    }
+    if($value =~ /(\d\d?)[$dsc](\d\d?)[$dsc](\d{4})/){
+      #asume continental format dd-mm-yyyy
+      $year = $1;
+      $month = $2;
+      $day = $3;
+    }
+  }
+  $value = "$year-$month-$day";
+  return $value; 
+}
+
+sub GUI_FormatDate($$){
+  my $value = shift;
+  return undef unless(defined $value && $value ne "");
+  my $format = shift;
+  my $dsc = '-\/\\, ';
+  $value=~/(\d{4})-(\d\d)-(\d\d)/;
+  my $year = $1;
+  my $month = $2;
+  my $day = $3;
+  
+  if($format){
+    if($format=~/\w+([$dsc])\w+([$dsc])\w+/){
+      my $dim1 = $1;
+      my $dim2 = $2;
+      if($format=~/y+[$dsc]m+[$dsc]d+/){
+	$value="$year$dim1$month$dim2$day";
+      }
+      if($format=~/y+[$dsc]d+[$dsc]m+/){
+	$value="$year$dim1$day$dim2$month";
+      }
+      if($format=~/m+[$dsc]y+[$dsc]d+/){
+	$value="$month$dim1$year$dim2$day";
+      }
+      if($format=~/m+[$dsc]d+[$dsc]y+/){
+	$value="$month$dim1$day$dim2$year";
+      }
+      if($format=~/d+[$dsc]y+[$dsc]m+/){
+	$value="$day$dim1$year$dim2$month";
+      }
+      if($format=~/d+[$dsc]m+[$dsc]y+/){
+	$value="$day$dim1$month$dim2$year";
+      }
+    }else{
+      if($format=~/yyyymmdd/){
+	$value="$year$month$day";
+      }
+      if($format=~/yyyyddmm/){
+	$value="$year$day$month";
+      }
+      if($format=~/mmyyyydd/){
+	$value="$month$year$day";
+      }
+      if($format=~/ddyyyymm/){
+	$value="$day$year$month";
+      }
+      if($format=~/ddmmyyyy/){
+	$value="$day$month$year";
+      }
+      if($format=~/mmddyyyy/){
+	$value="$month$day$year";
+      }
+    }
+  }else{
+    $value="year-$month-$day";
+  }
+  return $value;
+}
+
 
 
 sub GUI_WidgetWrite($$$$)
@@ -1619,6 +1846,9 @@ sub GUI_WidgetWrite($$$$)
 	elsif($w eq 'text') {
 		my $size = defined $warg->{size} ? $warg->{size} : '20';
 		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"$size\" VALUE=\"".$escval."\">";
+	}
+	elsif($w eq 'hidden') {
+		return "<INPUT TYPE=\"hidden\" NAME=\"$input_name\" VALUE=\"".$escval."\">";
 	}
 	elsif($w eq 'area') {
 		my $rows = defined $warg->{rows} ? $warg->{rows} : '4';
@@ -1714,6 +1944,21 @@ sub GUI_WidgetWrite($$$$)
 		}
 		$out .= "<br>Enter filename to update.<br><INPUT TYPE=\"file\" NAME=\"$input_name\">";
 		return $out;
+	}
+	elsif($w eq 'pluginfile'){
+		my $out;
+		my $filename = $value ne '' ? $value->[1] : "(none)";
+		if($value){
+		  $out.="<input type=\"hidden\" name=\"$input_name"."_CURRENT_FILEXXX\" value=\"$value->[1]\">\n";
+		}
+		$out .= "Current file: <b>$filename</b>\n";
+		$out .= "<br>Enter filename to update.<br><INPUT TYPE=\"file\" NAME=\"$input_name\">\n";
+		return $out;
+	}
+	if($w eq 'localdate'){
+		my $format = lc($warg->{'format'});
+		$value = GUI_FormatDate($value,$format);
+		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"10\" VALUE=\"".$value."\">";
 	}
 	elsif($w eq 'date') {
 		return GUI_WidgetWrite_Date($input_name, $warg, $value);
@@ -1906,6 +2151,180 @@ sub GUI_DumpTable($$){
 	$data .= DB_DumpTable($dbh,$table,\%atribs);
 	print $data;
 }
+
+sub GUI_Oyster($)
+{
+	my $s = shift;
+	my $dbh = $s->{dbh};
+	my $user = $s->{user};
+	my $q = $s->{cgi};
+	my $oyster = $q->param('oyster');
+	my $state = $q->param('state');
+	my $nextstate = $state+1;
+	my $previousstate = $q->param('previousstate');
+	my $validate;        # hash of errors made by user
+	my @formerrors = (); # list of $validates errors
+
+
+	if(not exists $g{oysters}{$oyster}) {
+		die "Error: plugin named $oyster is unknown";
+	}
+	my $p = $g{oysters}{$oyster};
+	if(not $p->access($user)){
+		die "$user has no access to this plugin";
+	}
+
+	my $title = ($p->info())[0];
+	my %template_args = (
+		USER => $user,
+		PAGE => 'edit',
+		TABLE => '',
+		TITLE => "Plugin $title",
+		BUTTON_LABEL => 'Continue',
+	);
+
+	my $form_url = MakeURL(MyURL($q),{state=>"$state"});
+	my $cancel_url = MakeURL($form_url, {
+		action => 'entry'});
+
+	my $next_url = 	$form_url;
+
+	# fetch the data from the oyster for the submitted state
+
+	$p->{param}={};
+	my ($template,$pstatefilename,$pstatefile,$pstatehash);
+
+
+	if(defined $previousstate){
+		$pstatefilename = $s->{'ticket_value'}.
+		    '_'.$oyster.'_'.$previousstate;
+		$pstatefile = GetFile($s,$pstatefilename);
+		$pstatehash = DataTree($pstatefile->[0]);
+
+		$template = $pstatehash->{template};
+		$p->{data} = $pstatehash->{data};
+
+		for (@$template) {
+			my ($field,$lable,$widget,$value,$test) = @$_;
+			$p->{param}{$field} = GUI_WidgetRead($s, "field_$field",$widget);
+			if($widget eq 'pluginfile'){
+				if(ref($p->{param}{$field}) eq "ARRAY"){
+					#aparently a new file was inserted
+					#save it now.
+					StoreFile($s,
+						  $p->{param}{$field}[0],
+						  $p->{param}{$field}[1],
+						  $p->{param}{$field}[2]);
+				}elsif($p->{param}{$field}){
+					# there was a file here but the user
+					# didn't update it. -> restore from
+					# ticketdaemon.
+					$p->{param}{$field} = GetFile($s,$p->{param}{$field});
+				}
+			}
+		}
+
+		$validate = $p->validate($previousstate);
+		die("validate for plugin $oyster does not return a hash reference for state $previousstate.\n") unless ref($validate) eq 'HASH';
+		@formerrors = keys %{$validate};
+	}
+
+
+	GUI_InitTemplateArgs($s, \%template_args);
+	GUI_Header($s, \%template_args);
+
+	my $runoutput;
+	if(@formerrors > 0){
+		#retry the previous form.
+
+		$nextstate = $state;
+		$state = $previousstate;
+
+		#some of the values in the template may have been changed
+		#by the user. Restore these changes:
+		for(@{$template}){
+			#3 is value 0 is field
+			$_->[3] = $p->{param}{$_->[0]};
+		}
+		$runoutput = $pstatehash->{output};
+	}else{
+		#aparently there are no errors:
+	        #fetch the template for the upcomming form
+		$template =$p->template($state);
+		
+		#gedafe modules do their own printing, 
+		#but now we need to capture the output.
+		
+		tie *STDOUT,"Gedafe::StdoutBuffer",\$runoutput;
+		$p->run($state);
+		untie *STDOUT;
+	}
+
+	StoreFile($s,
+		  DataUnTree({output=>$runoutput,
+			      template=>$template,
+			      data=>$p->{data}}),
+		  $s->{'ticket_value'}.'_'.$oyster.'_'.$state,
+		  'gedafe/hash');
+
+	print $runoutput if($runoutput);
+
+	if($template){
+		# FORM
+		UniqueFormStart($s, MakeURL($s->{url},{state=>''}));
+		print "<INPUT TYPE=\"hidden\" NAME=\"action\" VALUE=\"oyster\">\n";
+		print "<INPUT TYPE=\"hidden\" NAME=\"oyster\" VALUE=\"$oyster\">\n";
+		print "<INPUT TYPE=\"hidden\" NAME=\"previousstate\" VALUE=\"$state\">\n";
+		print "<INPUT TYPE=\"hidden\" NAME=\"state\" VALUE=\"$nextstate\">\n";
+		# Fields
+		$template_args{ELEMENT} = 'editform_header';
+		print Template(\%template_args);
+
+		my $n =0;
+
+		for (@{$template}){
+			my ($field,$label,$widget,$value) = @$_;
+
+			#print error messages
+			for my $errorfield (@formerrors){
+				if($errorfield eq $field){
+					$template_args{ELEMENT} = 'errorfield';
+					$template_args{LABEL} = $errorfield;
+					$template_args{ERROR} = $validate->{$errorfield};
+					print Template(\%template_args);
+					$n++;
+				}
+				
+			}
+			
+
+			my $inputelem = GUI_WidgetWrite($s,"field_$field",$widget,$value);
+ 			$template_args{ELEMENT} = 'editfield';
+			$template_args{FIELD} = $field;
+			$template_args{LABEL} = $label;
+			$template_args{INPUT} = $inputelem;
+			# $template_args{TWOCOL} = $n%2;
+			print Template(\%template_args);
+			$n++;
+		}
+		delete $template_args{FIELD};
+		delete $template_args{LABEL};
+		delete $template_args{INPUT};
+		
+		# Fields
+		$template_args{ELEMENT} = 'editform_footer';
+		print Template(\%template_args);
+		
+		# Buttons
+		$template_args{ELEMENT} = 'buttons';
+		$template_args{CANCEL_URL} = $cancel_url;
+		print Template(\%template_args);
+
+		UniqueFormEnd($s,$form_url,$cancel_url);
+	}
+	GUI_Footer(\%template_args);
+}
+
 
 1;
 # Emacs Configuration

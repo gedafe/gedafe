@@ -148,6 +148,42 @@ its parent table, then the COMMENT from the parent table field will be
 used. The same is true if the list field name matches the name of any
 other commented table field in the database.
 
+=head2 Edit link to referenced row
+  
+  IF    
+    a column in some tableX references another tableY 
+  AND 
+    a column in tableX_list has the same name as the 
+    referencing colum in tableX
+  THEN
+    Gedafe will make the text of the value of that 
+    field in tableX_list a  link to the edit form for 
+    the referenced row in tableY.
+
+E.G.:
+given this definition for the orders_list view:
+
+  SELECT orders_id, orders_date, customer_name AS orders_customer, 
+  orders_qty, product_hid, product_description, orders_shipped, 
+  ((customer_name || ','::text) || (product_hid)::text) 
+  AS meta_sort FROM orders, customer, product 
+  WHERE ((customer_id = orders.orders_customer) 
+  AND (product_id = orders_product));
+
+
+  [orders table]
+  ID Date       Customer Quantity HID Description       Shipped
+  1  2003-10-21 freek    2        tmp Temporary Product yes
+  
+In this case the customer "freek" will be a link to the edit form for 
+customer freek.
+
+Note the customer_name as orders_customer and the customer_id = 
+orders.orders_customer in the select.
+
+All links are subject to ACL settings.
+No read and write: no edit link.
+
 =head2 The Combo-box
 
 When editing fields that are a reference to a row in another table it is
@@ -235,17 +271,36 @@ this instead of the standard _id, assuming you would prefer _hid over _id.
 If the value of this attribute is set to '1', the table won't be shown
 by the front-end.
 
+
 =item showref
 
 Show references from another table to this table. The value is just the name
 of the referencing table (or a comma separated list of referencing tables. 
 no spaces allowed).
 
-The list view is given a new column containing a link to the refencing table,
-filtered to the records that reference to the Record in the referenced table.
-The link is labeled with the number of referencing records.
 
-Nice hack that should be documented. 
+
+if meta_tables contains a row that reads:
+  
+  'table1','showref','some_other_table_that_has_foreign_keys_for_table1'
+
+E.G.:
+
+  'products','showref','orders'
+
+it will add a column to the listing of table1 (products) that tells 
+you how many orders reference that product.
+
+  You would get something like this:
+  
+  HID Description         WWW-URL            orders
+  tmp Temporary product   http://tmp.org/    2 items
+
+The "2 items" value is also a link that will take you to the order table 
+with searchfields set such that only the orders that reference this 
+product will be shown. The creation of this table
+will ofcource be subject to your privileges regarding reading from the
+other table.
 
 =item twocols
 
@@ -278,6 +333,7 @@ To make it work, for every field place ##XXXX_LABEL## at the places you want
 the  field description and ##XXXX_INPUT## at the place you want the Input
 widget to be in your html layout. A very ugly example "customer" template is
 supplied for the "customer" table.
+
 
 =back
 

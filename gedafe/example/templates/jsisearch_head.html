@@ -19,14 +19,14 @@ function filter(input,filters){
 
 function recordFilter(record,filters){
   for(var i = 0;i<record.length;i++){
-    if(record[i].indexOf(filters[i])==-1)return false;
+    if(record[i].toUpperCase().indexOf(filters[i].toUpperCase())==-1)return false;
   }
   return true;
 }
 
 
 function summarize(s){
-    if(s.length<20){
+    if(s.length<40){
       return s;
     }
     l =0;
@@ -40,11 +40,11 @@ function summarize(s){
       return summarize(s.substring(l+3,r));
     }
     r=s.indexOf("\\n");
-    if(r>-1&&r<20){
+    if(r>-1&&r<40){
       return s.substring(0,r);
     }
 	    
-    return s.substring(0,20);
+    return s.substring(0,40);
 }
 
 function rec2string(r){

@@ -27,6 +27,7 @@ use Gedafe::GUI qw(
 	GUI_DumpTable
 	GUI_DumpJSIsearch
         GUI_Pearl
+	GUI_Oyster
 );
 use Gedafe::DB qw(
 	DB_GetBlobType
@@ -44,6 +45,7 @@ use Gedafe::Util qw(
 	NextRefresh
 	InitPearls
 	InitWidgets
+	InitOysters
 );
 
 sub Start(%)
@@ -106,6 +108,8 @@ sub Start(%)
 	InitTemplate("$g{conf}{templates}",".html");
 
 	InitPearls($g{conf}{pearl_dir}) if defined $g{conf}{pearl_dir};
+
+	InitOysters($g{conf}{oyster_dir}) if defined $g{conf}{oyster_dir};
 
 	InitWidgets($g{conf}{widget_dir}) if defined $g{conf}{widget_dir};
 
@@ -210,6 +214,9 @@ sub Start(%)
 	}
 	elsif($action eq 'configpearl') {
 		GUI_Pearl(\%s);
+	}
+	elsif($action eq 'oyster') {
+		GUI_Oyster(\%s);
 	}
 	elsif($action eq 'delete') {
 		GUI_Delete(\%s, $user, $dbh);

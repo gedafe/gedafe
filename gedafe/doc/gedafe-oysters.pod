@@ -1,0 +1,403 @@
+=head1 NAME
+
+gedafe-oysters - Multistage plugins like Gedafe Pearls
+
+I<Fish: One Oyster can contain many Pearls.>
+
+I<Gedafe: One Oyster can contain many things that are 
+almost, but not quite entirely, unlike Pearls.>
+
+=head1 STATUS
+
+gedafe-oysters is a work in progress. This means that it might work
+very nice for you, but that this should be attributed to luck rather 
+than the quality of this software. Also, the conceptual design of 
+gedafe-oysters has some rough edges. This means that in the near or 
+far future some of the workings and interactions of this software may
+change. 
+By using this software you accept that this may happen at any time. 
+If a new version of gedafe-oysters breaks one of your plugins, that is 
+just bad luck. Backward compatibility will be regarded as an asset rather
+than a requirement. 
+
+=head1 DESCRIPTION
+
+Sometimes you just need to interact with your users with a series of
+questions. Often an answer will trigger a different question for the
+next step. At other times the user will need some information halfway
+that you can only provide based on the first few answers.
+
+For this purpose gedafe-oysters where developed; to provide means
+of interaction with users over multiple stages. 
+The paradigm through witch this is provided is that of a state machine.
+ 
+The Gedafe Oysters are modelled after the Gedafe Pearls.
+The difference is that the oysters are more closely coupled with Gedafe. 
+This is both an advantage and a disadvantage.  
+The advantage is that Oysters maintain the gedafe look and feel
+throughout the module and provide slightly more access to gedafe 
+data structures. 
+The disadvantage is that it is more difficult to generate output that 
+is incompatible with the gedafe user interface. (like PDF or images)
+
+
+=head1 HOW DO OYSTERS WORK
+
+$self->{param} is the collection of user input in an oyster.
+See also the gedafe-pearl documentation for more information about
+this mechanism of loading data.
+
+$self->{data} is a hash that will be present in all states.
+You can save data between states here.
+
+Now, at every state X this is what happens:
+
+=over
+
+=item A
+
+The template for the gui from X-1 is restored, (whithout 
+calling template(X-1) again.
+ 
+
+=item B
+
+Using that template for the previous state,
+we know what gui the user filled out. Therefor we can use
+it to capture the user input(X-1) to $self->{param}
+
+=item C
+
+Once upon a time, there was something interesting to
+say about C, but now that information has become
+irrelevant. Please proceed to D. 
+
+=item D
+
+Now the user input is validated. To do this we call
+validate(X-1). This tells us if the input was correct.
+
+
+=item E
+
+If there was no error in input(X-1) go to G.
+
+
+=item F
+
+Since there is an error in the input the user has to do that
+form again. The next template the user will fill out will thus
+be the template for the previous state. 
+Note that we had already determined that template so we won't have 
+to do that again.
+
+Also, the state we are in for the rest of this discussion should
+be the state that where in before the user entered the wrong data.
+state = previousstate.
+
+Go to step H.
+
+
+=item G
+
+Load the template for the next state: template(X)
+
+
+=item H
+
+Obligatory Blues Brothers quote:
+
+Elwood: We have validated correct input in $self->{param}, the 
+state number is set to the next state the user should work on,
+we have the right template loaded, it's dark and we are wearing
+sunglasses.
+
+Jake: Hit it.
+
+
+=item I
+
+First run the state so that our user may gain insight into
+the knowledge he needs to fill out the next gui.
+(this means that run can put something on screen)
+
+There is some black magick involved in the way the output 
+from run is handeled. The problem is that we may need it 
+again when a user makes a mistake and we have to go back
+to correct it. In that case we don't want to do run() 
+again. There might be one-shot transactions in there.
+Thus: the output from run is saved.
+This is done by redirecting stdout and forking to a process that
+echos it back. Therefor you need to be carefull with
+what you do to stdout in run, and be carefull with process
+management functions. 
+If you don't understand this paragraph, that is no problem.
+You most likely won't even notice what is going on. 
+Just don't do anything fancy.
+
+=item J
+
+Show the gui and wait for input.
+
+
+=back
+
+=head1 USAGE
+
+First you have to tell Gedafe that it should go looking for Oysters.
+This is done by placing the line
+
+ oyster_dir      => '/path/to/oysters',
+
+into the Start command of your Gedafe CGI. Then you have to write a Oyster
+and store it in F</path/to/pearls>. When you restart gedafe it will go
+looking there and integrate all Oysters it finds in its Entry screen.
+
+Oysters are object oriented Perl modules which inherit from F<Gedafe::Oyster>.
+An Oyster has to override the following methods:
+
+=over
+
+=item info
+
+Returns two values. The name of the Oyster and a short description of the 
+Oyster.
+
+=item access
+
+Since Oysters can do stuff, you should control who gets to do it.
+The access method gets a user name and should return 1 (true) for
+users that are allowed to use the oyster.
+
+
+=item B<template>
+
+Returns a pointer to a list of lists. It is used to build a form which is
+presented to the user to setup the report. Each element of the list is a
+list with the following elements: B<name>, B<label>, B<widget>, B<default
+value>, The B<widgets> are normal gedafe widgets as you would
+use in a meta table.
+ 
+As you can see the test regexp that was used in the Pearls is gone here.
+This is because Oysters use the validate method to judge their input; both
+on format and on content.
+
+=item B<validate>
+
+Returns a reference to a hash with errors.
+For every field name as mentioned in the template description you can set
+an error message if you do not agree with the value that a user entered.
+Returning an empty hash means that the user input was correct.
+
+=item B<run>
+
+You can use run to put information on the screen. Also it is recommended
+to put all the database transactions in the 'run' method.
+
+=back
+
+See the example below for details.
+
+=head1 WIDGET PLUGINFILE
+
+There is a special widget for files in plugins. As you can imagine, dealing
+with files is rather horrible when you keep going back and forth over your
+incorrect input. For this purpose there is a special pluginfile
+widget. It will load a file, perhaps for batch insertions, and 
+store it in memory.
+
+It returns a listreference like this:
+
+ [contentbytes,filename,mimetype]
+
+Filenames with spaces in them will have those converted to _.
+
+
+
+=head1 STATE MACHINE
+
+Hey, you said this would be a state machine, but I can only go
+one way!
+
+Well, it is a state machine, but you need to do special things
+to make it go in funny directions. The designated way is to manipulate
+the hidden 'state' input field in the form through javascript.
+Although as of this time such behaviour is not tested.
+Please inform us of your experiences.
+
+=head1 EXAMPLE
+
+  package demoyster;
+  use Gedafe::Oyster;
+
+  use vars qw(@ISA);
+  @ISA = qw(Gedafe::Oyster);
+
+
+  # Information about what this oyster will do
+  sub info($){
+    #my $self = shift;
+    return "Lingo Derivative","Example game to show the power of plugins";
+  }
+
+  # the access method allows people to use this plugin.
+  sub access($$){
+    my $self = shift;
+    my $username = shift;
+    #I trust all users with this plugin: so return 1;
+    #otherwise make your own judgement based on the 
+    #username. 0 means: no access
+    return 1;
+  }
+
+  # The global information from your plugin can go in here.
+  # please note that this can/will be called for every
+  # page you generate. This means that global
+  # values are not a communication mechanism between states.  
+  # for that purpose there is the {data} hash. This
+  # gets saved between states.
+  sub new($;@){
+    my $proto = shift;
+    my $class = ref($proto) || $proto;
+    my $self = $class->SUPER::new(@_);
+
+    #perhaps your super game should fetch a word from
+    #a database.
+    $self->{data}{secret} = 'clamfish';
+    $self->{data}{known} = $self->match(undef);
+    return $self;
+  }
+
+  # what information do I need to go into action
+  #
+  # templates are the basis of the gui for a state.
+  # you get a reference to yourself and the number
+  # of the current state and it is up to you to
+  # make a sensible gui for the user based on that.
+  # the gui work mostly like the one used for pearls.
+  sub template ($$){
+    my $self = shift;
+    my $state = shift;
+
+    
+    # return a list of lists with the following elements
+    #    name        desc        widget      value
+    return [['play',
+	     'Would you like to play a game of Lingo Derivative?',
+	     'checkbox','1'],
+	    ] if($state==1);
+    return undef if($state==2 and !$self->{param}{play});
+    return undef if($state>2 and 
+	            $self->{param}{guess} eq 
+                      $self->{data}{secret});
+    return [['guess','what is your guess?','text',''],
+	    ];
+    
+  }
+
+  # The run method can be used to do stuff.
+  # You are garantied  to get validated input in $self->{param}
+  # and the state for which that is valid.
+  #
+  # The output from your run method will be buffered and saved
+  # this way we can show it again when users make a mistake.
+  # You can be sure that run will only be called once.
+  sub run ($$){
+    my $self = shift;
+    my $state = shift;
+    if($state==2){
+	if($self->{param}{play}){
+	    print "<center><h2>Ok, let's go!</h2></center>\n";
+	}else{
+	    print "<center><h2>Hmm, ok that's fine with me.".
+	          "</h2></center>\n";
+	    return;
+	}
+    }
+    if($state>=2){
+	my $guess = $self->{param}{guess} ||'';
+	if($guess eq $self->{data}{secret}){
+	    print "<center><h1>$guess, You won!</h1></center>\n";
+	}else{
+	    my $times = $state-1;
+	    my $newmatch = $self->match($guess);
+	    print "<center>Your guess was: $guess</center>\n";
+	    print "<center><h2>$newmatch</h2></center>\n";
+	    print "<center>please try (again) for the".
+	      " $times-th time.</center>\n";
+	}
+    }
+  }
+
+  # The validate method allows you to correct the data
+  # from the user. For a given state you have to
+  # report errors in the $self->{param} hash.
+  # If you find something you can put a helpfull
+  # message in the $errors hash at the 
+  # key of the offending parameter.
+  sub validate($$){
+    my $self = shift;
+    my $state = shift;
+    my $errors = {};
+    if($state>1){
+	$errors->{guess} = 
+	    "You know that word doesn't fit $self->{data}{known}!"
+	    if($self->{param}{guess} !~ /$self->{data}{known}/);
+    }
+    return $errors;
+  }
+
+  # this is just a utility function that 
+  # finds the match for two words in the lingo example. 
+  sub match($$){
+    my $self = shift;
+    my $guessword = shift;
+    if(!$guessword){
+	$guessword = $self->{data}{secret};
+	$guessword =~ s/\w/ /g;
+    }
+    my @secret = split(//,$self->{data}{secret});
+    my @guess = split(//,$guessword);
+    my $retval='';
+    for(0..length($self->{data}{secret})-1){
+	$retval .=( $guess[$_] and ($secret[$_] eq $guess[$_])) 
+	    ? $secret[$_] : '.';
+    }
+    $self->{data}{known} = $retval;
+    return $retval;
+  }
+
+1;
+
+
+=head1 SEE ALSO
+
+F<gedafe-pearl.pod>, F<gedafe-sql.pod>, F<gedafe-templates.txt>, F<Text::CPPTemplate>, F<gedafe-pearls.pod>,
+F<DBIx::PearlReports>
+
+=head1 COPYRIGHT
+
+Copyright (c) 2004 Freek Zindel, All rights reserved.
+Substantial, but limited sections of this software are based on the
+gedafe-pearls by Tobias Oetiker.
+
+
+=head1 LICENSE
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+=head1 AUTHOR
+
+S<Freek Zindel E<lt>freek@zindel.nlE<gt>>
