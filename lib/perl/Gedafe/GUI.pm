@@ -1160,7 +1160,7 @@ sub GUI_EditField($$$$)
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
 	}
 	if($type eq 'timestamp') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"25\" VALUE=\"".$value."\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"22\" VALUE=\"".$value."\">";
 	}
 	if($type eq 'int4') {
 		my $out;
