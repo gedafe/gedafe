@@ -665,8 +665,8 @@ sub DB_FetchList($$)
 	my $v = $spec->{view};
 
 	# can the user edit this view?
-	my $acl = defined $g{db_tables}{$v}{acls}{$user} ?
-		$g{db_tables}{$v}{acls}{$user} : '';
+	my $acl = defined $g{db_tables}{$spec->{table}}{acls}{$user} ?
+		$g{db_tables}{$spec->{table}}{acls}{$user} : '';
 	my $can_edit = ($acl =~ /w/);
 	
 	# fetch one row more than necessary, so that we
