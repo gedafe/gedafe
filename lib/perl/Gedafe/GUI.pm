@@ -81,7 +81,7 @@ sub GUI_URL_Decode($);
 sub GUI_URL_Encode($);
 sub GUI_WidgetRead($$$);
 sub GUI_WidgetWrite($$$$);
-sub GUI_WidgetWrite_Date($$);
+sub GUI_WidgetWrite_Date($$$);
 
 my %numeric_types = (
 	time      => 1,
@@ -958,8 +958,8 @@ sub GUI_PostEdit($$$)
 
 
 	## add or edit:
+	my %record;
 	if($action eq 'add' || $action eq 'edit'){
-		my %record;
 		for my $field (@{$g{db_fields_list}{$table}}) {
 			my $value = GUI_WidgetRead($s, "field_$field", $g{db_fields}{$table}{$field}{widget});
 			if(defined $value) {
@@ -967,7 +967,6 @@ sub GUI_PostEdit($$$)
 			}
 		}
 	}
-
 	if($action eq 'add') {
 		if(!DB_AddRecord($dbh,$table,\%record)) {
 			my $data = GUI_Hash2Str(\%record);
@@ -1276,16 +1275,17 @@ sub GUI_WidgetWrite($$$$)
 		return $out;
 	}
 	elsif($w eq 'date') {
-		return GUI_WidgetWrite_Date($warg, $value);
+		return GUI_WidgetWrite_Date($input_name, $warg, $value);
 	}
 
 	return "Unknown widget: $w";
 }
 
-sub GUI_WidgetWrite_Date($$)
+sub GUI_WidgetWrite_Date($$$)
 {
-	my ($warg, $value) = @_;
+	my ($input_name, $warg, $value) = @_;
 	my ($value_y, $value_m, $value_d) = (0, 0, 0);
+	my $escval = $value; $escval =~ s/\"/&quot;/g;
 		
 	my @months;
 	if($warg->{short}) {
@@ -1316,10 +1316,10 @@ sub GUI_WidgetWrite_Date($$)
 	}
 	for my $m (0..11) {
 		if ($m+1 == $value_m) {
-			$monthselect .= "<option selected>$month[$m]</option>\n";
+			$monthselect .= "<option selected>$months[$m]</option>\n";
 		}
 		else {
-			$monthselect .= "<option>$month[$m]</option>\n";
+			$monthselect .= "<option>$months[$m]</option>\n";
 		}
 	}
 	for my $d (1..31) {
