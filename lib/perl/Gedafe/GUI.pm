@@ -723,28 +723,28 @@ sub GUI_MakeCombo($$$$$)
 	my $str;
 
 	my $meta = $g{db_fields}{$table}{$field};
-	if(exists $meta->{ref_combo}) {
-		my @combo;
-		if(not defined DB_GetCombo($dbh,$meta->{reference},\@combo)) {
-			return undef;
-		}
-		$str = "<SELECT SIZE=\"1\" name=\"$name\">\n";
-                # the empty option must not be empty! else the MORE ... disapears off screen
-		$str .= "<OPTION VALUE=\"\">Make your Choice ...</OPTION>\n";
-		foreach(@combo) {
-			my $id = $_->[0];
-			$id=~s/^\s+//; $id=~s/\s+$//;
-			#my $text = "$_->[0] -- $_->[1]";
-			my $text = $_->[1];
-			if($value eq $id) {
-				$str .= "<OPTION SELECTED VALUE=\"$id\">$text</OPTION>\n";
-			}
-			else {
-				$str .= "<OPTION VALUE=\"$id\">$text</OPTION>\n";
-			}
-		}
-		$str .= "</SELECT>\n";
+
+	my @combo;
+	if(not defined DB_GetCombo($dbh,$meta->{reference},\@combo)) {
+		return undef;
 	}
+
+	$str = "<SELECT SIZE=\"1\" name=\"$name\">\n";
+	# the empty option must not be empty! else the MORE ... disapears off screen
+	$str .= "<OPTION VALUE=\"\">Make your Choice ...</OPTION>\n";
+	foreach(@combo) {
+		my $id = $_->[0];
+		$id=~s/^\s+//; $id=~s/\s+$//;
+		#my $text = "$_->[0] -- $_->[1]";
+		my $text = $_->[1];
+		if($value eq $id) {
+			$str .= "<OPTION SELECTED VALUE=\"$id\">$text</OPTION>\n";
+		}
+		else {
+			$str .= "<OPTION VALUE=\"$id\">$text</OPTION>\n";
+		}
+	}
+	$str .= "</SELECT>\n";
 	return $str;
 }
 
@@ -765,7 +765,7 @@ sub GUI_WidgetWrite($$$$)
 		}
 	}
 
-	my ($w, $warg) = DB_ParseWidget($g{db_fields}{$table}, $f->{widget});
+	my ($w, $warg) = DB_ParseWidget($g{db_fields}, $f->{widget});
 	my $escval = $value;
 	$escval =~ s/\"/&quot;/g;
 
