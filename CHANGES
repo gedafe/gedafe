@@ -1,3 +1,8 @@
+2002-01-20
+----------
+* Return to referer after action=edit
+* released 1.0.4
+
 2001-11-07
 ----------
 * Error when deleting didn't work (undefined subroutine GUI_DB_Error)

@@ -1184,6 +1184,7 @@ sub GUI_Delete($$$)
 	print Template(\%template_args);
 
 	print "<INPUT TYPE=\"hidden\" NAME=\"post_action\" VALUE=\"delete\">\n";
+	print "<INPUT TYPE=\"hidden\" NAME=\"post_table\" VALUE=\"$table\">\n";
 	print "<INPUT TYPE=\"hidden\" NAME=\"id\" VALUE=\"$id\">\n";
 	UniqueFormEnd($s, $next_url, $next_url);
 	GUI_Footer(\%template_args);

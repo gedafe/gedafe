@@ -4,7 +4,7 @@
 
 (arrows indicate actions that you should make when upgrading)
 
-1.0.4
+1.0.5
 -----
 
 * The edit view now returns to the "Referer" if it is provided by the browser.
