@@ -439,6 +439,13 @@ as this function must be called for each row of the table. A less
 costly approach during selects is the use of a meta_sort field as
 described above (the penalty there is again in inserts and updates).
 
+=item order
+
+Change the order of the fields in the edit screen. Gedafe reads the order of
+the fields from the table definition and assignes a ordering value to each field. The
+first field gets 1 the second 2 and so on. This value can be overriden with the 'order' attribute.
+Use floating values to move your fields around without having to change everything.
+
 =item widget
 
 Override Gedafe's automatically selected widget (element in the edit form to
