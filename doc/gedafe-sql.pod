@@ -409,6 +409,25 @@ resemble special web objects (currently implemented: e-mail addresses
 and http URLs).  If found, these strings will be replaced with appropriate
 HTML markup (template variable DATA will be altered in element 'td').
 
+
+=item bgcolor_field
+
+Control the line background colour in list views. One column of
+the view is abused as html colour name like C<#ffeeaa> or C<red>. 
+
+Select this abused column by setting the list view column attribute
+C<bgcolor_field> to 1 for this colour column. This column is not displayed.
+
+Instead you can just name this view column C<meta_bgcolour>.
+
+Nice for calenders (to show kind of weekday), to do lists (to show
+priority), bug list, etc. 
+
+If you want to give only one table column a different markup, you can
+produce the html that is needed for that with a SQL expression like this:
+	'<div bgcolour=' || CASE WHEN urgent 'style="color:red; font-weight:bold"' ELSE 'style="color:green"'|| '>'|| date || '</div>'
+(be urgent a boolean column). Ugly, but it works.
+
 =item sortfunc
 
 If you have a column which contains names like 'von Burg' or 'di
