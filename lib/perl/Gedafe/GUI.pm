@@ -766,13 +766,15 @@ sub GUI_WidgetWrite($$$$)
 	}
 
 	my ($w, $warg) = DB_ParseWidget($g{db_fields}{$table}, $f->{widget});
+	my $escval = $value;
+	$escval =~ s/\"/&quot;/g;
 
 	if($w eq 'readonly') {
 		return $value || '&nbsp;';
 	}
 	if($w eq 'text') {
 		my $size = defined $warg->{size} ? $warg->{size} : '20';
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"$size\" VALUE=\"".$value."\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"$size\" VALUE=\"".$escval."\">";
 	}
 	if($w eq 'area') {
 		my $rows = defined $warg->{rows} ? $warg->{rows} : '4';
@@ -782,13 +784,13 @@ sub GUI_WidgetWrite($$$$)
         if($w eq 'varchar') {
 		my $size = defined $warg->{size} ? $warg->{size} : '20';
 		my $maxlength = defined $warg->{maxlength} ? $warg->{maxlength} : '100';
-                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"$size\" MAXLENGTH=\"$maxlength\" VALUE=\"$value\">";
+                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"$size\" MAXLENGTH=\"$maxlength\" VALUE=\"$escval\">";
         }
 	if($w eq 'checkbox') {
 		return "<INPUT TYPE=\"checkbox\" NAME=\"field_$field\" VALUE=\"1\"".($value ? 'CHECKED' : '').">";
 	}
 	if($w eq 'hid') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$escval."\">";
 	}
 	if($w eq 'idcombo' or $w eq 'hidcombo') {
 		my $out;
