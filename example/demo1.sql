@@ -173,7 +173,7 @@ COMMENT ON COLUMN orders.orders_shipped IS 'Shipped?';
 -- (copy date and customer on the next form while adding)
 INSERT INTO meta_fields VALUES (DEFAULT,'orders', 'orders_date', 'copy', '1');
 INSERT INTO meta_fields VALUES (DEFAULT,'orders', 'orders_customer', 'copy', '1');
-INSERT INTO meta_fields VALUES (DEFAULT,'orders', 'orders_customer', 'widget', 'isearch');
+INSERT INTO meta_fields VALUES (DEFAULT,'orders', 'orders_customer', 'widget', 'jsisearch');
 
 -- presentation view
 -- note that the customer_name column is renamed tot orders_customer 
