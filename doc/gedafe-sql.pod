@@ -224,8 +224,8 @@ Example:
 I have this view called task_list which I want to filterfirst on the pack_id
 attribut. The combo I want to see comes from the pack table.
 
- INSERT INTO meta_tables VALUES ('task_list', 'filterfirst','my_pack');
- INSERT INTO meta_fields VALUES ('task_list', 'my_pack','reference','pack');
+ INSERT INTO meta_tables VALUES (DEFAULT,'task_list', 'filterfirst','my_pack');
+ INSERT INTO meta_fields VALUES (DEFAULT,'task_list', 'my_pack','reference','pack');
 
 Note, that if pack had a _hid attribute, gedafe would figure it out and use
 this instead of the standard _id, assuming you would prefer _hid over _id.
@@ -258,6 +258,13 @@ So the template knows if a field is to be positioned left or right in a two
 column layout. The template has to evaluate this Attribute, look after the
 "editfield.html" example template.
 
+
+=item longcomment
+
+A long comment for a table. Will be printed in the Main menu screen,
+in the table header and pop up as tool tip when you place the mouse
+over the table links on top of each table. There is such a comment
+for the Customer table in the demo1.sql example database.
 
 =back
 

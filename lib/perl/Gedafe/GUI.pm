@@ -241,6 +241,7 @@ sub GUI_Header($$)
 		$desc =~ s/ /&nbsp;/g;
 		$args->{TABLE_TABLE}=$t;
 		$args->{TABLE_DESC}=$desc;
+		$args->{TABLE_TOOLTIP}=$g{db_tables}{$t}{meta}{longcomment};
 		$args->{TABLE_URL}=MakeURL($args->{REFRESH_ENTRY_URL}, {
 				action => 'list',
 				table  => $t,
@@ -248,14 +249,19 @@ sub GUI_Header($$)
 		print Template($args);
 	}
 	delete $args->{TABLE_DESC};
+	delete $args->{TABLE_TOOLTIP};
 	delete $args->{TABLE_URL};
+
+        my $longcomment= $g{db_tables}{$save_table}{meta}{longcomment};
+        $args->{TABLE_LONGCOMMENT} = $longcomment;
+
 	$args->{TABLE} = $save_table;
 
 	$args->{ELEMENT}='header2';
 	print Template($args);
 
 	delete $args->{ELEMENT};
-
+	delete $args->{TABLE_LONGCOMMENT};
 	$s->{header_sent}=1;
 }
 
@@ -344,9 +350,11 @@ sub GUI_Entry($$$)
 		next if $g{db_tables}{$t}{report};
 		if(defined $g{db_tables}{$t}{acls}{$user} and
 			$g{db_tables}{$t}{acls}{$user} !~ /r/) { next; }
+		my $longcomment= $g{db_tables}{$t}{meta}{longcomment};
 		my $desc = $g{db_tables}{$t}{desc};
 		$desc =~ s/ /&nbsp;/g;
 		$template_args{TABLE_DESC}=$desc;
+		$template_args{TABLE_LONGCOMMENT}=$longcomment;
 		$template_args{TABLE_URL}= MakeURL($s->{url}, {
 					action => 'list',
 					table  => $t,
@@ -355,6 +363,7 @@ sub GUI_Entry($$$)
 		print Template(\%template_args);
 	}
 	delete $template_args{TABLE_DESC};
+	delete $template_args{TABLE_LONGCOMMENT};
 	delete $template_args{TABLE_URL};
 
 	$template_args{ELEMENT}='reports_list_header';

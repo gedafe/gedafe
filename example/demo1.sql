@@ -1,7 +1,8 @@
 -- Gedafe Demo Application 1 - A very simple customers/products/orders database
 -- Released as Public Domain. Do with it what you want.
 
---CREATE DATABASE demo1;
+DROP DATABASE demo1;
+CREATE DATABASE demo1;
 COMMENT ON DATABASE demo1 IS 'Gedafe Demo Application 1';
 
 --###################
@@ -63,8 +64,9 @@ COMMENT ON COLUMN customer.customer_last_modified IS 'Last modified';
 COMMENT ON COLUMN customer.customer_last_modified_by IS 'Last modified by';
 
 -- meta information
-INSERT INTO meta_fields VALUES ('customer', 'customer_address', 'widget', 'area');
-INSERT INTO meta_fields VALUES ('customer', 'customer_email', 'markup', 1);
+INSERT INTO meta_fields VALUES (DEFAULT,'customer', 'customer_address', 'widget', 'area');
+INSERT INTO meta_fields VALUES (DEFAULT,'customer', 'customer_email', 'markup', 1);
+INSERT INTO meta_tables VALUES (DEFAULT,'customer', 'longcomment','Our lovely Customers');
 
 -- combo-box
 DROP VIEW customer_combo;
@@ -122,8 +124,8 @@ COMMENT ON COLUMN product.product_description IS 'Description';
 COMMENT ON COLUMN product.product_url IS 'WWW-URL';
 
 -- meta information
-INSERT INTO meta_fields VALUES ('product', 'product_description', 'widget', 'area');
-INSERT INTO meta_fields VALUES ('product', 'product_url', 'markup', 1);
+INSERT INTO meta_fields VALUES (DEFAULT,'product', 'product_description', 'widget', 'area');
+INSERT INTO meta_fields VALUES (DEFAULT,'product', 'product_url', 'markup', 1);
 
 -- combo-box
 DROP VIEW product_combo;
@@ -160,9 +162,9 @@ COMMENT ON COLUMN orders.orders_shipped IS 'Shipped?';
 
 -- meta information
 -- (copy date and customer on the next form while adding)
-INSERT INTO meta_fields VALUES ('orders', 'orders_date', 'copy', '1');
-INSERT INTO meta_fields VALUES ('orders', 'orders_customer', 'copy', '1');
-INSERT INTO meta_fields VALUES ('orders', 'orders_customer', 'widget', 'isearch');
+INSERT INTO meta_fields VALUES (DEFAULT,'orders', 'orders_date', 'copy', '1');
+INSERT INTO meta_fields VALUES (DEFAULT,'orders', 'orders_customer', 'copy', '1');
+INSERT INTO meta_fields VALUES (DEFAULT,'orders', 'orders_customer', 'widget', 'isearch');
 
 -- presentation view
 DROP VIEW orders_list;
@@ -210,7 +212,7 @@ COMMENT ON COLUMN filetable.filetable_id IS 'ID';
 COMMENT ON COLUMN filetable.filetable_date IS 'Date';
 COMMENT ON COLUMN filetable.filetable_file IS 'File';
 
-INSERT INTO meta_fields VALUES ('filetable', 'filetable_date', 'widget', 'date(from=2000,to=2005)');
+INSERT INTO meta_fields VALUES (DEFAULT,'filetable', 'filetable_date', 'widget', 'date(from=2000,to=2005)');
 
 
 

@@ -4,9 +4,26 @@
 
 (arrows indicate actions that you should make when upgrading)
 ------------------------------------------------------------------
+HEAD    (2004-03-12)
+	Long comments 
+	Long comments can be saved per table in meta_tables. This
+	is displayed in the entry screen but also in tooltips
+	and table headers.
+	Added id colums to meta_fields and meta_tables. This makes
+	it possible to edit them in phpPgmyadmin, and to add more
+	then one attribute to a table(+field). 
+	To make it bullet proof, one should add a 
+	UNIQUE (meta_tables_table,meta_tables_attribute) constraint 
+	to meta_tables and a similar constraint on meta_fields:
+        UNIQUE (meta_fields_table,meta_fields_field,meta_fields_attribute)
+
+	Tested including the changed demo1.sql script
+			Johannes
+------------------------------------------------------------------
 HEAD    (2004-03-10)
 	Checked in agreed upon fix to schema code with 
 	robust defaults for schema and schema search path
+	Still work to to....
 			Johannes
 ------------------------------------------------------------------
 HEAD    (2004-03-09)
