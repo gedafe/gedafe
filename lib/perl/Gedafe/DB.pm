@@ -384,7 +384,7 @@ END
 	for $table (keys %$tables) {
 		$sth->execute($table) or return undef;
 		while ($data = $sth->fetchrow_arrayref()) {
-			$data->[1] !~ /^\s*$/ or next;
+			defined $data->[1] and $data->[1] !~ /^\s*$/ or next;
 			$fields{$table}{$data->[0]}{desc}=$data->[1];
 			$field_descs{$data->[0]} = $data->[1];
 		}
