@@ -111,6 +111,44 @@ the name of the list field equivalent to its parent table, then the COMMENT
 from the parent table field will be used. The same is true if the list field
 name matches the name of any other commented table field in the database.
 
+=head2 The B<meta_tables> table
+
+For some tables you may want to provide additional information to
+optimize their use in the Front-end.
+
+ CREATE TABLE meta_tables (
+    -- Table Name
+    meta_tables_table       NAME NOT NULL PRIMARY KEY,
+    -- Attribute
+    meta_tables_attribute   TEXT NOT NULL,
+    -- Value
+    meta_tables_value       TEXT
+ );
+
+The additional information is specified in attribute/value pairs for that
+table. This table must exist, even if you don't use it. The following
+attributes are at the moment defined:
+
+=over 2
+
+=item *
+
+filterfirst
+
+If a table tends to be big, it is possible to suggest a field to filter on
+before an table is displayed. This is done by specifying an appropriate
+field name as value for this attribute.
+
+Note that the specified field must be part of the table or the corresponding
+B<*_list> view.
+
+=item *
+
+hide
+
+If the value is set to '1', the table won't be shown in the frontend.
+
+=back
  
 =head2 The B<meta_fields> table
 
@@ -120,47 +158,47 @@ possible and additional information must be provided. This is done through the
 B<meta_fields> table. Every database must have a B<meta_fields> table.
 It may be empty if no special information has to be provided.
 
- CREATE TABLE meta_fields ( 
+ CREATE TABLE meta_fields (
+    -- Table Name
+    meta_fields_table       NAME    NOT NULL,
     -- Field Name
-    meta_fields_field     NAME NOT NULL PRIMARY KEY,
-    -- Use Widget X. At the moment there is only 'area'
-    meta_fields_widget    TEXT,                      
-    -- Copy forward in edit mask when adding several records
-    meta_fields_copy      BOOLEAN,
-    -- Use ORDER BY function(field) when sorting
-    meta_fields_sortfunc  TEXT       
+    meta_fields_field       NAME    NOT NULL,
+    -- Attribute
+    meta_fields_attribute   TEXT    NOT NULL,
+    -- Value
+    meta_fields_value       TEXT
  );
 
-The B<meta_fields_widget> entry must either be B<NULL> or B<area>. Area
-will provide the user with a TEXTAREA widget to enter longer amount of
-text.
+As for meta_tables, the additional information is specified in attribute/value pairs for that
+field. The following attributes are defined:
+
+=over 2
+
+=item *
+
+widget
+
+Use this special widget for the edit form. At the moment only I<area> can be
+specified, which makes Gedafe select a TEXTAREA widget for this field, such that
+longer amounts of text can be entered.
+
+=item *
+
+copy
+
+If set to '1', the data will be copied while adding entries from one form to
+the next.
+
+=item *
+
+sortfunc
 
 If you have a column which contains names like 'von Burg' or 'di Alfredi'
 and you want the column sorted by the second word, you can create a function
 which converts the name into a string suitable for sorting. The name of this
-function must be given in the B<meta_fields_sortfunc> row of the
-B<meta_fields> table.
+function must be given as value for this attribute.
 
-=head2 The B<meta_tables> table
-
-For some tables you may want to provide additional information to
-optimize their use in the Front-end.
-
- CREATE TABLE meta_tables (
-    -- Table Name
-    meta_tables_table       NAME NOT NULL PRIMARY KEY,
-    -- Filter table on this column
-    meta_tables_filterfirst NAME,                   
-    -- Hide Table in Front-end
-    meta_tables_hide        BOOLEAN
- );
-
-If a table tends to be big, it is possible to suggest a field to filter on
-before an table is displayed. This is done by specifying an appropriate
-field name in the B<meta_tables_filterfirst> entry.
-
-Note that the field specified in  B<meta_tables_filterfirst> must be part of
-the table or the corresponding B<*_list> view.
+=back
 
 =head2 The Combo-box
 

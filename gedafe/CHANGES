@@ -1,3 +1,8 @@
+2000-12-10
+----------
+* Changed meta_fields and meta_tables to use attribute/value instead of
+  columns. The old format is still supported for compatibility.
+
 2000-12-09
 ----------
 * Restructured DB_Init in DB.pm
