@@ -516,7 +516,7 @@ sub GUI_List($$$)
 	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,\$error,
 		-descending => $descending,
 		-orderby => $orderby,
-		-limit => $fetchamount+1,
+		-limit => ($fetchamount>0 ? $fetchamount+1 : -1),
 		-offset => $offset,
 		-fields => \@fields_list,
 		-search_field => $search_field,
@@ -737,7 +737,7 @@ sub GUI_ListRep($$$)
 	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,\$error,
 		-descending => $descending,
 		-orderby => $orderby,
-		-limit => $fetchamount+1,
+		-limit => ($fetchamount>0 ? $fetchamount+1 : -1),
 		-offset => $offset,
 		-search_field => $search_field,
 		-search_value => $search_value,
@@ -1059,8 +1059,6 @@ sub GUI_Edit($$$)
 				refresh => NextRefresh
 			});
 		}
-		print STDERR "CANCEL_URL: $cancel_url\n";
-		print STDERR "MY_URL    : ".MyURL($q)."\n";
 		$next_url = $cancel_url;
 	}
 
