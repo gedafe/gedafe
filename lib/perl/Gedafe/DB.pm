@@ -82,6 +82,7 @@ my %type_widget_map = (
 	'int4'      => 'text(size=12)',
 	'int8'      => 'text(size=12)',
 	'numeric'   => 'text(size=12)',
+	'float4'    => 'text(size=12)',
 	'float8'    => 'text(size=12)',
 	'bpchar'    => 'text(size=40)',
 	'text'      => 'text',
@@ -1203,24 +1204,6 @@ sub DB_ExecQuery($$$$$)
 	my $data = shift;
 	my $fields = shift;
 	
-	my @stringtypes = qw(
-		date
-		time
-		timestamp
-		int2
-		int4
-		int8
-		numeric
-		float8
-		bpchar
-		text
-		name
-		bool
-	);
-	my @binarytypes = ('bytea');
-	
-	
-	
 	my %datatypes = ();
 	for(@$fields){
 		$datatypes{$_} = $g{db_fields}{$table}{$_}{type};
@@ -1234,12 +1217,12 @@ sub DB_ExecQuery($$$$$)
 	for(@$fields){
 		my $type = $datatypes{$_};
 		my $data = $data->{$_};
-		if(grep (/^$type$/,@stringtypes)){
-			$sth->bind_param($paramnumber,$data);
-		}
-		if(grep (/^$type$/,@binarytypes)){
+		if($type eq "bytea") {
 			#note the reference to the large blob
 			$sth->bind_param($paramnumber,$$data,{ pg_type => DBD::Pg::PG_BYTEA });
+		}
+		else {
+			$sth->bind_param($paramnumber,$data);
 		}
 		$paramnumber++;
 	}
