@@ -1439,7 +1439,6 @@ sub GUI_DumpTable($$$){
 	}
 	$data.="\n";
 	        
-
 	$data .= DB_DumpTable($dbh,$table,\%atribs);
 	print $data;
 }
