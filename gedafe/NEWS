@@ -3,6 +3,11 @@
         =========================================
 
 (arrows indicate actions that you should make when upgrading)
+-----------------------------------------------------------------
+HEAD    (2004-07-29)
+	Schema Links in top of Main menü are now in  italics to 
+	make clear these Links are different from table links
+ 	in front of a table list page (johannes)
 ------------------------------------------------------------------
 HEAD    (2004-07-05)
         
