@@ -1,8 +1,11 @@
 
         News and upgrading information for Gedafe
         =========================================
-HEAD	(2003-11-26)
+HEAD	(2003-12-2)
 ------------------------------------------------------------------------------
+  * Support for user plugin widgets as per Widgets.pm
+    Works just like the pearls. (freek)
+
   * Add id columms to meta_fields and meta_tables in example database
     demo.sql. This is not needed, but it allows you to maintain these
     tables more easy with tools like phpPgAmin or pgadmin3 (johannes)

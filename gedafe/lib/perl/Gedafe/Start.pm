@@ -41,7 +41,9 @@ use Gedafe::Util qw(
 	InitTemplate
 	Template
 	NextRefresh
-	InitPearls);
+	InitPearls
+	InitWidgets
+);
 
 sub Start(%)
 {
@@ -98,6 +100,8 @@ sub Start(%)
 	InitTemplate("$g{conf}{templates}",".html");
 
 	InitPearls($g{conf}{pearl_dir}) if defined $g{conf}{pearl_dir};
+
+	InitWidgets($g{conf}{widget_dir}) if defined $g{conf}{widget_dir};
 
 	if(defined $q->url_param('reload')) {
 		my $next_refresh=NextRefresh();
@@ -206,7 +210,7 @@ sub Start(%)
 	elsif($action eq 'delete') {
 		GUI_Delete(\%s, $user, $dbh);
 	}
-	elsif($action eq 'dumpblob'){
+	elsif($action =~ /((view)|(download)|(dump))blob/){
 		my $table = $q->param('table');
 		my $id = $q->param('id');
 		my $field = $q->param('field');
