@@ -1159,6 +1159,9 @@ sub GUI_EditField($$$$)
 	if($type eq 'time') {
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=".$value.">";
 	}
+	if($type eq 'timestamp') {
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=15 VALUE=".$value.">";
+	}
 	if($type eq 'int4') {
 		my $out;
 		if(exists $meta->{ref_combo}) {
