@@ -290,10 +290,10 @@ store the currently viewed page.
 
 =head2 Edit form is empty
 
-If you get an empty form when selecting 'Edit' for a record, it could mean that
-you didn't put in the first column of the presentation (list) view or the table
-(if there isn't a presentation view) the id of the record. Gedafe needs to know
-which the id of the record to edit and it does so by using the first column as
+When you get an empty form after selecting 'Edit' for a record, this could mean that
+you didn't put the record *_id into the first column of the presentation (*_list) view or the table
+(if there isn't a presentation view). Gedafe must to know
+the id of the record to edit and it does so by using the first column as
 key. See the F<gedafe-sql.pod>, section 'Presentation View'.
 
 =head1 SEE ALSO

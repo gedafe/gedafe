@@ -40,8 +40,9 @@ Example:
    customer_age  INT,
    customer_address TEXT);
 
-Note that this is rule currently assumed by Gedafe, so you must conform to it,
-but it will be relaxed in the future (it will remain just a "good practice" :-))
+Gedafe currently assumes that you follow this rule. If you don't things will
+not work as expected. We are planning to relaxe this requirement in the
+future (nevertheless it will remain "good practice" :-))
 
 =head2 Non Speaking Unique ID
 
@@ -285,12 +286,13 @@ Example:
 
 =head1 ACCESS RIGHTS
 
-Gedafe reads the access rights of the user to determine if a table should be
-shown (SELECT must be granted), if a record can be added (INSERT must be
+Gedafe reads the access rights of the user to determine if a table can be
+accessed (SELECT must be granted), if a record can be added (INSERT must be
 granted) and if a record can be edited/deleted (UPDATE must be granted). Be
-careful about access rights in the database: it will determine effectively what
-users can and can't do.  You can use groups to manage more easily the access
-rights.
+careful about access rights in the database. They determine what users can
+do.  To manage access rights more easily, it is sensible to grant rights to
+groups and add users to the groups according to the rights you want them to
+have.
 
 =head1 COPYRIGHT
 
