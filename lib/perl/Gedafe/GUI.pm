@@ -54,7 +54,7 @@ sub GUI_DB2HTML($$)
 	$str =~ s/\s+$//;
 
 	if($type eq 'text') {
-		$str =~ s/\n/<BR>/;
+		$str =~ s/\n/<BR>/g;
 	}
 	if($str eq '') {
 		$str = '&nbsp;';

@@ -1,3 +1,8 @@
+2000-11-16
+* released version 0.9.11
+* convert multiple '\n' to <BR>
+* removed old commmented-out code
+
 2000-11-15
 ----------
 * released version 0.9.10
