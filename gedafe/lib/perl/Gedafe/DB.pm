@@ -1318,7 +1318,6 @@ sub DB_ExecQuery($$$$$$)
 		}
 	}
 	
-	print STDERR "DB_ExecQuery $query\n";
 	my $res = $sth->execute() or do {
 		# report nicely the error
 		$g{db_error}=$sth->errstr; return undef;
@@ -1405,7 +1404,7 @@ sub DB_AddRecord($$$)
 						}
 						
 						$query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
-						DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
+						($result,$oid)=DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
 					}
 				}
 			}
@@ -1934,6 +1933,7 @@ sub _DB_UpdateMN($$$){
 	my $result = 1;
 	
 	for my $vfield (@mnfields_list){ 
+		my $oid = undef;
 		my $mntable = $g{db_fields}{$table}{$vfield}{reference};
 		my $mntable_first = $g{db_mnfields}{$table}{$vfield}{mnfirstref_name};
 		
@@ -1946,7 +1946,7 @@ sub _DB_UpdateMN($$$){
 		#get the new list from the mncombo widget         
 		my @mntable_fields = $g{s}{cgi}->param($fname);
 		
-		if ( scalar(@mntable_fields) ne 0 ){
+		#if ( scalar(@mntable_fields) ne 0 ){
 			my $mncombo_firstfield = $g{db_mnfields}{$table}{$vfield}{mnfirstfield_name};
 			my $mncombo_secondfield = $g{db_mnfields}{$table}{$vfield}{mnsecondfield_name};
 			
@@ -1969,7 +1969,7 @@ sub _DB_UpdateMN($$$){
 						push @mntable_row, $ID;
 					}
 					$query = _DB_DeleteMN($mntable, \@fields_list,\@mntable_row);
-					$result = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
+					($result,$oid) = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
 				}
 			}
 			
@@ -1994,7 +1994,7 @@ sub _DB_UpdateMN($$$){
 					}
 					
 					$query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
-					$result = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
+					($result,$oid) = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
 				}
 			}
 			
@@ -2017,11 +2017,11 @@ sub _DB_UpdateMN($$$){
 					push @mntable_row, $order++;
 					
 					$query = _DB_UpdateOrderMN($mntable, \@fields_list,\@mntable_row);
-					$result = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
+					($result,$oid) = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
 				}
 			}
 			
-		}
+		#}
 	}
 	return $result;
 };
