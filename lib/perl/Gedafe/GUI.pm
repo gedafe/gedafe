@@ -489,9 +489,12 @@ sub GUI_Entry($$$)
 		next unless $g{db_tables}{$t}{report};
 		if(defined $g{db_tables}{$t}{acls}{$user} and
 			$g{db_tables}{$t}{acls}{$user} !~ /r/) { next; }
+                my $longcomment= $g{db_tables}{$t}{meta}{longcomment};
+
 		my $desc = $g{db_tables}{$t}{desc};
 		$desc =~ s/ /&nbsp;/g;
 		$template_args{TABLE_DESC}=$desc;
+		$template_args{TABLE_LONGCOMMENT}=$longcomment;
 		$template_args{TABLE_URL}= MakeURL($s->{url}, {
 					action => 'list',
 					table  => $t,
@@ -499,6 +502,7 @@ sub GUI_Entry($$$)
 				});
 		$template_args{REPORT}=1;
 		print Template(\%template_args);
+		delete $template_args{TABLE_LONGCOMMENT};
 	}
 
 	if(defined $g{pearls} and scalar %{$g{pearls}}) {

@@ -4,6 +4,10 @@
 
 (arrows indicate actions that you should make when upgrading)
 -----------------------------------------------------------------
+HEAD    (2004-09-9)
+	Show longcomment also for Reports in Entry screen.
+	(Johannes)
+-----------------------------------------------------------------
 HEAD    (2004-08-12)
 	new meta tables attribute "edit_show_id"      
         Make the id column visible in EDIT (and NEW) screens for a table
