@@ -732,34 +732,72 @@ sub GUI_Search($$$){
 	my ($name,$field,$value);
 	my $counter = 1;
 	my @clears = ();
+
+	$template_args->{PAGE} = 'search';
+	$template_args->{ELEMENT} = 'head';
+	$template_args->{SEARCH_ACTION} = $q->url;
+	print Template($template_args);
+	delete $template_args->{SEARCH_ACTION};
+
 	
 	for(@search_fields){
 		$name = 'search_field'.$counter;
 		$field = $_->{field};
 		$value = $_->{value};
 
-		#default the field to 'all columns';
-		$search_combos{$name} = "<SELECT name=\"$name\" SIZE=\"1\">\n";
+
+		#perhaps this is a referenced link
 		if($_->{field} =~ /^meta_rc_(.*)_(.*)$/){
-			$search_combos{$name} .= "<OPTION SELECTED VALUE=\"$_->{field}\">Reference from $2 to $1</OPTION>\n";
+			$template_args->{REFERENCED_SEARCH} = 1;
+			$template_args->{SEARCHFIELD_FIELD} = $name;
+			$template_args->{SEARCHFIELD_FROM} = $2;
+			$template_args->{SEARCHFIELD_TO} = $3;
 		}
-		foreach(@fields) {
-			my $description = $_ eq '#ALL#' ? 'All columns'
-			    : $g{db_fields}{$view}{$_}{desc};
-			if(/^$field$/) {
-				$search_combos{$name} .= "<OPTION SELECTED VALUE=\"$_\">$description</OPTION>\n";
+		$template_args->{ELEMENT} = 'fieldshead';
+		$template_args->{SEARCHFIELD_NAME} = $name;
+		print Template($template_args);
+		delete $template_args->{SEARCHFIELD_NAME};
+		delete $template_args->{REFERENCED_SEARCH};
+		delete $template_args->{SEARCHFIELD_FIELD};
+		delete $template_args->{SEARCHFIELD_FROM};
+		delete $template_args->{SEARCHFIELD_TO};
+
+
+		#default the field to 'all columns';
+		foreach my $tablefield (@fields) {
+			
+			$template_args->{ELEMENT} = 'field';
+			if($tablefield eq '#ALL#'){
+				$template_args->{SEARCHFIELD_ALL} = 1;
 			}
-			else {
-				$search_combos{$name} .= "<OPTION VALUE=\"$_\">$description</OPTION>\n";
-			}
+			$template_args->{SEARCHFIELD_DESC} 
+			    = $g{db_fields}{$view}{$tablefield}{desc};
+			
+			$template_args->{SEARCHFIELD_SELECTED} 
+			    = $tablefield =~ /^$field$/ ? "SELECTED" : '';
+
+			$template_args->{SEARCHFIELD_TABLEFIELD} = $tablefield;
+			print Template($template_args);
+			delete $template_args->{SEARCHFIELD_ALL};
+			delete $template_args->{SEARCHFIELD_DESC};
+			delete $template_args->{SEARCHFIELD_SELECTED};
+			delete $template_args->{SEARCHFIELD_TABLEFIELD};
 		}
-		$search_combos{$name} .= "</SELECT>\n";
-		$search_combos{$name} .= "<INPUT TYPE=\"text\" NAME=\"search_value$counter\" VALUE=\"$value\">\n";
+
+		$template_args->{ELEMENT} = 'fieldsfoot';
+		$template_args->{SEARCHVALUE_NAME} = 'search_value'.$counter;
+		$template_args->{SEARCHVALUE_VALUE} = $value;
+		print Template($template_args);
+		delete $template_args->{SEARCHVALUE_NAME};
+		delete $template_args->{SEARCHVALUE_VALUE};
+
 
 		#add clear button to all rows except the last one.
-		push @clears, "<INPUT TYPE=\"submit\" NAME=\"search_clear$counter\" VALUE=\"Clear\">\n" unless($counter == 1);
+		push @clears, "search_clear$counter" unless($counter == 1);
 		$counter++;
 	} 
+
+
 	my $search_hidden = '';
 	foreach($q->url_param) {
 		#FIXME
@@ -772,25 +810,34 @@ sub GUI_Search($$$){
 		$search_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
 	}
 
-	my $search_gui = join "<br>\n",values(%search_combos);
 
-	$template_args->{ELEMENT} = 'search';
-	$template_args->{SEARCH_ACTION} = $q->url;
-	$template_args->{SEARCH_COMBO} = $search_gui;
-	$template_args->{SEARCH_CLEAR} = join "<br>\n",@clears;
-
-	$template_args->{SEARCH_HIDDEN} = $search_hidden;
-	#$template_args->{SEARCH_VALUE} = $search_value;
+	$template_args->{ELEMENT} = 'button';
 	$template_args->{SEARCH_SHOWALL} = MakeURL(MyURL($q), {},
 						   [ 'search_value.*',
 						     'search_button.*',
 						     'search_field.*']);
 	print Template($template_args);
-	delete $template_args->{ELEMENT};
-	delete $template_args->{SEARCH_ACTION};
-	delete $template_args->{SEARCH_COMBO};
-	delete $template_args->{SEARCH_HIDDEN};
 	delete $template_args->{SEARCH_SHOWALL};
+
+	$template_args->{ELEMENT} = 'clearhead';
+	print Template($template_args);
+
+	$template_args->{ELEMENT} = 'clear';
+	for(@clears){
+		$template_args->{SEARCH_CLEAR_NAME} = $_;
+		print Template($template_args);
+	}
+	delete $template_args->{SEARCH_CLEAR_NAME};
+	
+
+	$template_args->{ELEMENT} = 'clearfoot';
+	print Template($template_args);
+
+
+	$template_args->{ELEMENT} = 'foot';
+	$template_args->{SEARCH_HIDDEN} = $search_hidden;
+	print Template($template_args);
+	delete $template_args->{SEARCH_HIDDEN};
 
 	return \@return_fields;
 }
