@@ -783,16 +783,7 @@ sub DB_FetchList($$)
 	# can find out when we are at the end (skip if DB_GetNumRecords)
 	$spec->{limit}++ unless $spec->{countrows};
 
-	my %list = (
-		spec => $spec,
-		data => [],
-	);
-	my $sth;
-	($list{fields}, $sth) = DB_FetchListSelect($dbh, $spec);
-
-	# ACLs
-	list{acl} = defined $g{db_tables}{$spec->{table}}{acls}{$user} ?
-		$g{db_tables}{$spec->{table}}{acls}{$user} : '';
+	my ($fields, $sth) = DB_FetchListSelect($dbh, $spec);
 
 	# if this is actually a call to DB_GetNumRecords()
 	if($spec->{countrows}) {
@@ -801,12 +792,33 @@ sub DB_FetchList($$)
 		return $data->[0];
 	}
 
-	my %typelist=();
-	for(@{$list{fields}}){
-		$typelist{$_} = $g{db_fields}{$v}{$_}{type};
+	# the idea of the %list hash, which then gets passed to GUI_ListTable
+	# is that it is a self-contained description of the data. It shouldn't
+	# be necessary to go look at db_tables and db_fields to figure out how
+	# to display the data, so we need to provide all the required
+	# information here
+	my %list = (
+		spec => $spec,
+		data => [],
+		fields => $fields,
+		acl => defined $g{db_tables}{$spec->{table}}{acls}{$user} ?
+			$g{db_tables}{$spec->{table}}{acls}{$user} : ''
+	);
+	my $col = 0;
+	my @columns;
+	for my $f (@{$list{fields}}) {
+		$columns[$col] = {
+			field  => $f,
+			align  => $g{db_fields}{$v}{$f}{type},
+			hidden => $g{db_fields}{$v}{$f}{hidden},
+			markup => $g{db_fields}{$v}{$f}{markup},
+			type   => $g{db_fields}{$v}{$f}{type},
+		};
+		$col++;
 	}
-	$list{type}=\%typelist;
+	$list{columns} = \@columns;
 
+	# fetch the data
 	while(my $data = $sth->fetchrow_arrayref()) {
 		my $col;
 		my @row;
@@ -1266,7 +1278,7 @@ sub DB_DumpTable($$$)
 	my $sth = $dbh->prepare($query) or return undef;
 	$sth->execute() or return undef;
 
-	my @row, $data;
+	my (@row, $data);
 	
 	$data=$sth->rows."\n";
 	
