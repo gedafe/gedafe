@@ -567,7 +567,7 @@ sub DB_FetchList($$$$;%)
 			$query .= " OFFSET $offset";
 		}
 		$$sth = $dbh->prepare_cached($query) or goto ERROR;
-		_debug_dump $query;
+		#_debug_dump $query;
 		$$sth->execute() or goto ERROR;
 	}
 

@@ -42,6 +42,7 @@ require Exporter;
 	GUI_PostEdit
 	GUI_Edit
 	GUI_Delete
+	GUI_Export
 );
 
 sub GUI_DB2HTML($$)
@@ -428,6 +429,7 @@ sub GUI_List($$$)
 		URL => $myurl,
 		TABLE => $table,
 		TITLE => "$g{db_tables}{$table}{desc}",
+		EXPORT_URL => MakeURL($myurl, { action => 'export' }),
 	);
 	
 	my @fields_list = @{$g{db_fields_list}{$view}};
@@ -659,6 +661,7 @@ sub GUI_ListRep($$$)
 		TITLE => $g{db_tables}{$view}{desc},
 		URL => $myurl,
 		TABLE => $view,
+		EXPORT_URL => MakeURL($myurl, { action => 'export' }),
 	);
 	
 	if(not defined $g{db_fields_list}{$view}) {
@@ -788,6 +791,84 @@ sub GUI_ListRep($$$)
 
 	# footer
 	GUI_Footer(\%template_args);
+}
+
+sub GUI_Export($$$)
+{
+	my $s = shift;
+	my $q = $s->{cgi};
+	my $user = shift;
+	my $dbh = shift;
+	my $myurl = MyURL($q);
+	my $table = $q->url_param('table');
+	my $orderby = $q->url_param('orderby') || '';
+	my $descending = $q->url_param('descending') || '';
+
+	# select view / table
+	my $view = exists $g{db_tables}{"${table}_list"} ? "${table}_list" : $table;
+
+	# does the view/table exist?
+	exists $g{db_tables}{$view} or Error($s, "no such table: $view\n");
+
+	my @fields_list = @{$g{db_fields_list}{$view}};
+	my $fields = $g{db_fields}{$view};
+
+	# search and filterfirst
+	my $search_field = $q->url_param('search_field') || '';
+	my $search_value = $q->url_param('search_value') || '';
+	my $filterfirst_field = $g{db_tables}{$view}{meta}{filterfirst};
+	my $filterfirst_value = $q->url_param('filterfirst') || $q->url_param('combo_filterfirst') || '';
+	$search_value =~ s/^\s+//; $search_value =~ s/\s+$//;
+	$filterfirst_value =~ s/^\s+//; $filterfirst_value =~ s/\s+$//;
+	if($filterfirst_value eq '') { $filterfirst_value = undef; }
+
+	my $skip_id = 0;
+	# if hid, then do not show id.
+	if(grep /^${table}_hid$/, @fields_list) {
+		$skip_id = 1;
+	}
+	# orderby
+	if($orderby eq '') {
+		if(not defined $g{db_tables}{$view}{meta_sort}) {
+			$orderby = $skip_id ? $fields_list[1] : $fields_list[0];
+		}
+	}
+
+	# data
+	my $fetch_state=0;
+	my $data;
+	my $error=undef;
+	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,\$error,
+		-descending => $descending,
+		-orderby => $orderby,
+		-fields => \@fields_list,
+		-search_field => $search_field,
+		-search_value => $search_value,
+		-filter_field => $filterfirst_field,
+		-filter_value => $filterfirst_value)))
+	{
+		my $skip_first = $skip_id;
+		my $is_first = 0;
+		my $i=0;
+		my $lasti = $#$data - ($skip_id ? 1 : 0);
+		foreach my $d (@$data) {
+			if($skip_first) { $skip_first=0; next; }
+
+			my $field_name = $g{db_fields_list}{$view}[$i];
+			my $field_type = $g{db_fields}{$view}{$field_name}{type};
+			my $str = GUI_DB2HTML($d, $field_type);
+			$str =~ s/\\/\\\\/g;
+			$str =~ s/,/\\,/g;
+			print $str;
+			print ',' unless $i >= $lasti;
+			$i++;
+		}
+		print "\r\n";
+	}
+
+	if(defined $error) {
+		print "ERROR: $error\n";
+	}
 }
 
 # CGI.pm already encodes/decodes parameters, but we want to do it ourselves
