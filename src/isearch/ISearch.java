@@ -9,9 +9,11 @@ public class ISearch extends Applet implements IDataListener{
     String data;
     int id;
     int prog =0;
+    IData idata;
 
     public void init(){
-	IData.loadData(getDocumentBase(),getParameter("url"),this);
+	idata = new IData(getDocumentBase());
+	idata.loadData(getDocumentBase(),getParameter("url"),this);
     }
 
 
@@ -58,7 +60,14 @@ public class ISearch extends Applet implements IDataListener{
 	    field = t.nextToken();
 	    fields.addElement(field);
 	}
-	IWindow i = new IWindow(fields,getDocumentBase(),getParameter("url"));
+        String testhid="true";
+	boolean hid = false;
+	if(testhid.equals(getParameter("hid"))){
+	    hid=true;
+	}else{
+	    hid=false;
+	}
+	IWindow i = new IWindow(fields,getDocumentBase(),getParameter("url"),idata,hid);
 	i.setData(data);
 	i.progress(100);
 	return i.getID(oldid);

@@ -21,13 +21,17 @@ public class IWindow extends Dialog implements IDataListener{
     boolean selected=true;
     boolean exeededbool = false;
     ProgressBar prog;
+    IData idata;
+    boolean usehid = false;
     
 
-    public IWindow(Vector fields,URL docbase,String url){
-	super(new Frame(),"Interactive Search 48145",true);
+    public IWindow(Vector fields,URL docbase,String url,IData idata,boolean hid){
+	super(new Frame(),"Interactive Search ###VERSION###",true);
+	this.usehid = hid;
 	this.fields = fields;
 	this.docbase = docbase;
 	this.url = url;
+	this.idata = idata;
 
 	addWindowListener(new wh());
 
@@ -94,8 +98,16 @@ public class IWindow extends Dialog implements IDataListener{
 	show();
 	if(ok!=null&&rowlist!=null&&selected){
 	    int idx =0;
+	    int returnfield=0;
+	    if(usehid){
+		for(int h=0;h<fields.size();h++){
+		    if(((String)fields.elementAt(h)).endsWith("_hid")){
+			returnfield = h;
+		    }
+		}
+	    }
 	    if((idx = rowlist.getSelectedIndex())!=-1){
-		return db[ok[idx]][0];
+		return db[ok[idx]][returnfield];
 	    }
 	}
 	return (oldid);
@@ -130,8 +142,8 @@ public class IWindow extends Dialog implements IDataListener{
 	}
 
 
-	IData.halt();
-	IData.loadData(docbase,url+postfix,this);
+	idata.halt();
+	idata.loadData(docbase,url+postfix,this);
     }
 
     public String UrlEncode(String in){

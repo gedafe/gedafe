@@ -320,11 +320,23 @@ sub DB_Widget($$)
 {
 	my ($fields, $f) = @_;
 
+	if($f->{widget} eq 'isearch'){
+	  my $r  = $f->{reference};
+	  my $rt = $g{db_tables}{$r};
+	  defined $rt or die "table $f->{reference}, referenced from $f->{table}:$f->{field}, not found.\n";
+	  if(defined $fields->{$r}{"${r}_hid"}) {
+	    # Combo with HID
+	    return "hidisearch(ref=$r)";
+	  }
+	  return "isearch(ref=$r)";
+	}
+
+
 	return $f->{widget} if defined $f->{widget};
 
 	# HID and combo-boxes
 	if($f->{type} eq 'int4' or $f->{type} eq 'int8') {
-		if(defined $f->{reference}) {
+	 	if(defined $f->{reference}) {
 			my $r  = $f->{reference};
 			my $rt = $g{db_tables}{$r};
 			defined $rt or die "table $f->{reference}, referenced from $f->{table}:$f->{field}, not found.\n";
@@ -335,7 +347,11 @@ sub DB_Widget($$)
 				}
 				return "idcombo(ref=$r)";
 			}
-			return "hid(ref=$r)";
+			if(defined $fields->{$r}{"${r}_hid"}) {
+				# Plain with HID
+				return "hid(ref=$r)";
+			}
+			return "text";
 		}
 		return $type_widget_map{$f->{type}};
 	}
@@ -367,11 +383,11 @@ sub DB_ParseWidget($$)
 	}
 
 	# verify
-	if($type eq 'idcombo' or $type eq 'hidcombo') {
+	if($type eq 'idcombo' or $type eq 'hidcombo' or $type eq 'hidisearch') {
 		my $r = $args{'ref'};
 		defined $r or die "widget $widget: mandatory argument 'ref' not defined";
 		defined $g{db_tables}{$r} or die "widget $widget: no such table: $r";
-		if($type eq 'hidcombo') {
+		if($type eq 'hidcombo' or $type eq 'hidisearch') {
 			defined $fields->{$r}{"${r}_hid"} or
 				die "widget $widget: table $r has no HID";
 		}
@@ -524,9 +540,9 @@ END
 				$f->{sortfunc}  = $m->{sortfunc};
 				$f->{markup}    = $m->{markup};
 			}
-			if(! defined $f->{widget}) {
-				$f->{widget} = DB_Widget(\%fields, $f);
-			}
+			#if(! defined $f->{widget}) {
+			$f->{widget} = DB_Widget(\%fields, $f);
+			#}
 		}
 	}
 
@@ -1006,9 +1022,10 @@ sub DB_UpdateRecord($$$)
 
 	# filter-out readonly fields
 	@fields_list = grep { $g{db_fields}{$table}{$_}{widget} ne 'readonly' } @fields_list;
-
+	
 	my %dbdata = ();
 	DB_Record2DB($dbh, $table, $record, \%dbdata);
+
 
 	my @updates;
 	my $query = "UPDATE $table SET ";
@@ -1139,13 +1156,15 @@ sub DB_RawField($$$$){
 sub DB_DumpTable($$$){
         my $dbh = shift;
 	my $table = shift;
+	my $view = defined $g{db_tables}{"${table}_list"} ?
+			"${table}_list" : $table;	
 	my $atribs = shift;
 
-	my @fields = @{$g{db_fields_list}{$table}};
+	my @fields = @{$g{db_fields_list}{$view}};
 	# update the query to prevent listing binary data
 	my @select_list = @fields;
 	for(@select_list){
-	    if($g{db_fields}{$table}{$_}{type} eq 'bytea'){
+	    if($g{db_fields}{$view}{$_}{type} eq 'bytea'){
 		$_ = "substring($_,1,position(' '::bytea in $_)-1)";
 	    }
 	}
@@ -1153,7 +1172,7 @@ sub DB_DumpTable($$$){
 
 	my $query = "SELECT ";
 	$query .= join(', ',@select_list);
-	$query .= " FROM $table";
+	$query .= " FROM $view";
 	
 
 	my $first = 1;
@@ -1164,7 +1183,7 @@ sub DB_DumpTable($$$){
 	    $query .= " and ";
 	  }
 	  my $value = $atribs->{$field};
-	  my $type = $g{db_fields}{$table}{$field}{type};
+	  my $type = $g{db_fields}{$view}{$field}{type};
 	  if($type eq 'date') {
 	    $query .= " $field = '$value'";
 	  }
@@ -1177,7 +1196,7 @@ sub DB_DumpTable($$$){
 	  	  
 	}
 
-	print STDERR "$query\n";
+	#print STDERR "$query\n";
 
 	my $sth = $dbh->prepare($query) or return undef;
 	$sth->execute() or return undef;
@@ -1188,16 +1207,22 @@ sub DB_DumpTable($$$){
 	$data=$sth->rows."\n";
 	
 	$first = 1;
-	
+	my $numcolumns = scalar @select_list;
 	while(@row = $sth->fetchrow_array()) {
 	  $first = 1;
-	  for my $field (@row){
+	  for (0..$numcolumns-1){
+	    my $field=$row[$_];
+	    if(!$field||$field eq ""){
+	      $field = " ";
+	    }
+
 	    if(not $first){
 	      $data.="\t";
 	    }
 	    $first = 0;
 	    $field =~ s/\t/\&\#09\;/gm;
 	    $field =~ s/\n/\&\#10\;/gm;
+	    $field =~ s/[\r\f]//gm;
 
 	    $data.=$field;
 	  }

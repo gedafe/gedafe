@@ -171,6 +171,7 @@ sub GUI_Footer($)
 	delete $args->{ELEMENT};
 }
 
+
 sub GUI_Edit_Error($$$$$$)
 {
 	my ($s, $user, $str, $form_url, $data, $action) = @_;
@@ -377,7 +378,9 @@ sub GUI_ListTable($$$)
 	print Template(\%template_args);
 	
 
+
 	my @typelist = map { $list->{type}->{$_} } @{$list->{fields}};
+
 	# data
 	$list->{displayed_recs} = 0;
 	for my $row (@{$list->{data}}) {
@@ -624,8 +627,7 @@ sub GUI_WidgetRead($$)
 		}
 	    }
 	}
-
-	if($w eq 'hid' or $w eq 'hidcombo') {
+	if($w eq 'hid' or $w eq 'hidcombo' or $w eq 'hidisearch') {
 		if(defined $value and $value !~ /^\s*$/) {
 			$value=DB_HID2ID($dbh,$warg->{'ref'},$value);
 		}
@@ -661,14 +663,12 @@ sub GUI_PostEdit($$$)
 			);
 			GUI_InitTemplateArgs($s, \%template_args);
 			GUI_Header($s, \%template_args);
-			GUI_DB_Error($g{db_error}, MyURL($q));
-			
 			$template_args{ELEMENT}='db_error';
 			$template_args{ERROR}=$g{db_error};
 			$template_args{NEXT_URL}=MyURL($q);
 			print Template(\%template_args);
-
 			GUI_Footer(\%template_args);
+			exit;
 		}
 	}
 
@@ -872,13 +872,14 @@ sub GUI_MakeCombo($$$$$)
 	return $str;
 }
 
-sub GUI_MakeISearch($$$$$)
+sub GUI_MakeISearch($$$$$$)
 {
 	my $table = shift;
 	my $field = shift;
 	my $ticket = shift;
 	my $myurl = shift;
 	my $value = shift;
+	my $hidisearch = shift;
 	
 	$value =~ s/^\s+//;
 	$value =~ s/\s+$//;
@@ -898,6 +899,9 @@ sub GUI_MakeISearch($$$$$)
 	$html .= "<applet id=\"isearch_$field\" name=\"isearch_$field\"";
 	$html .= ' code="ISearch.class" width="70" height="20" archive="java/isearch.jar">'."\n";
 	$html .= GUI_AppletParam("url",$targeturl);
+	if($hidisearch){
+	  $html .= GUI_AppletParam("hid","true");
+	}
 	$html .= "</applet>\n";
 	
 	return $html
@@ -959,10 +963,17 @@ sub GUI_WidgetWrite($$$$)
 	if($w eq 'hid') {
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$escval."\">";
 	}
-	if($w eq 'isearch') {
+	if($w eq 'isearch' or $w eq 'hidisearch') {
 		my $out;
-
-		my $combo = GUI_MakeISearch($table,$field,$s->{ticket_value},$myurl,$value);
+		my $hidisearch;
+		$hidisearch = 0;
+		if($w eq 'hidisearch') {
+		  # replace value with HID if 'hidcombo'
+		  $value = DB_ID2HID($dbh,$warg->{'ref'},$value);
+		  $hidisearch=1;
+		}
+		
+		my $combo = GUI_MakeISearch($table,$field,$s->{ticket_value},$myurl,$value,$hidisearch);
 
 		$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10";
 		$out .= " VALUE=\"$value\"";

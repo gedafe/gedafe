@@ -4,7 +4,6 @@ import java.io.*;
 public class IData implements Runnable{
     private String url;
     private URL docbase;
-    private static IData trans;
     public boolean running = false;
     private IDataListener listener;
 
@@ -12,12 +11,12 @@ public class IData implements Runnable{
 	this.docbase = docbase;
     }
 
-    public static void loadData(URL docbase,String url,IDataListener listener){
-	if(trans==null)trans = new IData(docbase);
-	if(trans.running)return;
-	Thread t = new Thread(trans);
-	trans.setUrl(url);
-	trans.setListener(listener);
+    public void loadData(URL docbase,String url,IDataListener listener){
+	if(running)return;
+	Thread t = new Thread(this);
+	this.docbase = docbase;
+	setUrl(url);
+	setListener(listener);
 	t.start();
     } 
 
@@ -26,7 +25,7 @@ public class IData implements Runnable{
     }
 
     public void setProgress(int prog){
-	System.out.println("Progress is now: "+prog+"%");
+	//System.out.println("Progress is now: "+prog+"%");
 	listener.progress(prog);
     }
 
@@ -34,8 +33,8 @@ public class IData implements Runnable{
 	listener = l;
     }
 
-    public static void halt(){
-	if(trans!=null)trans.running = false;
+    public void halt(){
+	running = false;
     }
 
     public void run(){
