@@ -99,11 +99,11 @@ Print the PID of the program.
  #!/bin/sh -e
 
  DAEMONCTL=/usr/drwho/vault/isgptp/bin/daemon-ctl
- GPW3FD=/usr/drwho/vault/isgptp/bin/gpw3fd
+ GEDAFED=/usr/drwho/vault/isgptp/bin/gedafed
 
  test -f $DAEMONCTL || exit 0
 
- $DAEMONCTL $1 gpw3fd $GPW3FD
+ $DAEMONCTL $1 gedafed $GEDAFED
 
 =head1 AUTHOR
 
