@@ -7,6 +7,7 @@ Documentation
 - add troobleshooting section to gedafe-user.pod
   - hint of possible gedafed problem when "Premature end of script"
     appears in the logs. This is a common error.
+- add in README tip to look at perldoc lib/perl/Text/CPPTemplate.pm
 
 Small features
 --------------
@@ -20,6 +21,7 @@ Small features
 
 Big features
 ------------
+- user management
 - integrate PearlReports
   - export to CSV (excel)
 - multi-language
