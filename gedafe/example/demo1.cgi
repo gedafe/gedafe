@@ -4,6 +4,8 @@ use lib "/usr/local/gedafe/lib/perl";
 
 use Gedafe::Start;
 
+$|=1; # do not buffer output to get a more responsive feeling
+
 Start(
     app_site       => 'localhost',
     app_path       => '/gedafe/demo1.cgi',
