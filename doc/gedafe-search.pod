@@ -35,9 +35,9 @@ user input.
 You know you have Gedafe Parsed Searching when there is
 no pull-down list next to the search field anymore.
 
-To disable parsed searching you can set
+To enable parsed searching you can set
  
- traditional_search => 1
+ parsed_search => 1
 
 in the Start command of your Gedafe CGI script.
 

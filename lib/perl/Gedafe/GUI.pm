@@ -618,10 +618,10 @@ sub GUI_FilterFirst($$$$)
 }
 
 sub GUI_Search($$$){
-	if($g{conf}{traditional_search} || !Gedafe::Search::Search_available()){
-		return GUI_TraditionalSearch(shift,shift,shift);
-	}else{
+	if($g{conf}{parsed_search} and Gedafe::Search::Search_available()){
 		return GUI_ParsedSearch(shift,shift,shift);
+	}else{
+		return GUI_TraditionalSearch(shift,shift,shift);
 	}
 }
 
