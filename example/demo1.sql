@@ -148,7 +148,7 @@ CREATE VIEW due_shipments_rep AS
 	WHERE orders_product = product_id AND orders_shipped = FALSE
 	GROUP BY product_hid, product_description;
 
-COMMENT ON TABLE due_shipments_rep IS 'Due Product Shipments';
+COMMENT ON VIEW due_shipments_rep IS 'Due Product Shipments';
 COMMENT ON COLUMN due_shipments_rep.orders_total IS 'Orders';
 
 GRANT SELECT ON due_shipments_rep TO PUBLIC;
