@@ -1,5 +1,5 @@
 # Gedafe, the Generic Database Frontend
-# copyright (c) 2000, ETH Zurich
+# copyright (c) 2000,2001 ETH Zurich
 # see http://isg.ee.ethz.ch/tools/gedafe
 
 # released under the GNU General Public License
@@ -12,21 +12,65 @@ use Text::CPPTemplate;
 
 use IO::Socket;
 
-use vars qw(@ISA @EXPORT);
+use vars qw(@ISA @EXPORT_OK);
 require Exporter;
 @ISA       = qw(Exporter);
-@EXPORT    = qw(
+@EXPORT_OK = qw(
 	ConnectToTicketsDaemon
 	MakeURL
 	MyURL
 	InitTemplate
 	Template
+	Error
+	DropUnique
+	UniqueFormStart
+	UniqueFormEnd
+	NextRefresh
 );
 
-sub ConnectToTicketsDaemon() {
+sub Error($$) {
+	my $s = shift;
+	my $error_text = shift;
+
+	my %t = (
+		PAGE => 'error',
+		TITLE => 'Internal Error',
+	);
+
+	die "GEDAFE INTERNAL ERROR: $error_text\n" unless (defined $s and defined $s->{cgi});
+
+	if(not $s->{http_header_sent}) {
+		print $s->{cgi}->header(-expires=>'-1d');
+	}
+
+	if(not $s->{header_sent}) {
+		$t{ELEMENT}='header';
+		print Template(\%t);
+
+		$t{ELEMENT}='header2';
+		print Template(\%t);
+	}
+#	else {
+#		$t{ELEMENT}='errorseparator';
+#		print Template(\%t);
+#	}
+
+	$t{ELEMENT}  ='error';
+	$t{ERROR}    = $error_text;
+	print Template(\%t);
+	delete $t{ERROR};
+
+	$t{ELEMENT}='footer';
+	print Template(\%t);
+
+	exit;
+}
+
+sub ConnectToTicketsDaemon($) {
+	my $s = shift;
 	my $file = $g{conf}{tickets_socket};
 	my $socket = IO::Socket::UNIX->new(Peer => $file)
-		or die "Couldn't connect to gpw3f_tickets daemon: $!\n";
+		or Error($s, "Couldn't connect to gedafed daemon: $!");
 	return $socket;
 }
 
@@ -86,6 +130,69 @@ sub MyURL($)
 	else {
 		return $q->url().'?'.$qs;
 	}
+}
+
+sub GetUnique($)
+{
+	my $s = shift;
+	my $socket = ConnectToTicketsDaemon($s);
+	print $socket "SITE $s->{url}\n";
+	<$socket>;
+	print $socket "GETUNIQUE\n";
+	$_ = <$socket>;
+	close($socket);
+	if(! /^([\w-]+)$/) {
+		Error($s, "Couldn't understand ticket daemon reply: $_");
+	}
+	return $1;
+}
+
+sub DropUnique($$)
+{
+	my $s = shift;
+	my $unique_id = shift;
+	if(defined $unique_id) {
+		my $socket = ConnectToTicketsDaemon($s);
+		print $socket "SITE $s->{url}\n";
+		<$socket>;
+		print $socket "DROPUNIQUE $unique_id\n";
+		$_ = <$socket>;
+		close($socket);
+		if(!/^OK$/) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+sub UniqueFormStart($)
+{
+	my $action = shift;
+	print "<FORM ACTION=\"$action\" METHOD=\"POST\">\n";
+}
+
+sub UniqueFormEnd($$;$)
+{
+	my $s = shift;
+	my $form_url = shift;
+	my $next_url = shift || $form_url;
+
+	my $form_id = GetUnique($s);
+
+	print "\n<INPUT TYPE=\"hidden\" NAME=\"form_id\" VALUE=\"$form_id\">\n";
+	print "<INPUT TYPE=\"hidden\" NAME=\"form_url\" VALUE=\"$form_url\">\n";
+	print "<INPUT TYPE=\"hidden\" NAME=\"next_url\" VALUE=\"$next_url\">\n";
+	print "</FORM>\n";
+}
+
+sub rand_ascii_32
+{
+	return sprintf "%04x%04x", rand()*(1<<16), rand()*(1<<16);
+}
+
+sub NextRefresh()
+{
+	return rand_ascii_32;
 }
 
 sub InitTemplate($$)

@@ -1,0 +1,10 @@
+#!/bin/sh -e
+
+BIN=/usr/local/gedafe/bin
+DAEMONCTL=$BIN/daemon-ctl
+GEDAFED=$BIN/gedafed
+
+test -f $GEDAFED || exit 0
+test -f $DAEMONCTL || exit 0
+
+$DAEMONCTL $1 gedafed $GEDAFED
