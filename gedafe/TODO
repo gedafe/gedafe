@@ -11,11 +11,9 @@ Small features
 --------------
 - add a widget for referencing fields where only
   the combo-box is wanted
-- url in templates
 - add the align attribute in meta_fields ?
 - improve README (put what additional software is needed)
 - TUTORIAL ?
-- case-insensitive search
 - meta_fields: combo
 - use CGI in Auth.pm?
 - use versions when importing external modules (e.g. use CGI 1.5)
@@ -26,5 +24,6 @@ Big features
   - export to CSV (excel)
 - multi-language
 - rewrite Text::CPPTemplate
+  - url in templates
 - make nicer templates
 - multi-level combos

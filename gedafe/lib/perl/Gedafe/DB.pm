@@ -558,7 +558,7 @@ sub DB_FetchList($$$$;%)
 				$query .= " WHERE $search_field = '$search_value'";
 			}
 			else {
-				$query .= " WHERE $search_field ~ '$search_value'";
+				$query .= " WHERE $search_field ~* '.*$search_value.*'";
 			}
 			if(defined $filter_field and defined $filter_value) {
 				$query .= " AND";
