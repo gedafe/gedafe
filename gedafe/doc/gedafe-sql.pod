@@ -449,7 +449,8 @@ in characters (default: 20).
 =item area
 
 Use a C<TEXTAREA> widget for this field, such that longer amounts of text
-can be entered.
+can be entered. The optional I<rows> and I<cols> parameters (default 4x60)
+specify number of rows and columns for the textarea field.
 
 =item date
 
