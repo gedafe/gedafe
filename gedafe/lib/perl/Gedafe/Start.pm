@@ -133,20 +133,20 @@ sub Start(%)
 	my %headers =(-expires=>$expires);
 
 	if($cookie) {
-	    $headers{-cookie} = $cookie;
+		$headers{-cookie} = $cookie;
 	}
 
 	if($action eq 'dumpblob'){
-	    my $table = $q->param('table');
-	    my $id = $q->param('id');
-	    my $field = $q->param('field');
-	    my $type = DB_GetBlobType($dbh,$table,$field,$id);
-	    my $name = DB_GetBlobName($dbh,$table,$field,$id);
-	    $headers{-type}=$type;
-	    $headers{-attachment}=$name;
+		my $table = $q->param('table');
+		my $id = $q->param('id');
+		my $field = $q->param('field');
+		my $type = DB_GetBlobType($dbh,$table,$field,$id);
+		my $name = DB_GetBlobName($dbh,$table,$field,$id);
+		$headers{-type}=$type;
+		$headers{-attachment}=$name;
 	}
 	if($action eq 'dumptable') {
-	    $headers{-type}='text/plain';
+		$headers{-type}='text/plain';
 	}
 
 	print $q->header(%headers);
@@ -164,14 +164,14 @@ sub Start(%)
 		GUI_Delete(\%s, $user, $dbh);
 	}
 	elsif($action eq 'dumpblob'){
-	    my $table = $q->param('table');
-	    my $id = $q->param('id');
-	    my $field = $q->param('field');
-	    DB_DumpBlob($dbh,$table,$field,$id);
+		my $table = $q->param('table');
+		my $id = $q->param('id');
+		my $field = $q->param('field');
+		DB_DumpBlob($dbh,$table,$field,$id);
 	}
 	elsif($action eq 'dumptable'){
-	    my $table = $q->url_param('table');
-	    GUI_DumpTable(\%s, $user, $dbh);
+		my $table = $q->url_param('table');
+		GUI_DumpTable(\%s, $user, $dbh);
 	}
 	else {
 		GUI_Entry(\%s, $user, $dbh);

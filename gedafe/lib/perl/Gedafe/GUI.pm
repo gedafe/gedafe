@@ -64,17 +64,17 @@ my %numeric_types = (
 # setup for GUI_Export
 my ($csv, @exp_fmt_choices, %exp_fmt_choices);
 BEGIN {
-    eval {
-       # load modules necessary for formatting exported data:
-       # if they don't load (aren't installed), no biggie- will fallback
-       require Text::CSV_XS;
-       $csv = Text::CSV_XS->new({binary => 1});
-       push(@exp_fmt_choices, 'csv');
-       $exp_fmt_choices{'csv'} = "Comma-separated (CSV)";
-    };
-    # add default (built-in) export format: tab-separated
-    push(@exp_fmt_choices, 'tsv');
-    $exp_fmt_choices{'tsv'} = "Tab-separated (TSV)";
+	eval {
+		# load modules necessary for formatting exported data:
+		# if they don't load (aren't installed), no biggie- will fallback
+		require Text::CSV_XS;
+		$csv = Text::CSV_XS->new({binary => 1});
+		push(@exp_fmt_choices, 'csv');
+		$exp_fmt_choices{'csv'} = "Comma-separated (CSV)";
+	};
+	# add default (built-in) export format: tab-separated
+	push(@exp_fmt_choices, 'tsv');
+	$exp_fmt_choices{'tsv'} = "Tab-separated (TSV)";
 }
 
 sub GUI_HTMLMarkup($)
@@ -486,7 +486,7 @@ sub GUI_ListTable($$$)
 
 	# total number of records in result set
 	$template_args{NUM_RECORDS} = $list->{totalrecords}
-	  if $g{conf}{show_row_count};
+		if $g{conf}{show_row_count};
 
 	print Template(\%template_args);
 	$s->{in_table}=1; # die will put a </TABLE>
@@ -540,13 +540,13 @@ sub GUI_ListTable($$$)
 			my $type = $typelist[$column_number];
 			my $name = $list->{fields}[$column_number];
 			if($type eq 'bytea' && $d ne '&nbsp;'){
-			    my $bloburl = MakeURL($s->{url}, {
+				my $bloburl = MakeURL($s->{url}, {
 						table => $list->{spec}{view},
 						action => 'dumpblob',
 						id => $row->[0],
 						field => $name,
-							     });
-			    $d = qq{<A HREF="$bloburl" TARGET="_blank">$d</A>};
+				});
+				$d = qq{<A HREF="$bloburl" TARGET="_blank">$d</A>};
 			}
 			my $align = $g{db_fields}{$list->{spec}{table}}{$name}{align};
 			defined $align or $align = $numeric_types{$type} ?
@@ -559,7 +559,7 @@ sub GUI_ListTable($$$)
 			delete $template_args{DATA};
 			delete $template_args{ALIGN};
 			delete $template_args{MARKUP};
-		        $column_number++;
+			$column_number++;
 		}
 
 		$template_args{ID} = $row->[0];
@@ -621,23 +621,23 @@ sub GUI_ListButtons($$$$)
 	if ($g{conf}{show_row_count}) {
 		my $totalrecs = $template_args{NUM_RECORDS} = $list->{totalrecords};
 		my $lastoffset =
-		  ($totalrecs % $list->{spec}{limit} == 0
-		   ? $totalrecs - $list->{spec}{limit}
-		   : $totalrecs - ($totalrecs % $list->{spec}{limit}));
+			($totalrecs % $list->{spec}{limit} == 0
+			? $totalrecs - $list->{spec}{limit}
+			: $totalrecs - ($totalrecs % $list->{spec}{limit}));
 		my $first_url =
-		   ($prev_url && $prevoffset ne ''
-		    ? MakeURL($s->{url}, { offset => '' }) : undef);
+			($prev_url && $prevoffset ne ''
+			? MakeURL($s->{url}, { offset => '' }) : undef);
 		my $last_url =
-		  ($next_url && $nextoffset != $lastoffset
-		   ? MakeURL($s->{url}, { offset => $lastoffset }) : undef);
+			($next_url && $nextoffset != $lastoffset
+			? MakeURL($s->{url}, { offset => $lastoffset }) : undef);
 		$template_args{START_RECNUM}=
-		  ($list->{spec}{offset}+1 > $totalrecs
-		   ? $totalrecs
-		   : $list->{spec}{offset}+1);
+			($list->{spec}{offset}+1 > $totalrecs
+			? $totalrecs
+			: $list->{spec}{offset}+1);
 		$template_args{END_RECNUM}=
-		  ($list->{spec}{offset}+$#{$list->{data}}+1 > $totalrecs
-		   ? $totalrecs
-		   : $list->{spec}{offset}+$#{$list->{data}}+1);
+			($list->{spec}{offset}+$#{$list->{data}}+1 > $totalrecs
+			? $totalrecs
+			: $list->{spec}{offset}+$#{$list->{data}}+1);
 		$template_args{FIRST_URL}=$first_url;
 		$template_args{LAST_URL}=$last_url;
 	}
@@ -679,11 +679,11 @@ sub GUI_List($$$)
 
 	# filterfirst
 	($spec{filter_field}, $spec{filter_value}) =
-	  GUI_FilterFirst($s, $dbh, $spec{view}, \%template_args);
+		GUI_FilterFirst($s, $dbh, $spec{view}, \%template_args);
 
 	# search
 	($spec{search_field}, $spec{search_value}) =
-	  GUI_Search($s, $spec{view}, \%template_args);
+		GUI_Search($s, $spec{view}, \%template_args);
 
 	# fetch list
 	my $list = DB_FetchList($s, \%spec);
@@ -726,37 +726,37 @@ sub GUI_ExportData($$)
 
 	# print HTTP Content-type header
 	if ($exp_fmt eq 'csv') {
-	    print $q->header(-type=>'text/csv',
-			     -attachment=>$list->{spec}{table}.'.csv',
-			     -expires=>'-1d');
+		print $q->header(-type=>'text/csv',
+			-attachment=>$list->{spec}{table}.'.csv',
+			-expires=>'-1d');
 	} else {
-	    print $q->header(-type=>'text/tab-separated-values',
-			     -attachment=>$list->{spec}{table}.'.tsv',
-			     -expires=>'-1d');
+		print $q->header(-type=>'text/tab-separated-values',
+			-attachment=>$list->{spec}{table}.'.tsv',
+			-expires=>'-1d');
 	}
 
 	# fields
 	my $fields = $g{db_fields}{$list->{spec}{view}};
 	if ($exp_fmt eq 'csv') {
-	    my $status = $csv->combine(map {$fields->{$_}{desc}} @{$list->{fields}});
-	    print $csv->string(). "\n";
+		my $status = $csv->combine(map {$fields->{$_}{desc}} @{$list->{fields}});
+		print $csv->string(). "\n";
 	} else {
-	    print join("\t", map {$fields->{$_}{desc}} @{$list->{fields}})."\n";
+		print join("\t", map {$fields->{$_}{desc}} @{$list->{fields}})."\n";
 	}
 
 	# data
 	for my $row (@{$list->{data}}) {
 		# if correct module is loaded and user selected 'CSV'
 		if ($exp_fmt eq 'csv') {
-		    my $status = $csv->combine(@{$row->[1]});
-		    print $csv->string() . "\n";
+		my $status = $csv->combine(@{$row->[1]});
+			print $csv->string() . "\n";
 		} else {
-		    print join("\t", map {
+			print join("\t", map {
 			my $str = defined $_ ? $_ : '';
 			$str=~s/\t/        /g;
 			$str=~s/\n/\r/g;
 			$str;
-		    } @{$row->[1]})."\n";
+		} @{$row->[1]})."\n";
 		}
 	}
 }
@@ -850,28 +850,30 @@ sub GUI_WidgetRead($$$)
 	my $value = $q->param($input_name);
 	
 	if($w eq 'file'){
-	    my $file = $value;
-	    my $deletefile = $q->param("file_delete_$input_name");
-	    if($deletefile){
-	      $value="";
-	    }else{
-	      if($file){
-		my $filename = scalar $file;
-		$filename =~ /([\w\d\.]+$)/;
-		$filename = $1;
-		my $mimetype = $q->uploadInfo($file)->{'Content-Type'};
-		my $blob=$filename.' '.$mimetype.'#';
-		my $buffer; 
-		while(read($file,$buffer,1024)){
-		    $blob .=$buffer;
-	        }
-		#note that value is set to a reference to the large blob
-		$value=\$blob;
-	      }else{
-		#when we are here the file field has not been set
-		$value = undef;
-	      }
-	    }
+		my $file = $value;
+		my $deletefile = $q->param("file_delete_$input_name");
+		if($deletefile) {
+			$value="";
+		}
+		else {
+			if($file) {
+				my $filename = scalar $file;
+				$filename =~ /([\w\d\.]+$)/;
+				$filename = $1;
+				my $mimetype = $q->uploadInfo($file)->{'Content-Type'};
+				my $blob=$filename.' '.$mimetype.'#';
+				my $buffer; 
+				while(read($file,$buffer,1024)){
+					$blob .=$buffer;
+				}
+				#note that value is set to a reference to the large blob
+				$value=\$blob;
+			}
+			else {
+				#when we are here the file field has not been set
+				$value = undef;
+			}
+		}
 	}
 	if($w eq 'hid' or $w eq 'hidcombo' or $w eq 'hidisearch') {
 		if(defined $value and $value !~ /^\s*$/) {
@@ -926,27 +928,29 @@ sub GUI_PostEdit($$$)
 
 	## add or edit:
 	if($action eq 'add' || $action eq 'edit'){
-	    my %record;
-	    for my $field (@{$g{db_fields_list}{$table}}) {
-		my $value = GUI_WidgetRead($s, "field_$field", $g{db_fields}{$table}{$field}{widget});
-		if(defined $value) {
-			$record{$field} = $value;
+		my %record;
+		for my $field (@{$g{db_fields_list}{$table}}) {
+			my $value = GUI_WidgetRead($s, "field_$field", $g{db_fields}{$table}{$field}{widget});
+			if(defined $value) {
+				$record{$field} = $value;
+			}
 		}
-	    }
+	}
 
-	    if($action eq 'add') {
+	if($action eq 'add') {
 		if(!DB_AddRecord($dbh,$table,\%record)) {
-		    my $data = GUI_Hash2Str(\%record);
-		    GUI_Edit_Error($s, $user, $g{db_error}, $q->param('form_url'), $data, $action);
+			my $data = GUI_Hash2Str(\%record);
+			GUI_Edit_Error($s, $user, $g{db_error},
+				$q->param('form_url'), $data, $action);
 		}
-	    }
-	    elsif($action eq 'edit') {
+	}
+	elsif($action eq 'edit') {
 		$record{id} = $q->param('id');
 		if(!DB_UpdateRecord($dbh,$table,\%record)) {
-		    my $data = GUI_Hash2Str(\%record);
-		    GUI_Edit_Error($s, $user, $g{db_error}, $q->param('form_url'), $data, $action);
+			my $data = GUI_Hash2Str(\%record);
+			GUI_Edit_Error($s, $user, $g{db_error},
+			$q->param('form_url'), $data, $action);
 		}
-	    }
 	}
 }
 	
@@ -1031,8 +1035,8 @@ sub GUI_Edit($$$)
 		# copy fields from previous add form
 		for my $field (@fields_list) {
 			if($g{db_fields}{$table}{$field}{copy}) {
-			        # FIXME: find out how this works with files.
-			        # I think we don't want to copy a file.
+				# FIXME: find out how this works with files.
+				# I think we don't want to copy a file.
 				my $v = GUI_WidgetRead($s, "field_$field", $g{db_fields}{$table}{$field}{widget});
 				$values{$field} = $v if defined $v;
 			}
@@ -1141,7 +1145,7 @@ sub GUI_MakeISearch($$$$$$)
 	$html .= ' code="ISearch.class" width="70" height="20" archive="'.$g{conf}{isearch}.'">'."\n";
 	$html .= GUI_AppletParam("url",$targeturl);
 	if($hidisearch){
-	  $html .= GUI_AppletParam("hid","true");
+		$html .= GUI_AppletParam("hid","true");
 	}
 	$html .= "</applet>\n";
 	
@@ -1149,9 +1153,9 @@ sub GUI_MakeISearch($$$$$$)
 }
 
 sub GUI_AppletParam($$){
-  my $name=shift;
-  my $value=shift;
-  return "<param name=\"$name\" value=\"$value\">\n";
+	my $name=shift;
+	my $value=shift;
+	return "<param name=\"$name\" value=\"$value\">\n";
 }
 
 
@@ -1174,47 +1178,45 @@ sub GUI_WidgetWrite($$$$)
 	if($w eq 'readonly') {
 		return $value || '&nbsp;';
 	}
-	if($w eq 'text') {
+	elsif($w eq 'text') {
 		my $size = defined $warg->{size} ? $warg->{size} : '20';
 		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"$size\" VALUE=\"".$escval."\">";
 	}
-	if($w eq 'area') {
+	elsif($w eq 'area') {
 		my $rows = defined $warg->{rows} ? $warg->{rows} : '4';
 		my $cols = defined $warg->{cols} ? $warg->{cols} : '60';
 		return "<TEXTAREA NAME=\"$input_name\" ROWS=\"$rows\" COLS=\"$cols\" WRAP=\"virtual\">".$value."</TEXTAREA>";
 	}
-        if($w eq 'varchar') {
+	elsif($w eq 'varchar') {
 		my $size = defined $warg->{size} ? $warg->{size} : '20';
 		my $maxlength = defined $warg->{maxlength} ? $warg->{maxlength} : '100';
-                return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"$size\" MAXLENGTH=\"$maxlength\" VALUE=\"$escval\">";
-        }
-	if($w eq 'checkbox') {
+		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"$size\" MAXLENGTH=\"$maxlength\" VALUE=\"$escval\">";
+	}
+	elsif($w eq 'checkbox') {
 		return "<INPUT TYPE=\"checkbox\" NAME=\"$input_name\" VALUE=\"1\"".($value ? 'CHECKED' : '').">";
 	}
-	if($w eq 'hid') {
+	elsif($w eq 'hid') {
 		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"10\" VALUE=\"".$escval."\">";
 	}
-	if($w eq 'isearch' or $w eq 'hidisearch') {
+	elsif($w eq 'isearch' or $w eq 'hidisearch') {
 		my $out;
 		my $hidisearch;
 		$hidisearch = 0;
 		if($w eq 'hidisearch') {
-		  # replace value with HID if 'hidcombo'
-		  $value = DB_ID2HID($dbh,$warg->{'ref'},$value);
-		  $hidisearch=1;
+			# replace value with HID if 'hidcombo'
+			$value = DB_ID2HID($dbh,$warg->{'ref'},$value);
+			$hidisearch=1;
 		}
 		
-		my $combo = GUI_MakeISearch($warg->{'ref'}, $input_name, $s->{ticket_value},
-			                    $myurl, $value, $hidisearch);
+		my $combo = GUI_MakeISearch($warg->{'ref'}, $input_name,
+			$s->{ticket_value}, $myurl, $value, $hidisearch);
 
 		$out.="<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
 		$out .= " VALUE=\"$value\"";
 		$out .= ">\n$combo";
 		return $out;
 	}
-
-
-	if($w eq 'idcombo' or $w eq 'hidcombo') {
+	elsif($w eq 'idcombo' or $w eq 'hidcombo') {
 		my $out;
 		my $combo;
 		
@@ -1226,88 +1228,83 @@ sub GUI_WidgetWrite($$$$)
 			$combo = GUI_MakeCombo($dbh, $warg->{'combo'}, "${input_name}_combo", $value);
 			$value = DB_ID2HID($dbh,$warg->{'ref'},$value) if $w eq 'hidcombo';
 		}
-		$out.="<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
+		$out .= "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
 		if($combo !~ /SELECTED/ and defined $value) {
 			$out .= " VALUE=\"$value\"";
 		}
 		$out .= ">\n$combo";
 		return $out;
 	}
-	if($w eq 'file'){
-	        my $filename = $value ne ''  ? $value : "(none)";
-	        my $out;
-		$out = "Current file: <b>$filename</b>";
+	elsif($w eq 'file'){
+		my $filename = $value ne ''  ? $value : "(none)";
+		my $out = "Current file: <b>$filename</b>";
 		if($value ne ''){
-		  $out .= "<br>Delete file?: <INPUT TYPE=\"checkbox\" NAME=\"file_delete_$input_name\">";
+			$out .= "<br>Delete file?: <INPUT TYPE=\"checkbox\" NAME=\"file_delete_$input_name\">";
 		}
 		$out .= "<br>Enter filename to update.<br><INPUT TYPE=\"file\" NAME=\"$input_name\">";
 		return $out;
 	}
+	elsif($w eq 'date') {
+		return GUI_WidgetWrite_Date($warg, $value);
+	}
 
-	if($w eq 'date') {
-	  my $y = 0;
-	  my $m = 0;
-	  my $d = 0;
+	return "Unknown widget: $w";
+}
 
-	  my %monthhash = (1, "January", 2, "February", 3, "March", 4, "April", 5, "May", 6, "June", 7, "July", 8, "August", 9, "September", 10, "October", 11, "November", 12, "December");
+sub GUI_WidgetWrite_Date($$)
+{
+	my ($warg, $value) = @_;
+	my ($value_y, $value_m, $value_d) = (0, 0, 0);
+		
+	my @months;
+	if($warg->{short}) {
+		@months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+			"Jul", "Aug", "Sep", "Oct", "Nov", "Dec");
+	}
+	else {
+		@months = ("January", "February", "March", "April",
+			"May", "June", "July", "August", "September",
+			"October", "November", "December");
+	}
 
-	  my $yearselect = "<option>(year)</option>\n";
-	  my $dayselect = "<option>(day)</option>\n";
-	  my $monthselect = "<option>(month)</option>\n";
-
-          if ($warg->{short} == 1)
-	  {
-            %monthhash = (1, "Jan", 2, "Feb", 3, "Mar", 4, "Apr", 5, "May", 6, "Jun", 7, "Jul", 8, "Aug", 9, "Sep", 10, "Oct", 11, "Nov", 12, "Dec");
-	  }
-
-	  if($escval=~/(\d+)-(\d+)-(\d+)/)
-          {
-	    $y = $1;
-	    $m = $2;
-	    $d = $3;	  
-	  }
-
-	  for (($warg->{from})..($warg->{to}))
-	  {
-	    if ($_ == $y)
-	    {
-	      $yearselect .= "  <option selected> $_ </option>\n";
-	    }
-	    else
-	    {
-	      $yearselect .= "  <option> $_ </option>\n";
-	    }
-	  }
-
-	  for(1..12)
-	  {
-	    if ($_ == $m)
-	    {
-	      $monthselect .= "  <option selected> $monthhash{$_} </option>\n";
-	    }
-	    else
-	    {
-	      $monthselect .= "  <option> $monthhash{$_} </option>\n";
-	    }
-	  }
-
-	  for (1..31)
-	  {
-	    if ($_ == $d)
-	    {
-	      $dayselect .= "  <option selected> $_ </option>\n";
-	    }
-	    else
-	    {
-	      $dayselect .= "  <option> $_ </option>\n";
-	    }
-	  }
-	  
-	  my $yearinput = $input_name.'_1';
-	  my $monthinput = $input_name.'_2';
-	  my $dayinput = $input_name.'_3';
-	  my $functionname = $input_name.'_validate';
-	  my $out =<<end;
+	my $yearselect = "<option>(year)</option>\n";
+	my $dayselect = "<option>(day)</option>\n";
+	my $monthselect = "<option>(month)</option>\n";
+	
+	if($value =~ /(\d+)-(\d+)-(\d+)/) {
+		($value_y, $value_m, $value_d) = ($1, $2, $3);
+	}
+	
+	for my $y (($warg->{from})..($warg->{to})) {
+		if ($y == $value_y) {
+			$yearselect .= "<option selected>$_</option>\n";
+		}
+		else {
+			$yearselect .= "<option>$_</option>\n";
+		}
+	}
+	for my $m (0..11) {
+		if ($m+1 == $value_m) {
+			$monthselect .= "<option selected>$month[$m]</option>\n";
+		}
+		else {
+			$monthselect .= "<option>$month[$m]</option>\n";
+		}
+	}
+	for my $d (1..31) {
+		if ($d == $value_d) {
+			$dayselect .= "<option selected>$_</option>\n";
+		}
+		else {
+			$dayselect .= "<option>$_</option>\n";
+		}
+	}
+	
+	my $yearinput = $input_name.'_1';
+	my $monthinput = $input_name.'_2';
+	my $dayinput = $input_name.'_3';
+	my $functionname = $input_name.'_validate';
+	my $out =<<end;
 <SCRIPT LANGUAGE="JavaScript">
 <!--
   function $functionname(){
@@ -1369,11 +1366,7 @@ sub GUI_WidgetWrite($$$$)
 
 <input TYPE="hidden" NAME="$input_name" VALUE="$escval">
 end
-	  return $out;
-	}
-
-
-	return "Unknown widget: $w";
+	return $out;
 }
 
 sub GUI_Delete($$$)
@@ -1416,9 +1409,9 @@ sub GUI_DumpTable($$$){
 	
 	my %atribs;
 	foreach($q->param) {
-	  if(/^field_(.*)/) {
-	    $atribs{$1} = $q->param($_);
-	  }
+		if(/^field_(.*)/) {
+			$atribs{$1} = $q->param($_);
+		}
 	}
 	my $data;
 	my $first = 1;
@@ -1428,19 +1421,18 @@ sub GUI_DumpTable($$$){
 
 	my @fields_list = @{$g{db_fields_list}{$view}};
 	for (@fields_list){
-	  if(not $first){
-	    $data.="\t";
-	  }
-	  $first = 0;
-	  $data.=$_;
+		if(not $first){
+			$data.="\t";
+		}
+		$first = 0;
+		$data.=$_;
 	}
 	$data.="\n";
-	        
+		
 	$data .= DB_DumpTable($dbh,$table,\%atribs);
 	print $data;
 }
 
-
 1;
 
-# vi: tw=0
+# vi: tw=0 sw=8
