@@ -6,6 +6,24 @@
 
 1.2.0
 -----
+* data can now be scanned for tokens resembling web objects (e.g. e-mail
+  addresses, http urls), and automatically marked up to be hyper links;
+  set the 'markup' value in meta_fields for the desired column
+
+* Gedafe can now count the total number of results returned from the
+  database.  This is helpful for seeing the number of items found by a
+  search, and in skipping to the beginning end or of a result set.
+  When enabled, you will see extra navigation links "First", and "Last"
+  on every page, as well as the index of the rows shown in relation to
+  total rows.  To enable this feature, call Start() with the
+    'show_row_count' => 1,
+  parameter.  It is turned off by default due to slightly higher database
+  overhead.
+
+* If you have the Text::CSV_XS Perl module installed (available from CPAN),
+  gedafe automatically detect it, and give the option of exporting data
+  either in CSV format (comma-separated-values), or in tab-delimited format.
+  CSV format is useful for data with embedded newlines characters.
 
 1.0.6
 -----
