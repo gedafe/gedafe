@@ -494,6 +494,57 @@ sub StripJavascript($){
 	return $mostly_harmless;
 }
 
+# very simple number formatting functions
+# ---------------------------------------
+
+my %NumberToStr_defaults = (
+	decimal_point  => '.',    # separator between integer and decimal part
+	decimal_digits => undef,  # limit decimal digits
+	decimal_fill   => 0,      # true if you want to fill with 0 decimal_digits
+	thousands_sep  => ',',    # thousands separator (e.g. 100,234.23)
+);
+sub NumberToStr($$)
+{
+	my ($number,$args) = @_;
+	my %fmt;
+	for my $a (keys %NumberToStr_defaults) {
+		$fmt{$a} = exists $args->{$a} ? $args->{$a} :
+			$NumberToStr_defaults{$a};
+	}
+
+	# round decimal digits
+	if(defined $fmt{decimal_digits}) {
+		$number = sprintf("%.$fmt{decimal_digits}f", $number);
+		if(not $fmt{decimal_fill}) {
+			# sprintf fills with zeros, we don't want them
+			$number =~ s/(\.\d*)0+$/$1/;
+		}
+	}
+
+	# split integer and decimal part
+        # (taken from Number::Format (c) by William R. Ward)
+	my $integer = int($number);
+	my $decimal = substr($number, length($integer)+1)
+		if (length($integer) < length($number));
+	$decimal = '' unless defined $decimal;
+
+	# thousands separator
+	$integer =~ s/(?<=\d)(\d\d\d)/$fmt{thousands_sep}$1/g
+		if defined $fmt{thousands_sep};
+
+	return length($decimal)>0 ?
+		$integer.$fmt{decimal_point}.$decimal : $integer;
+}
+
+sub StrToNumber($$)
+{
+	my ($str,$args) = @_;
+	my %fmt;
+	for my $a (keys %NumberToStr_defaults) {
+		$fmt{$a} = exists $args->{$a} ? $args->{$a} :
+			$NumberToStr_defaults{$a};
+	}
+}
 
 1;
 
