@@ -797,11 +797,11 @@ sub GUI_ListRep($$$)
 sub GUI_URL_Encode($)
 {
 	my $str = shift;
-	my $enc = '';
-        $enc =~ s/!/gedafe_PROTECTED_eXclamatiOn/g;
-        $enc =~ s/\W/'!'.sprintf('%2X',ord($_))/eg;
-        $enc =~ s/gedafe_PROTECTED_eXclamatiOn/'!'.sprintf('%2X',ord('!'))/eg;
-	return $enc;
+	defined $str or $str = '';
+        $str =~ s/!/gedafe_PROTECTED_eXclamatiOn/g;
+        $str =~ s/\W/'!'.sprintf('%2X',ord($&))/eg;
+        $str =~ s/gedafe_PROTECTED_eXclamatiOn/'!'.sprintf('%2X',ord('!'))/eg;
+	return $str;
 }
 
 sub GUI_URL_Decode($)
