@@ -1055,7 +1055,8 @@ sub DB_FetchList($$)
 		if($f =~ /meta_rc_(.*)#(.*)/){
 		   $columns[$col]
 			= {field     => $f,
-			   desc      => $1,
+			   table     => $1,
+			   desc      => $g{db_tables}{$1}{desc},
 			   align     => '"LEFT"',
 			   refcount  => 1,
 			   tar_field => $2,
