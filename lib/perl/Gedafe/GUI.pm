@@ -856,6 +856,11 @@ sub GUI_WidgetRead($$)
 	if($w eq 'idcombo' or $w eq 'hidcombo') {
 		if(not defined $value or $value =~ /^\s*$/) {
 			$value = $q->param("combo_$field");
+			if($w eq 'hidcombo' and $g{conf}{gedafe_compat} eq '1.0')
+			{
+				# hidcombos in 1.0 had to put the HID as key...
+				$value = DB_HID2ID($dbh,$warg->{'ref'},$value);
+			}
 		}
 	}
 
@@ -1204,10 +1209,15 @@ sub GUI_WidgetWrite($$$$)
 
 	if($w eq 'idcombo' or $w eq 'hidcombo') {
 		my $out;
-		my $combo = GUI_MakeCombo($dbh, $table, $field, "combo_$field", $value);
-		if($w eq 'hidcombo') {
-			# replace value with HID if 'hidcombo'
-			$value = DB_ID2HID($dbh,$warg->{'ref'},$value);
+		my $combo;
+		
+		if($g{conf}{gedafe_compat} eq '1.0') {
+			$value = DB_ID2HID($dbh,$warg->{'ref'},$value) if $w eq 'hidcombo';
+			$combo = GUI_MakeCombo($dbh, $table, $field, "combo_$field", $value);
+		}
+		else {
+			$combo = GUI_MakeCombo($dbh, $table, $field, "combo_$field", $value);
+			$value = DB_ID2HID($dbh,$warg->{'ref'},$value) if $w eq 'hidcombo';
 		}
 		$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10";
 		if($combo !~ /SELECTED/ and defined $value) {
