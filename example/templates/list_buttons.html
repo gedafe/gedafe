@@ -24,6 +24,8 @@ Displaying records <B>##START_RECNUM## - ##END_RECNUM##</B> of <B>##NUM_RECORDS#
 &nbsp;
 #endif
 </TD>
+#ifdef IS_REPORT
+#else
 <TD BGCOLOR="#ffffff" WIDTH=60 ALIGN="CENTER">
 #ifdef ADD_URL
 <A href="##ADD_URL##">ADD</A>
@@ -31,6 +33,7 @@ Displaying records <B>##START_RECNUM## - ##END_RECNUM##</B> of <B>##NUM_RECORDS#
 &nbsp;
 #endif
 </TD>
+#endif #IS_REPORT
 <TD BGCOLOR="#ffffff" WIDTH=100 ALIGN=CENTER>
 #ifdef NEXT_URL
 <A href="##NEXT_URL##">Next --&gt;</A>
