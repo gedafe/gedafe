@@ -44,6 +44,7 @@ my %type_widget_map = (
 	'date'      => 'text(size=12)',
 	'time'      => 'text(size=12)',
 	'timestamp' => 'text(size=22)',
+	'timestamptz' => 'text(size=28)',
 	'int4'      => 'text(size=12)',
 	'int8'      => 'text(size=12)',
 	'numeric'   => 'text(size=12)',
@@ -976,7 +977,7 @@ sub DB_ExecQuery($$$$$){
 	}
 	if(grep (/^$type$/,@binarytypes)){
 	    #note the reference to the large blob
-	    $sth->bind_param($paramnumber,$$data,DBI::SQL_BINARY);
+	    $sth->bind_param($paramnumber,$$data,{ pg_type => DBD::Pg::PG_BYTEA });
 	}
 	$paramnumber++;
     }
@@ -1034,6 +1035,10 @@ sub DB_UpdateRecord($$$)
 
 	# filter-out readonly fields
 	@fields_list = grep { $g{db_fields}{$table}{$_}{widget} ne 'readonly' } @fields_list;
+
+	# filter-out bytea fields that have value=undef
+	# these should keep the value that is now in the database.
+	@fields_list = grep { defined($record->{$_}) or $g{db_fields}{$table}{$_}{type} ne 'bytea' } @fields_list;
 	
 	my %dbdata = ();
 	DB_Record2DB($dbh, $table, $record, \%dbdata);
