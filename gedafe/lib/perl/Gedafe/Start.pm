@@ -98,6 +98,7 @@ sub Start(%)
 	my $dbh = AuthConnect(\%s, \$user, \$cookie) or do {
 		die "Couldn't connect to database or database error";
 	};
+	$s{dbh}=$dbh;
 
 	my $action = $q->url_param('action') || '';
 	if($action eq 'edit' or $action eq 'add' or $action eq 'delete') {
