@@ -1,3 +1,8 @@
+2000-11-29 Tobi
+----------
+* added check to /\n/<br>/ to make sure it does not happen on fields with html contents
+* added varchar field type ... it now sets the MAXLENGTH property of the INPUT field
+
 2000-11-25
 ----------
 * made tables with no comments at all work

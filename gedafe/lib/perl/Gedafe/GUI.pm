@@ -56,7 +56,7 @@ sub GUI_DB2HTML($$)
 	if($type eq 'bool') {
 		$str = ($str ? 'yes' : 'no');
 	}
-	if($type eq 'text') {
+	if($type eq 'text' and $str !~ /<[^>]+>/) { #make sure the text does not contain html
 		$str =~ s/\n/<BR>/g;
 	}
 	if($str eq '') {
@@ -1132,7 +1132,8 @@ sub GUI_EditField($$$$)
 
 	my $meta = $g{db_fields}{$table}{$field};
 	my $type = $meta->{type};
-	my $widget = $meta->{widget} || '';
+        my $length = $meta->{atttypmod}-4;
+ 	my $widget = $meta->{widget} || '';
 
 	if(not defined $value or $value eq '') {
 		$value = DB_GetDefault($dbh,$table,$field);
@@ -1175,6 +1176,10 @@ sub GUI_EditField($$$$)
 	if($type eq 'text') {
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=40 VALUE=\"$value\">";
 	}
+        if($type eq 'varchar') {                                                                                            
+                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=20 MAXLENGTH=\"$length\" VALUE=\"$value\">";        
+        }                                                                                                                   
+
 	if($type eq 'name') {
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=20 VALUE=\"$value\">";
 	}
