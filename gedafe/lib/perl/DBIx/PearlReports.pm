@@ -383,17 +383,12 @@ sub makereport {
 
     $self->{sth} = $self->{dbh}->prepare_cached($self->{NEW}->{-query})
       or croak $self->{dbh}->errstr;
-
+    my @param;
     if ($self->{NEW}->{-param}){
-      my @param = @{$self->{NEW}->{-param}};
-      for(1..scalar(@param)){
-	#count from 1 to number_of_parameters including.
-	#sql parameters start at 1. 
-	$self->{sth}->bind_param($_,shift @param);
-      }
+      @param = @{$self->{NEW}->{-param}};
     }
 
-    $self->{sth}->execute() or croak $self->{dbh}->errstr."\n\nQuery: $self->{NEW}->{-query}";
+    $self->{sth}->execute(@param) or croak $self->{dbh}->errstr."\n\nQuery: $self->{NEW}->{-query}";
 
     my @report; #this array holds the report
 
@@ -460,6 +455,7 @@ sub makereport {
 # is made available with local
 
 sub rpsum ($) {
+    use warnings qw(numeric);
     my $cnt = $aggmem->{counter}++;
     my $arr = \$aggmem->{array}->[$cnt];
     $$arr += $_[0];
@@ -467,15 +463,17 @@ sub rpsum ($) {
 }
 
 sub rpmin ($) {
+    use warnings qw(numeric);
     my $cnt = $aggmem->{counter}++;
     my $arr = \$aggmem->{array}->[$cnt];
-   $$arr= $_[0]
+    $$arr= $_[0]
       if not defined $$arr
 	or $$arr > $_[0];
     return $$arr;
 }
 
 sub rpmax ($) {
+    use warnings qw(numeric);
     my $cnt = $aggmem->{counter}++;
     my $arr = \$aggmem->{array}->[$cnt];
     $$arr= $_[0]
@@ -510,6 +508,7 @@ sub rpcnt ($) {
 }
 
 sub rpavg ($) {
+    use warnings qw(numeric);
     my $cnt = $aggmem->{counter}++;
     my $arr = \$aggmem->{array}->[$cnt];
     $$arr->{sum} += $_[0];
