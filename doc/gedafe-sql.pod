@@ -223,6 +223,14 @@ as this function must be called for each row of the table. A less
 costly approach during selects is the use of a meta_sort field as
 described above (the penalty there is again in inserts and updates).
 
+=item markup
+
+If set to '1', the data in this field will be scanned for tokens which
+resemble special web objects (currently implemented: e-mail addresses
+and http URLs).  If found, an additional template variable MARKUP will
+be defined in template element 'td' which contains appropriate HTML
+markup of the web object.
+
 =back
 
 =head2 The Combo-box
