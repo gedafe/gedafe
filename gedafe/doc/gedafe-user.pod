@@ -220,9 +220,9 @@ See "Schema Support"
 
 See "Schema Support"
 
-=item "traditional_search"
+=item "parsed_search"
 
-When set to 1 upholds the traditional way of searching even when
+When set to 1 enables the parsed way of searching even when
 Parse::RecDescent is present on the system. See also: gedafe-search.pod
 
 
