@@ -63,7 +63,7 @@ Example:
 
  COMMENT ON TABLE customer IS 'Customers';
  COMMENT ON COLUMN customer.customer_hid 'C Number';
- 
+
 =head1 PRESENTATION
 
 =head2 Presentation View
@@ -105,8 +105,10 @@ in your view called B<meta_sort> which the front-end will use to sort
 the contents of the view as long as there are no other sorting
 instructions present.
 
-Every column from the B<*_list> table must be annotated using the
-B<COMMENT> command mentioned above.
+You can defined a separate description to the list view by setting a comment
+on it. If you don't, the table's comment will be taken. For each field in the
+view that has the same name of an another already commented field, that
+comment will be taken if not defined.
  
 =head2 The B<meta_fields> table
 

@@ -41,8 +41,6 @@ sub DB_Init($$)
 	my $table;
 	my $field;
 
-#AND not exists (select 1 from pg_views where viewname = c.relname)
-
 	# tables
 	$g{db_tables} = {};
 	$query = <<'END';
@@ -51,31 +49,19 @@ FROM pg_class c
 WHERE c.relkind = 'r'
 AND c.relname !~ '^pg_'
 END
+	$g{db_editable_tables_list} = [];
+	$g{db_report_views} = [];
 	$sth = $dbh->prepare($query) or return undef;
-	#print "<!-- Executing: $query -->\n";
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
 		$g{db_tables}{$data->[0]} = {};
-	}
-	$sth->finish;
-
-	# descriptions + db_editable_tables_list
-	$query = <<'END';
-SELECT c.relname, d.description 
-FROM pg_class c, pg_description d
-WHERE c.relkind = 'r'
-AND c.relname !~ '^pg_'
-AND c.relname !~ '(^meta_|(_combo|_list|_rep)$)'
-AND c.oid = d.objoid
-ORDER BY d.description
-END
-	$g{db_editable_tables_list} = [];
-	$sth = $dbh->prepare($query) or return undef;
-	#print "<!-- Executing: $query -->\n";
-	$sth->execute() or return undef;
-	while ($data = $sth->fetchrow_arrayref()) {
-		push @{$g{db_editable_tables_list}}, "$data->[0]";
-		$g{db_tables}{$data->[0]}{desc} = $data->[1];
+		next if $data->[0] =~ /(^meta_|(_combo|_list)$)/;
+		if($data->[0] =~ /_rep$/) {
+			push @{$g{db_report_views}}, "$data->[0]";
+		}
+		else {
+			push @{$g{db_editable_tables_list}}, "$data->[0]";
+		}
 	}
 	$sth->finish;
 
@@ -89,20 +75,44 @@ AND c.relname ~ '_rep$'
 AND c.oid = d.objoid
 ORDER BY d.description
 END
-	$g{db_report_views} = [];
 	$sth = $dbh->prepare($query) or return undef;
-	#print "<!-- Executing: $query -->\n";
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
-		push @{$g{db_report_views}}, "$data->[0]";
 		$g{db_tables}{$data->[0]}{desc} = $data->[1];
 	}
 	$sth->finish;
 
+	# read table comments as descriptions
+	$query = <<'END';
+SELECT c.relname, d.description 
+FROM pg_class c, pg_description d
+WHERE c.relkind = 'r'
+AND c.relname !~ '^pg_'
+AND c.relname !~ '(^meta_|_combo$)'
+AND c.oid = d.objoid
+ORDER BY d.description
+END
+	$sth = $dbh->prepare($query) or return undef;
+	$sth->execute() or return undef;
+	while ($data = $sth->fetchrow_arrayref()) {
+		$g{db_tables}{$data->[0]}{desc} = $data->[1];
+	}
+	$sth->finish;
+
+	# set not-defined table descriptions
+	foreach $table (keys %{$g{db_tables}}) {
+		next if defined $g{db_tables}{$table}{desc};
+		if(defined $g{db_tables}{"${table}_list"}{desc}) {
+			$g{db_tables}{$table}{desc} = $g{db_tables}{"${table}_list"}{desc};
+		}
+		else {
+			$g{db_tables}{$table}{desc} = $table;
+		}
+	}
+
 	# meta tables
 	$query = 'SELECT meta_tables_table, meta_tables_filterfirst, meta_tables_hide FROM meta_tables';
 	$sth = $dbh->prepare($query) or return undef;
-	#print "<!-- Executing: $query -->\n";
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
 		next if not defined $g{db_tables}{$data->[0]};
@@ -123,8 +133,6 @@ END
 	$g{db_fields_list} = {};
 	$sth = $dbh->prepare($query);
 	foreach $table (keys %{$g{db_tables}}) {
-		#next if $table =~ /(^meta_|_combo$)/;
-		#print "<!-- Executing: $query with $table -->\n";
 		$sth->execute($table) or return undef;
 		while ($data = $sth->fetchrow_arrayref()) {
 			if($data->[0] eq 'meta_sort') {
@@ -134,7 +142,6 @@ END
 				push @{$g{db_fields_list}{$table}}, $data->[0];
 				$g{db_fields}{$table}{$data->[0]} = {
 					type => $data->[1],
-					desc => $data->[0],
 					attnum => $data->[2],
 					atthasdef => $data->[3],
 				};
@@ -143,7 +150,9 @@ END
 	}
 	$sth->finish;
 
-	# field descriptions
+	my %field_descs = ();
+
+	# read field comments as descriptions
 	$query = <<'END';
 SELECT a.attname, d.description
 FROM pg_class c, pg_attribute a, pg_description d
@@ -156,9 +165,27 @@ END
 		$sth->execute($table) or return undef;
 		while ($data = $sth->fetchrow_arrayref()) {
 			$g{db_fields}{$table}{$data->[0]}{desc}=$data->[1];
+			$field_descs{$data->[0]} = $data->[1];
 		}
 	}
 	$sth->finish;
+
+	# set not-defined field descriptions
+	foreach $table (keys %{$g{db_tables}}) {
+		foreach $field (keys %{$g{db_fields}{$table}}) {
+			my $f = $g{db_fields}{$table}{$field};
+			if(not defined $f->{desc}) {
+				if(defined $field_descs{$field}) {
+					$f->{desc} = $field_descs{$field};
+				}
+				else {
+					$f->{desc} = $field;
+				}
+			}
+		}
+	}
+	
+
 
 	# defaults
 	$query = <<'END';
