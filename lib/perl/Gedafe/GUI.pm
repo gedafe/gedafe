@@ -81,6 +81,7 @@ sub GUI_Edit($$$);
 sub GUI_EditLink($$$$);
 sub GUI_Edit_Error($$$$$$);
 sub GUI_Entry($$$);
+sub GUI_Entry_Header($$);
 sub GUI_Export($$$);
 sub GUI_ExportData($$);
 sub GUI_FilterFirst($$$$);
@@ -187,7 +188,7 @@ sub GUI_InitTemplateArgs($$)
 	my $list_rows_print_flag = $list_rows_urlval>$list_rows_def;
 	$list_rows_print_flag = 0 unless ($list_rows_print_flag == 1);
 
-	print STDERR 
+	#print STDERR 
 	"#$list_rows_urlval#, #$list_rows_def#,#$list_rows_print_flag# \n";
 
 	if ( $list_rows_print_flag ){
@@ -252,7 +253,17 @@ sub GUI_Header($$)
 
 	my $save_table = $args->{TABLE};
 
-	foreach my $t (@{$g{db_tables_list}}) {
+	my $actualschema = $s->{cgi}->url_param('schema');
+	
+        $actualschema  = $g{conf}{schema} unless defined $actualschema;
+
+        my $tablelistref;
+        if ( defined $actualschema){
+            $tablelistref =  \@{$g{tables_per_schema}{$actualschema}};
+        } else {
+            $tablelistref    =  \@{$g{db_tables_list}};
+        }
+        foreach my $t (@{$tablelistref}) {
 		next if $g{db_tables}{$t}{hide};
 		next if $g{db_tables}{$t}{report};
 		if(defined $g{db_tables}{$t}{acls}{$user} and
@@ -282,6 +293,52 @@ sub GUI_Header($$)
 
 	delete $args->{ELEMENT};
 	delete $args->{TABLE_LONGCOMMENT};
+	$s->{header_sent}=1;
+}
+
+sub GUI_Entry_Header($$)
+{ # Header line creation. 
+  # To be called only from GUI_Entry i.e. on the Entry Page
+	my ($s, $args) = @_;
+
+	$args->{ELEMENT}='header';
+	print Template($args);
+
+	$args->{ELEMENT}='header_table';
+	my $user = $args->{USER};
+
+	my $save_table = $args->{TABLE};
+
+	my $actualschema = $s->{cgi}->url_param('schema');
+	
+        $actualschema  = $g{conf}{schema} unless defined $actualschema;
+
+        my @schemalist;
+        if ( not defined $actualschema){ # We do not have Schemas
+            @schemalist =  (); # Show a empty schema list in the header
+        } else {		     # We do have Schemas
+            @schemalist    = keys %{$g{tables_per_schema}};
+
+        }
+        foreach my $sch ( @schemalist) {
+		$args->{TABLE_TABLE}=$sch;
+		$args->{TABLE_DESC}= $sch;
+		$args->{TABLE_URL}=MakeURL($args->{REFRESH_ENTRY_URL}, {
+				table => '',
+				action => '',
+				schema  => $sch,
+				});
+		print Template($args);
+	}
+	delete $args->{TABLE_URL};
+	delete $args->{TABLE_DESC};
+
+	$args->{TABLE} = $save_table;
+
+	$args->{ELEMENT}='header3';
+	print Template($args);
+
+	delete $args->{ELEMENT};
 	$s->{header_sent}=1;
 }
 
@@ -371,22 +428,37 @@ sub GUI_Entry($$$)
 	my ($s, $user, $dbh) = @_;
 	my $q = $s->{cgi};
 
+
 	my $refresh = NextRefresh();
+
+	my $actualschema = $q->url_param('schema'); 
+	$actualschema  = $g{conf}{schema} unless defined $actualschema;
+	
 
 	my %template_args = (
 		USER => $user,
-		TITLE => 'Entry',
+		TITLE => $actualschema,
 		PAGE => 'entry',
 	);
 
 	GUI_InitTemplateArgs($s, \%template_args);
-	GUI_Header($s, \%template_args);
+	GUI_Entry_Header($s, \%template_args);
 
 	$template_args{ELEMENT}='tables_list_header',
 	print Template(\%template_args);
 
 	$template_args{ELEMENT}='entrytable';
-	foreach my $t (@{$g{db_tables_list}}) {
+
+	my $tablelistref;
+	if ( defined $actualschema ){
+	    $tablelistref =  \@{$g{tables_per_schema}{$actualschema}}; 
+	} else {
+	    $tablelistref    =  \@{$g{db_tables_list}}; 
+	}
+	$tablelistref    =  \@{$g{db_tables_list}} unless 
+		scalar @{$tablelistref}  > 0;
+
+	foreach my $t (@{$tablelistref}) {
 		next if $g{db_tables}{$t}{hide};
 		next if $g{db_tables}{$t}{report};
 		if(defined $g{db_tables}{$t}{acls}{$user} and
@@ -411,7 +483,7 @@ sub GUI_Entry($$$)
 	print Template(\%template_args);
 
 	$template_args{ELEMENT}='entrytable';
-	foreach my $t (@{$g{db_tables_list}}) {
+	foreach my $t (@{$tablelistref}) {
 		next if     $g{db_tables}{$t}{hide};
 		next unless $g{db_tables}{$t}{report};
 		if(defined $g{db_tables}{$t}{acls}{$user} and

@@ -213,15 +213,12 @@ See F<gedafe-oysters.pod> for more information.
 
 =item schema
 
-defines the current schema, i.e. the schema we want to work in.
-You do not see tables in other schemas. From Postgres Version
-7.2 on this value defaults to "public" if you do not set it.
+See "Schema Support"
+
 
 =item "schema_search_path"
 
-specifies a search path i.e. defines the schemas
-where we want to find tables in. This value defaults 
-to the value of schema (above) if you do not set it.
+See "Schema Support"
 
 =item edit_buttons_left 
 
@@ -311,41 +308,57 @@ variables.
 
 =head2 Postgres Schema support
 
-It is possible to use schema support if Postgres is Version 7.3 or 
-newer. This is done with 2 optional config parameters for Start.pm. 
-(It has to be verified if Postgres versions < 7.3 run with this
-patch)
+It is possible to use schema support if Postgres is Version 7.2 or 
+newer.  For database versions < 7.2 schema support is disabled. 
+No test have be done yet if Postgres versions < 7.2 really work
+after introdution of schema support.
 
+A schema is a group of tables in postgres.  
+You can order your tables by moving them in several schemas 
+without changing views and select statements.
+
+If you add more then one schema to your gedafe application, the
+top of the Entry screen shows links into the other schemas instead of 
+table links.
+
+Schema support is activated with 2 optional config parameters for Start.pm.
 These values are:
 
 =over 10
 
 =item "schema" 
 
-defines the current schema, i.e. the schema we want to work in. 
-You do not see tables in other schemas. 
+defines the default schema, i.e. the schema we want to start in. 
+Gedafe only shows you tables in the "current" schema. The current
+schema is the default schema if defined else 'public'.
+You can override the default schema with the URL parameter I<schema=>.
 
 =item "schema_search_path" 
 
 =back
 
-specifies a search path i.e. defines the schemas
-where we want to find tables in. 
+Syntax: A comma separated list of single quoted schema names
+like B<"'public','test">. Is ignored, if I<schema> is not set.
 
-When setting both options, you only get links for tables in "your" 
-schema BUT you can access all tables within the search path by their 
-names as if they were in the current schema.
+Defines the group of schemas we want to make accesible for
+gedafe. To be exact, all tables are acessible by prefixing
+their schema name (e.g. I<testschema.testtable> is table I<testtable>
+in schema I<testschema>). 
+You can use schema prefixes in sql commands, e.g. in views. But gedafe itself
+does not prefix table names. To reference tables from more then the 'public'
+schema, we have to put the schema names in a I<schema_search_path>.
 
-This allows you to reorder your tables in different schemas
-without changing views and select statements.
-Be careful with the syntax: Schemas must be included in
-single quotes and separated by commas!
+When setting a I<schema_search_path>, you only will see links for tables in
+the "actual" schema but you can access all tables within the search path by
+their names as if they were in the current schema.
 
-CAVEAT: This feature is quite experimental. Never put 2 tables with
-the same name in two schemas (inside your search path), as the results
-can be hard to predict. Also always put I<'public'> in your schema search
-path. Put the tables I<meta_fields> and I<eta_tables> in the I<'public'> 
-schema. 
+CAVEAT: Beware of name collisions.
+
+Never put 2 tables with the same name in two schemas (inside your search
+path), as the results can be hard to predict. Also always put I<'public'> in
+your schema search path. Put the tables I<meta_fields> and I<meta_tables> in
+the I<'public'> schema.  The effects of having several I<meta_fields> and
+I<meta_tables> will be hard to predict.
  
 =head2 Hidden features
 

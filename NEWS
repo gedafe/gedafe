@@ -4,6 +4,18 @@
 
 (arrows indicate actions that you should make when upgrading)
 ------------------------------------------------------------------
+HEAD    (2004-04-08)
+	
+   *	enhanced schema support
+	If you add more then one schema to your gedafe application, 
+	the top of the Entry screen shows links into the other schemas 
+	instead of table links. So you only need one cgi script.
+  *	persistency cleanup
+	Make the code faster/work/work by using the fact that $g is 
+	only loaded once, if you use the "speedy" perl interpreter
+		Johannes
+
+------------------------------------------------------------------
 HEAD    (2004-03-31)
 
 	* Added quicklinks
