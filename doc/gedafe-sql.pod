@@ -341,7 +341,7 @@ are translated to yield only the filename instead of the raw content.
 The isearch applet will only download a search resultset that is smaller 
 than 20kb to make sure that long waits are avoided. The progress of the 
 download is displayed with a blue bar progress indicator. 
-When the resultset is to large the user has the option to narrow down the
+When the resultset is too large the user has the option to narrow down the
 search criteria by entering more characters to column search values and 
 then rescanning the resultspace by pressing the the 'scan' button. 
 Once a resultset is loaded entering characters to column search values
@@ -413,5 +413,5 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 S<Tobias Oetiker E<lt>oetiker@ee.ethz.chE<gt>>,
 S<David Schweikert E<lt>dws@ee.ethz.chE<gt>>,
 S<Fritz Zaucker E<lt>zaucker@ee.ethz.chE<gt>>,
-S<Adi Fairbank E<lt>adi@adirak.orgE<gt>>,
+S<Adi Fairbank E<lt>adi@adiraj.orgE<gt>>,
 S<Freek Zindel E<lt>freek@zindel.nlE<gt>>

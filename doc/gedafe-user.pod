@@ -352,5 +352,5 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 S<Tobias Oetiker E<lt>oetiker@ee.ethz.chE<gt>>,
 S<David Schweikert E<lt>dws@ee.ethz.chE<gt>>,
 S<Fritz Zaucker E<lt>zaucker@ee.ethz.chE<gt>>,
-S<Adi Fairbank E<lt>adi@adirak.orgE<gt>>,
+S<Adi Fairbank E<lt>adi@adiraj.orgE<gt>>,
 S<Freek Zindel E<lt>freek@zindel.nlE<gt>>
