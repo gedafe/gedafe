@@ -1770,9 +1770,10 @@ sub GUI_Pearl($)
 	GUI_Header($s, \%template_args);
 
 	# FORM
-	FormStart($s, $next_url);
+	FormStart($s, $q->url);
 	print "<INPUT TYPE=\"hidden\" NAME=\"action\" VALUE=\"runpearl\">\n";
 	print "<INPUT TYPE=\"hidden\" NAME=\"pearl\" VALUE=\"$pearl\">\n";
+	print "<INPUT TYPE=\"hidden\" NAME=\"refresh\" VALUE=\"".NextRefresh()."\">\n";
 	# Fields
 	$template_args{ELEMENT} = 'editform_header';
 	print Template(\%template_args);
