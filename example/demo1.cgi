@@ -16,6 +16,7 @@ Start(
     list_rows      => 15,
     templates      => '/usr/local/gedafe/example/templates',
     pearl_dir      => '/usr/local/gedafe/example/mypearls',
+    widget_dir      => '/usr/local/gedafe/example/mywidgets',
     isearch        => 'java/isearch.jar',
     show_row_count => 0,
 );

@@ -1,0 +1,144 @@
+=head1 NAME
+
+gedafe-widgets - Plugin widgets for Gedafe
+
+=head1 DESCRIPTION
+
+Sometimes you just want to have a special kind of widget for your 
+application. This can be a custom calculation of a custom way of entering
+your data in a gui. 
+Gedafe out of the box (although we don't have boxes) supports a very usefull
+set of widgets. For the custom widgets you might want to add yourself this
+module helps you do that in an object oriented and plugable way.
+
+Plugin widgets are object oriented perl modules sitting in sepcial directory. 
+Each module has to offer a 2 methodes which will be used from within
+Gedafe. These are WidgetWrite to create the widget and WidgetRead to read
+the data from the widget. 
+
+To enable the widget you can just set the name of the widgetmodule as the
+name of the widget for a field in meta_fields.   
+Check the documentation for more information on the meta_fields table.
+
+=head1 USAGE
+
+First you have to tell Gedafe that it should go looking for Widgets. This is
+done by placing the line
+
+ widget_dir     => '/path/to/widgets',
+
+
+into the Start command of your Gedafe CGI. Be carefull not to mix 
+Gedafe-Pearls and plugin widgets in the same directory or else you
+would get widgets as pearls and pearls as widgets.
+
+Then you have to write your widget
+and store it in F</path/to/widgets>. When you restart gedafe it will go
+looking there and integrate all widgets in its own widget handeling code.
+
+Widgets are object oriented Perl modles which inherit from F<Gedafe::Widget>.
+A Widget has to override the following methodes:
+
+=over
+
+=item WidgetWrite
+
+Returns the html code to construct the widget. You have to name your input-field acording to $input_name. The $warg hash contains the key-value pairs found in meta_fields just like with other widgets.
+
+=item WidgetRead
+
+Returns the value that should be inserted into the database for this widget.
+You get access to all relevant information like $input_name and $warg.
+
+=back
+
+See the example below for details.
+
+=head1 EXAMPLE
+
+Commented example Widget (password.pm).
+
+package password;
+
+use strict;
+use Gedafe::Global qw(%g);
+use Gedafe::Widget;
+use vars qw(@ISA);
+@ISA = qw(Gedafe::Widget);
+
+# construct the html for the widget
+sub WidgetWrite($$$$){
+
+    #since we are doing object stuff the first argument is 
+    #a reference to ourselves
+    my $self = shift;
+
+
+    # $warg is a hash of key value pairs as it is in meta_fields
+    # $input_name is used to link database fields to input fields
+    # if you have inputs that should not be processed seperately
+    # make sure that their names do not start with field_
+    # $value is the default or (in case of update) original value 
+    my ($s, $input_name, $value,$warg) = @_;
+    my $html;
+
+    #here you have your database handle
+    my $dbh = $s->{dbh};
+    # and your cgi object handle incase you need it.
+    my $q = $s->{cgi};
+    $html = "<input type=\"password\" name=\"$input_name\" value=\"$value\">";
+    return $html;
+}
+
+# read the widget data
+sub WidgetRead($$$$){
+    my $self = shift;
+    my ($s, $input_name, $value,$warg) = @_;
+    my $dbh = $s->{dbh};
+    my $q = $s->{cgi};
+    #see above for information about the individual arguments.
+    
+    #$value is the data sent by the browser in the field mentioned
+    #in $input_name, since for passwords we don't need to do anything
+    #special we just return this data.
+    #in a very secure setup one coulf for instance hash the password
+    #through md5 here.
+
+    return $value;
+}
+
+1;
+
+=head1 SEE ALSO
+
+F<gedafe-sql.pod>, F<gedafe-templates.txt>, F<Text::CPPTemplate>, F<gedafe-pearls.pod>,
+
+=head1 COPYRIGHT
+
+Copyright (c) 2000-2003 Zindel Multimedia Engineering,  All rights reserved.
+
+
+=head1 LICENSE
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+=head1 AUTHOR
+
+S<Freek Zindel E<lt>freek@zindel.nlE<gt>>
+
+This module is based on a shameless copy of the 
+Gedafe::Pearls module by
+
+S<Tobias Oetiker E<lt>oetiker@ee.ethz.chE<gt>>

@@ -21,6 +21,7 @@ require Exporter;
 	MyURL
 	InitTemplate
 	InitPearls
+	InitWidgets
 	Template
 	Die
 	DropUnique
@@ -257,6 +258,26 @@ sub InitPearls($){
 	}
 	$g{pearls} = \%pearls;
 }
+
+sub InitWidgets($){
+	return if defined $g{widgets};
+	my $path = shift;
+	my %widgets;
+	chdir $path || 	Die "switching to 'widget_dir ($path)': $!\n";
+	my @modules = <*.pm>;
+	foreach my $module (@modules) {
+		$module =~ s/\.pm$//;
+		$widgets{$module} = eval "local \$SIG{__DIE__} = 'IGNORE';
+		                         require $module;
+		                         $module->new()";
+		if ($@) {
+			Die "Unable to load widget $module: $@";
+		}
+	}
+	$g{widgets} = \%widgets;
+}
+
+
 
 1;
 

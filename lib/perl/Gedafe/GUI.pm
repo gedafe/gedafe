@@ -378,6 +378,7 @@ sub GUI_Entry($$$)
 	}
 
 	GUI_Footer(\%template_args);
+
 }
 
 sub GUI_FilterFirst($$$$)
@@ -943,6 +944,9 @@ sub GUI_WidgetRead($$$)
 
 	my $value = $q->param($input_name);
 	
+	if(grep {/^$w$/} keys %{$g{widgets}}){
+		return $g{widgets}{$w}->WidgetRead($s,$input_name,$value,$warg);
+	}
 	if($w eq 'file'){
 		my $file = $value;
 		my $deletefile = $q->param("file_delete_$input_name");
@@ -1439,7 +1443,10 @@ sub GUI_WidgetWrite($$$$)
 	my $escval = $value;
 	$escval =~ s/\"/&quot;/g;
 
-	if($w eq 'readonly') {
+	if(grep {/^$w$/} keys %{$g{widgets}}){
+		return $g{widgets}{$w}->WidgetWrite($s,$input_name,$value,$warg);
+	}
+	elsif($w eq 'readonly') {
 		return $value || '&nbsp;';
 	}
 	elsif($w eq 'text') {
