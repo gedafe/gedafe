@@ -599,7 +599,7 @@ sub DB_FetchList($$$$;%)
 		elsif(defined $g{db_tables}{$table}{meta_sort}) {
 			$query .= " ORDER BY $table.meta_sort";
 		}
-		if(defined $limit) {
+		if(defined $limit and $limit != -1) {
 			$query .= " LIMIT $limit";
 		}
 		if(defined $offset and $offset > 0) {
