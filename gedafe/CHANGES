@@ -1,3 +1,9 @@
+2001-04-08
+----------
+* add DIE handler and use standard 'die' for internal error reporting,
+  instead of 'Error'
+* begin unstable tree 1.1.0
+
 2001-03-05
 ----------
 * remove references to admin_user in start script, since it is not anymore used
