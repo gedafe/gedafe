@@ -377,7 +377,7 @@ sub GUI_ListTable($$$)
 	print Template(\%template_args);
 	
 
-	my @typelist = @{%{$list->{type}}}{@{$list->{fields}}};
+	my @typelist = map { $list->{type}->{$_} } @{$list->{fields}};
 	# data
 	$list->{displayed_recs} = 0;
 	for my $row (@{$list->{data}}) {
