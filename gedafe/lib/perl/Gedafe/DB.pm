@@ -1841,12 +1841,9 @@ sub _DB_AddRecordMN($$$$)
 		# FIXME: DB.pm should NOT access CGI parameters!
 		my @mntable_fields = $g{s}{cgi}->param("field_$vfield");
 		if (scalar(@mntable_fields) > 0){
-			my $order = $g{db_fields}{$table}{$vfield}{ordered} ?
-				scalar(@mntable_fields) : undef;
-				
+			my $order = 1;
 			for my $val (@mntable_fields){
-				$order-- if defined $order;
-				my $query = _DB_InsertMN($table, $vfield, $id, $val, $order);
+				my $query = _DB_InsertMN($table, $vfield, $id, $val, defined $g{db_fields}{$table}{$vfield}{ordered} && $order++);
 				DB_ExecQuery_OID($dbh,$query); # FIXME: what about errors?
 			}
 		}
@@ -1913,7 +1910,7 @@ sub _DB_UpdateMN($$$$){
 		#find rows to add => add list
 		my $mntable_fields_add = _DB_Difference(\@mntable_fields, $mntable_fields_old);
 			
-		#delete query
+		# remove mn entries that have been deleted
 		if(scalar(@$mntable_fields_delete) > 0){
 			for my $val (@$mntable_fields_delete){
 				$query = _DB_DeleteMN($table, $vfield, $ID, $val);
@@ -1921,25 +1918,20 @@ sub _DB_UpdateMN($$$$){
 			}
 		}
 			
-		#add query
+		# add new entries
 		if(scalar(@$mntable_fields_add) > 0){
-			my $order = $g{db_fields}{$table}{$vfield}{ordered} ?
-				scalar(@mntable_fields) : undef;
-
 			for my $val (@$mntable_fields_add){
-				$order-- if defined $order;
-
-				$query = _DB_InsertMN($table, $vfield, $ID, $val, $order);
+				# no ordering yet, this happens in the update query we just add a fake order number
+				$query = _DB_InsertMN($table, $vfield, $ID, defined $val,$g{db_fields}{$table}{$vfield}{ordered} && 99 );
 				($result,$oid) = DB_ExecQuery_OID($dbh,$query);
 			}
 		}
 			
-		#update query
+		#update query to fix order of entries according to submitted form
 		if(scalar(@mntable_fields) > 0 and $g{db_fields}{$table}{$vfield}{ordered}){
 			my $order = 1;
 			for my $val (@mntable_fields){
-				$order++;
-				$query = _DB_UpdateOrderMN($table, $vfield, $ID, $val, $order);
+				$query = _DB_UpdateOrderMN($table, $vfield, $ID, $val, $order++);
 				($result,$oid) = DB_ExecQuery_OID($dbh,$query);
 			}
 		}
