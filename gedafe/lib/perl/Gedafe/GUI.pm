@@ -847,7 +847,7 @@ sub GUI_Export($$$)
 		print $str;
 		print "\t" unless $i >= $#fields_list;
 	}
-	print "\n";
+	print "\r\n";
 
 	# data
 	my $fetch_state=0;
@@ -874,11 +874,12 @@ sub GUI_Export($$$)
 			#my $str = GUI_DB2HTML($d, $field_type);
 			my $str = $d;
 			$str =~ s/\t/        /g;
+			$str =~ s/\r?\n/<BR>/g;
 			print $str;
 			print "\t" unless $i >= $lasti;
 			$i++;
 		}
-		print "\n";
+		print "\r\n"; # be friendly to MS-DOS...
 	}
 
 	if(defined $error) {
@@ -1202,7 +1203,7 @@ sub GUI_EditField($$$$)
 	}
 
 	if($widget eq 'area') {
-		return "<TEXTAREA NAME=\"field_$field\" ROWS=\"4\" COLS=\"60\" WRAP=\"virtual\">".
+		return "<TEXTAREA NAME=\"field_$field\" ROWS=\"4\" COLS=\"70\" WRAP=\"virtual\">".
 			$value."</TEXTAREA>";
 	}
 	if($type eq 'date') {
@@ -1232,12 +1233,12 @@ sub GUI_EditField($$$$)
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"30\" VALUE=\"$escval\">";
 	}
 	if($type eq 'text') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"70\" VALUE=\"$escval\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"60\" VALUE=\"$escval\">";
 	}
-        if($type eq 'varchar') {
+	if($type eq 'varchar') {
 		my $maxlength = ($length <= 0 ? '' : " MAXLENGTH=\"$length\"");
-                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\"$maxlength VALUE=\"$escval\">";
-        }
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\"$maxlength VALUE=\"$escval\">";        
+	}
 
 	if($type eq 'name') {
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" VALUE=\"$escval\">";
