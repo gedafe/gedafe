@@ -455,7 +455,7 @@ sub makereport {
 # is made available with local
 
 sub rpsum ($) {
-    use warnings qw(numeric);
+    use warnings FATAL => qw(numeric);
     my $cnt = $aggmem->{counter}++;
     my $arr = \$aggmem->{array}->[$cnt];
     $$arr += $_[0];
@@ -463,7 +463,7 @@ sub rpsum ($) {
 }
 
 sub rpmin ($) {
-    use warnings qw(numeric);
+    use warnings FATAL => qw(numeric);
     my $cnt = $aggmem->{counter}++;
     my $arr = \$aggmem->{array}->[$cnt];
     $$arr= $_[0]
@@ -473,7 +473,7 @@ sub rpmin ($) {
 }
 
 sub rpmax ($) {
-    use warnings qw(numeric);
+    use warnings FATAL => qw(numeric);
     my $cnt = $aggmem->{counter}++;
     my $arr = \$aggmem->{array}->[$cnt];
     $$arr= $_[0]
@@ -508,7 +508,7 @@ sub rpcnt ($) {
 }
 
 sub rpavg ($) {
-    use warnings qw(numeric);
+    use warnings FATAL => qw(numeric);
     my $cnt = $aggmem->{counter}++;
     my $arr = \$aggmem->{array}->[$cnt];
     $$arr->{sum} += $_[0];
