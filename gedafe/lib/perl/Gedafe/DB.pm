@@ -1380,7 +1380,7 @@ sub DB_GetCombo($$$)
 	}
 	# print STDERR "$query\n";
 	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
-	$sth->execute() or die $sth->errstr;
+	$sth->execute() or die $sth->errstr." in view $combo_view";
 	my $data;
 	while($data = $sth->fetchrow_arrayref()) {
 		$data->[0]='' unless defined $data->[0];
