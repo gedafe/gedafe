@@ -1,5 +1,6 @@
 2000-11-15
 ----------
+* released version 0.9.10
 * small documentation fixes
 * cleaned up html<->db conversion
 * added conversion from \n to <BR> in list and listrep pages
