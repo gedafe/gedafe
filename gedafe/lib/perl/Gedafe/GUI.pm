@@ -1258,6 +1258,11 @@ sub GUI_WidgetWrite($$$$)
 	  my $dayselect = "<option>(day)</option>\n";
 	  my $monthselect = "<option>(month)</option>\n";
 
+          if ($warg->{short} == 1)
+	  {
+            %monthhash = (1, "Jan", 2, "Feb", 3, "Mar", 4, "Apr", 5, "May", 6, "Jun", 7, "Jul", 8, "Aug", 9, "Sep", 10, "Oct", 11, "Nov", 12, "Dec");
+	  }
+
 	  if($escval=~/(\d+)-(\d+)-(\d+)/)
           {
 	    $y = $1;
@@ -1269,11 +1274,11 @@ sub GUI_WidgetWrite($$$$)
 	  {
 	    if ($_ == $y)
 	    {
-	      $yearselect .= "<option selected> $_ </option>\n";
+	      $yearselect .= "  <option selected> $_ </option>\n";
 	    }
 	    else
 	    {
-	      $yearselect .= "<option> $_ </option>\n";
+	      $yearselect .= "  <option> $_ </option>\n";
 	    }
 	  }
 
@@ -1281,11 +1286,11 @@ sub GUI_WidgetWrite($$$$)
 	  {
 	    if ($_ == $m)
 	    {
-	      $monthselect .= "<option selected> $monthhash{$_} </option>\n";
+	      $monthselect .= "  <option selected> $monthhash{$_} </option>\n";
 	    }
 	    else
 	    {
-	      $monthselect .= "<option> $monthhash{$_} </option>\n";
+	      $monthselect .= "  <option> $monthhash{$_} </option>\n";
 	    }
 	  }
 
@@ -1293,11 +1298,11 @@ sub GUI_WidgetWrite($$$$)
 	  {
 	    if ($_ == $d)
 	    {
-	      $dayselect .= "<option selected> $_ </option>\n";
+	      $dayselect .= "  <option selected> $_ </option>\n";
 	    }
 	    else
 	    {
-	      $dayselect .= "<option> $_ </option>\n";
+	      $dayselect .= "  <option> $_ </option>\n";
 	    }
 	  }
 	  
@@ -1333,17 +1338,17 @@ sub GUI_WidgetWrite($$$$)
 
     //update form to reflect corretions on date
     if ((month == 2) && (leap == 1) && (day > 29)){ 
-      document.editform.$dayinput.selectedIndex = 28;
+      document.editform.$dayinput.selectedIndex = 29;
       day = 29;
     }
     
     if ((month == 2) && (leap != 1) && (day > 28)){
-      document.editform.$dayinput.selectedIndex = 27;
+      document.editform.$dayinput.selectedIndex = 28;
       day = 28;
     }
 
     if ((day > 30) && ((month == 4) || (month == 6) || (month == 9) || (month == 11))){
-      document.editform.$dayinput.selectedIndex = 29;
+      document.editform.$dayinput.selectedIndex = 30;
       day = 30;
     }
 
@@ -1357,16 +1362,13 @@ sub GUI_WidgetWrite($$$$)
 </script>
 
 <select NAME="$yearinput" onChange="$functionname()">
-  $yearselect
-</select>
+  $yearselect</select>
 
 <select NAME="$monthinput" onChange="$functionname()">
-  $monthselect
-</select>
+  $monthselect</select>
 
 <select NAME="$dayinput" onChange="$functionname()">
-  $dayselect
-</select>
+  $dayselect</select>
 
 <input TYPE="hidden" NAME="$input_name" VALUE="$escval">
 end
