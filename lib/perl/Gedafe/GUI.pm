@@ -718,7 +718,7 @@ sub GUI_ExportData($$)
 		    print $csv->string() . "\n";
 		} else {
 		    print join("\t", map {
-			my $str=$_;
+			my $str = defined $_ ? $_ : '';
 			$str=~s/\t/        /g;
 			$str=~s/\n/\r/g;
 			$str;
