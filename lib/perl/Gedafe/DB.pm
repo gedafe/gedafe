@@ -483,7 +483,7 @@ sub DB_FetchList($$$$;%)
 	my $i=0;
 	for $f (@fields) {
 		my $type = $g{db_fields}{$table}{$f}{type};
-		push @html_data, DB_DB2HTML($data->[$i],$type);
+		push @html_data, $data->[$i];
 		$i++;
 	}
 
@@ -560,22 +560,7 @@ sub DB_HID2ID($$$$)
 	return $d->[0];
 }
 
-sub DB_DB2HTML($$)
-{
-	$_ = shift;
-	$_ = '' unless defined $_;
-	my $type = shift;
-	s/^\s+//;
-	s/\s+$//;
-
-	if($type eq 'bool') {
-		$_ = (/^(t|true|y|yes|TRUE|1)$/ ? '1' : '0');
-	}
-
-	return $_;
-}
-
-sub DB_HTML2DB($$)
+sub DB_PrepareData($$)
 {
 	$_ = shift;
 	$_ = '' unless defined $_;
@@ -591,6 +576,8 @@ sub DB_HTML2DB($$)
 		$_ = ($_ ? '1' : '0');
 	}
 
+	# this is a hack. It should be implemented in GUI.pm or
+	# (better) with a widget-type
 	if($type eq 'numeric') {
 		if(/^(\d*):(\d+)$/) {
 			my $hours = $1 or 0;
@@ -621,8 +608,6 @@ sub DB_DB2Record($$$$)
 		my $type = $fields->{$f}{type};
 		my $data = $dbdata->{$f};
 		
-		$data = DB_DB2HTML($data, $type);
-
 		$data = DB_ID2HID($dbh, $table, $f, $data);
 		$record->{$f} = $data;
 	}
@@ -644,7 +629,7 @@ sub DB_Record2DB($$$$)
 		my $type = $fields->{$f}{type};
 		my $data = $record->{$f};
 
-		$data = DB_HTML2DB($data, $type);
+		$data = DB_PrepareData($data, $type);
 		$data = DB_HID2ID($dbh, $table, $f, $data);
 		$dbdata->{$f} = $data;
 	}
@@ -788,8 +773,7 @@ sub DB_GetCombo($$$)
 	$sth->execute() or return undef;
 	my $data;
 	while($data = $sth->fetchrow_arrayref()) {
-		my $key = DB_DB2HTML($data->[0],'text');
-		push @$combo, [$key, DB_DB2HTML($data->[1],'text')];
+		push @$combo, [$data->[0], $data->[1]];
 	}
 	#$sth->finish;
 	return 1;

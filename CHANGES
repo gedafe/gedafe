@@ -1,4 +1,23 @@
+2000-11-15
+----------
+* small documentation fixes
+* cleaned up html<->db conversion
+* added conversion from \n to <BR> in list and listrep pages
+* combo-boxes now only show 'text' instead of 'id -- text'
+
+2000-11-14
+----------
+* released version 0.9.9
+* removed misleading Makefile in distribution
+* added missing example/README
+
+2000-11-03
+----------
+* released version 0.9.8
+* documentation fixes
+* add $|=1 to demo1.cgi
+
 2000-10-23
 ----------
-* version 0.9.7
+* released version 0.9.7
 * started the CHANGES file

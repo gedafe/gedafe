@@ -190,7 +190,7 @@ special view called I<table>B<*_combo>. This view must have two
 columns one called B<id> and one called B<text>. The B<id> column
 contains the value a user might want to enter in the field containing
 the reference. If the table has an I<table>B<_hid> column then
-B<id> values must be taken from there of the standard
+B<id> values must be taken from there instead of the standard
 I<table>B<_id> column. The reasoning behind this is that even if
 there is no combo-box, the user should be able to enter references
 using I<table>B<_hid> values whenever possible. In order not to
