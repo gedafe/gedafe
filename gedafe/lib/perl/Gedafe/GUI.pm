@@ -1234,9 +1234,10 @@ sub GUI_EditField($$$$)
 	if($type eq 'text') {
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"70\" VALUE=\"$escval\">";
 	}
-        if($type eq 'varchar') {                                                                                            
-                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" MAXLENGTH=\"$length\" VALUE=\"$escval\">";        
-        }                                                                                                                   
+        if($type eq 'varchar') {
+		my $maxlength = ($length <= 0 ? '' : " MAXLENGTH=\"$length\"");
+                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\"$maxlength VALUE=\"$escval\">";
+        }
 
 	if($type eq 'name') {
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" VALUE=\"$escval\">";
