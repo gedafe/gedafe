@@ -1,10 +1,10 @@
 =head1 NAME
 
-gpw3f-user - Generic PostgreSQL Web Frontend (GPW3F) User-Manual
+gedafe-user - the Generic Database Frontend (Gedafe) User-Manual
 
 =head1 DESCRIPTION
 
-GPW3F (Generic PostgreSQL Web Frontend) is a web-based database frontend
+Gedafe (the Generic Database Frontend) is a web-based database frontend
 that is database-application independent. That means that the (perl) code
 doesn't contain any information about what tables are present in the
 database, how the data is organized or how the forms should be made.
@@ -17,7 +17,7 @@ from the frontend used, is guaranteed.
 
 The added advantage of this "application in the database" approach is that
 we have to write one time the code to handle for example a form for adding
-a record though a form, then it works for every table in the database. GPW3F
+a record though a form, then it works for every table in the database. Gedafe
 gathers information about the database at startup and generates the whole
 interface dynamically.
 
@@ -26,7 +26,7 @@ have to define a new database. No need to touch the perl code.
 
 =head2 Features
 
-GPW3F has the following "special" features:
+Gedafe has the following "special" features:
 
 =over 4
 
@@ -69,14 +69,14 @@ data would be entered two times in the database.
 
 =head1 INSTALLATION
 
-The structure of the GPW3F distribution is as follows:
+The structure of the Gedafe distribution is as follows:
 
  .
- |-- bin              binaries (gpw3fd daemon)
+ |-- bin              binaries (gedafed daemon)
  |-- doc              documentation
  |-- lib              
  |   `-- perl
- |       `-- GPW3F    gpw3f main source
+ |       `-- Gedafe    gedafed main source
  `-- example
      |-- templates    html templates
      |-- demo.cgi     demo-application  script
@@ -84,20 +84,20 @@ The structure of the GPW3F distribution is as follows:
                       demo-application database
 
 The only thing you have to do is ensure (in the application script) that
-lib/perl of the GPW3F distribution is found by perl and start the gpw3fd
-daemon (you can use the script gpw3fd-ctl to start it with SYSV-init).
+lib/perl of the Gedafe distribution is found by perl and start the gedafed
+daemon (you can use the script gedafed-ctl to start it with SYSV-init).
  
 =head2 The Application Script
 
-GPW3F is actually a library. The application just calls the 'Start' function
+Gedafe is actually a library. The application just calls the 'Start' function
 from that library to start it up. This is the script that should be called
 from the web. It should look as follows:
   
  #!/usr/sepp/bin/speedy -w
  
- use lib "/usr/local/gpw3f/lib/perl";
+ use lib "/usr/local/gedafe/lib/perl";
  
- use GPW3F::Start;
+ use Gedafe::Start;
  
  Start(
  	app_site       => 'mysite.com:8000',
@@ -105,11 +105,11 @@ from the web. It should look as follows:
  	db_datasource  => 'dbi:Pg:dbname=demo',
  	list_rows      => 15,
  	admin_user     => 'admin',
- 	templates      => '/usr/local/gpw3f/templates/demo',
+ 	templates      => '/usr/local/gedafe/templates/demo',
  	documentation_url => 'http://mysite.com/demo-docs',
  );
 
-GPW3F gathers information about the database structure at the first use. This
+Gedafe gathers information about the database structure at the first use. This
 can take much time, so it is heavily suggested that you use a persistant perl
 instance with for example I<speedy>. I<mod_perl> works also great, but you have
 to be careful if you run multiple database applications, since if the same
@@ -118,7 +118,7 @@ same global variable, which is certainly not what you want.
 
 Very important in this script is the first 'use' statement. It should point to
 where you have stored F<lib/perl> of the distribution. I<Start> starts the
-application by specifying gpw3f-configuration variables. The following
+application by specifying Gedafe configuration variables. The following
 configuration variables are defined:
 
 =over 20
@@ -156,23 +156,24 @@ stored.
 
 =back
 
-=head2 The gpw3fd Daemon
+=head2 The gedafed Daemon
 
-GPW3F uses an external process to manage session data called gpw3fd. This
-daemon must be running to make GPW3F work. You can start it in the init phase
-using the bin/gpw3fd-ctl script.
+Gedafe uses an external process to manage session data called gedafed. This
+daemon must be running to make Gedafe work. You can start it in the init phase
+using the bin/gedafed-ctl script.
 
 =head2 The Database
 
-F<gpw3f-sql.pod> describes how the database should be setup to work with GPW3F.
+F<gedafe-sql.pod> describes how the database should be setup to work with
+Gedafe.
 
 =head1 USAGE
 
 =head2 Authentication
 
-Authentication is done with the help of gpw3fd. This daemon stores
+Authentication is done with the help of gedafed. This daemon stores
 user/password pairs using a random-generated "ticket", which is stored in a
-cookie on the client side. To make these tickets more secure gpw3fd manages an
+cookie on the client side. To make these tickets more secure gedafed manages an
 expiration on these tickets. Every time that ticket is used, it's expiration
 is prolongued by a certain amount (configured in the script) of seconds. The
 result is that if the database isn't accessed for a certain amount of time,
@@ -184,11 +185,11 @@ shown.
 
 =head2 Forms and Navigation
 
-The navigation and general use of GPW3F should be straightforward. At the
+The navigation and general use of Gedafe should be straightforward. At the
 beginning, you are presented with the "Entry" page that contains links to every
 table to edit and every available report.
 
-For forms, the guiding principle while designing GPW3F was 'POST is evil, use
+For forms, the guiding principle while designing Gedafe was 'POST is evil, use
 it the less possible'. The reason for it is that if a generated page depends on
 POST data, that page can't be stored in a bookmark and the browsers have
 problems handling the reloading of pages obtained with a POST request. For that
@@ -199,10 +200,10 @@ transfer large amounts of data.
 
 Almost no HTML is present in the perl code. The HTML is generated with the help
 of Text::CPPTemplate, a very simple C-preprocessor-style templating system
-included in the GPW3F distribution. The templates are taken from a directory
+included in the Gedafe distribution. The templates are taken from a directory
 specified in the startup script with the 'templates' parameter.
 
-The basic idea is that GPW3F places small "elements" of the page currently
+The basic idea is that Gedafe places small "elements" of the page currently
 being generated such as the header or the cell of a table by only specifying
 variables (properties) of that element. Every element has always the following
 minimal variables specified:
@@ -223,7 +224,7 @@ In addition to these, element-specific data such as I<DATA> for the I<td>
 element must be defined. Text::CPPTemplate will then search for an appropriate
 template to use and generate the HTML code. See L<Text::CPPTemplate(3)> for a
 description of the syntax and how the templates are stored in files. See also
-F<gpw3f-templates.txt> for a description of what elements are used with what
+F<gedafe-templates.txt> for a description of what elements are used with what
 variables.
 
 =head2 Hidden features
@@ -259,7 +260,7 @@ be multiplied by 100/60 and added to C<hh>.
 
 =head2 Caching and Bookmarks
 
-A difficulty that we encountered while developing GPW3F was the caching of
+A difficulty that we encountered while developing Gedafe was the caching of
 pages by the browser.  We have to control precisely when a page can be cached
 and when not. The implementation is made with the C<refresh> URL parameter:
 when it is set, the expiration of the page is set to some positive value,
@@ -290,7 +291,7 @@ primitive right now. A possibility is Template::Toolkit.
 =item *
 
 We will integrate PearlReports (by Tobias Oetiker <oetiker@ee.ethz.ch>, not yet
-released) into GPW3F to allow generating with the HTML interface real reports
+released) into Gedafe to allow generating with the HTML interface real reports
 in HTML and parhaps also directly in PDF.
 
 =item *
@@ -303,7 +304,7 @@ could be gained through a rewrite.
 
 =head1 SEE ALSO
 
-F<gpw3f-sql.pod>, F<gpw3f-templates.txt>
+F<gedafe-sql.pod>, F<gedafe-templates.txt>
 
 =head1 COPYRIGHT
 
