@@ -34,6 +34,7 @@ require Exporter;
 	DB_RawField
 	DB_DumpJSITable
 	DB_DumpTable
+	DB_FetchReferencedId
 );
 
 sub DB_AddRecord($$$);
@@ -697,7 +698,36 @@ sub DB_FetchListSelect($$)
 			push @select_fields, $f;
 		}
 	}
-
+	
+	if(!$g{db_tables}{$spec->{table}}{report} 
+	   and !$spec->{export}
+	   and $g{db_tables}{$spec->{table}}{meta}{showref}){
+		#the list of tables that we want to find reference counts for
+		my @showrefs = split(/,/,
+				     $g{db_tables}{$spec->{table}}{meta}{showref});
+	    
+	    
+		for my $showref(@showrefs){
+			next unless(defined $g{db_tables}{$showref}{acls}{$spec->{user}} 
+				    and $g{db_tables}{$showref}{acls}{$spec->{user}}=~/r/);
+			print STDERR "$showref ".$g{db_tables}{$showref}{acls}{$spec->{user}}."\n";
+			#now find the column that references us.
+			my $refcolumn = undef;
+			for my $refcol (@{$g{db_fields_list}{$showref}}){
+				my $refcolref = $g{db_fields}{$showref}{$refcol}{reference};
+				next if(!defined $refcolref);
+				if( $refcolref eq 
+				    $spec->{table}){
+					$refcolumn = $refcol;
+				}
+			}
+			die($spec->{table}." not referenced from $showref in meta_tables showref") if(!defined $refcolumn);
+			
+			push @select_fields,"(select count(*) from $showref where $refcolumn = $select_fields[0]) as meta_rc_$showref";
+			push @fields,"meta_rc_$showref#$refcolumn";
+		}
+	    
+	}
 	my @query_parameters = ();
 
 	my $query = "SELECT ";
@@ -709,8 +739,10 @@ sub DB_FetchListSelect($$)
 	{
 		my $type = $g{db_fields}{$v}{$spec->{search_field}}{type};
 
-
-		if($type eq 'date') {
+		if($spec->{search_field}=~/meta_rc_(.*)/){
+		    $query .= " WHERE $select_fields[0] in (select $spec->{table}_id from $spec->{table} WHERE $1 = ?)";
+			push @query_parameters, "$spec->{search_value}";
+		}elsif($type eq 'date') {
 			$query .= " WHERE $spec->{search_field} = ? ";
 			push @query_parameters, "$spec->{search_value}";
 		}
@@ -775,6 +807,7 @@ sub DB_FetchListSelect($$)
 
 	
 	# print "\n<!-- $query -->\n" unless $spec->{export};
+	# print STDERR  "$query\n";
 	# this is kind of useless now that query's are made with the ? placeholders.
 
 	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
@@ -787,6 +820,19 @@ sub DB_FetchListSelect($$)
 
 	$sth->execute() or die $sth->errstr . " ($query)";
 	return (\@fields, $sth);
+}
+
+sub DB_FetchReferencedId($$$$){
+    my $s = shift;
+    my $table = shift;
+    my $column = shift;
+    my $id = shift;
+    my $dbh = $s->{dbh};
+    my $query = "select $column as ref from $table where $table"."_id = ?";
+    my $sth= $dbh->prepare($query);
+    my $res = $sth->execute($id);
+    my @data = $sth->fetchrow_array();
+    return $data[0];
 }
 
 sub DB_FetchList($$)
@@ -826,14 +872,37 @@ sub DB_FetchList($$)
 	my $col = 0;
 	my @columns;
 	for my $f (@{$list{fields}}) {
-		$columns[$col] = {
-			field     => $f,
-			desc      => $g{db_fields}{$v}{$f}{desc},
-			align     => $g{db_fields}{$v}{$f}{align},
-			hide_list => $g{db_fields}{$v}{$f}{hide_list},
-			markup    => $g{db_fields}{$v}{$f}{markup},
-			type      => $g{db_fields}{$v}{$f}{type},
-		};
+	        my $ref = undef;
+		my $reference = undef;
+		if(defined $g{db_fields}{$spec->{table}}{$f}){
+		    $ref =  $g{db_fields}{$spec->{table}}{$f}{reference};
+		    #Create reference link only if user can read and write the table
+		    $reference = $ref if(defined $ref
+					 and defined $g{db_tables}{$ref}{acls}{$user}
+					 and $g{db_tables}{$ref}{acls}{$user} =~ /r/
+					 and $g{db_tables}{$ref}{acls}{$user} =~ /w/);
+		}
+		if($f =~ /meta_rc_(.*)#(.*)/){
+		   $columns[$col]
+			= {field     => $f,
+			   desc      => $1,
+			   align     => '"LEFT"',
+			   refcount  => 1,
+			   tar_field => $2,
+			   type      => 'int4'
+			       
+			  };
+		}else{
+		    $columns[$col]
+			= {field     => $f,
+			   desc      => $g{db_fields}{$v}{$f}{desc},
+			   align     => $g{db_fields}{$v}{$f}{align},
+			   hide_list => $g{db_fields}{$v}{$f}{hide_list},
+			   markup    => $g{db_fields}{$v}{$f}{markup},
+			   type      => $g{db_fields}{$v}{$f}{type},
+			   reference => $reference,
+			  };
+		}
 		$col++;
 	}
 	$list{columns} = \@columns;

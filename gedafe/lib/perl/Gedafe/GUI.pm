@@ -24,6 +24,7 @@ use Gedafe::DB qw(
 	DB_RawField
 	DB_DumpTable
 	DB_DumpJSITable
+	DB_FetchReferencedId
 );
 
 use Gedafe::Util qw(
@@ -600,6 +601,11 @@ sub GUI_ListTable($$$)
 		print Template(\%template_args);
 		my $column_number = 0;
 		for my $d (@{$row->[1]}) {
+			delete $template_args{ALIGN};
+			delete $template_args{ELEMENT};
+			delete $template_args{DATA};
+			delete $template_args{MARKUP};
+
 			my $c = $list->{columns}[$column_number];
 			$column_number++;
 			next if $c->{hide_list};
@@ -613,6 +619,31 @@ sub GUI_ListTable($$$)
 				$d = qq{<A HREF="$bloburl" TARGET="_blank">$d</A>};
 			}
 			my $align = $c->{align};
+
+			if((!$list->{spec}{export}) and $c->{reference}){
+				my $ref_table = $c->{reference};
+				my $ref_id = 
+				    DB_FetchReferencedId($s,
+							 $list->{spec}{table},
+							 $c->{field},
+							 $row->[0]);
+				my $refurl = MakeURL($s->{url}, {
+						table => $ref_table,
+						action => 'edit',
+						id => $ref_id});
+				$align = '"LEFT"';
+				$d = qq{<A HREF="$refurl">$d</A>};
+			}
+			
+			if($c->{refcount}){
+				my $refurl = MakeURL($s->{url}, {
+						table => $c->{desc},
+						action => 'list',
+						search_field => 'meta_rc_'.$c->{tar_field},
+						search_value => $row->[0]});
+				$d = qq {<A HREF="$refurl">$d items</a>};
+			}
+			
 			defined $align or $align = $numeric_types{$c->{type}} ?
 				'"RIGHT" NOWRAP' : '"LEFT"' unless defined $align;
 			$template_args{ALIGN}=$align;
@@ -621,6 +652,7 @@ sub GUI_ListTable($$$)
 			$template_args{MARKUP}=GUI_HTMLMarkup($d) if $d and $c->{markup};
 			print Template(\%template_args);
 		}
+		
 		delete $template_args{DATA};
 		delete $template_args{ALIGN};
 		delete $template_args{MARKUP};
@@ -731,6 +763,7 @@ sub GUI_List($$$)
 
 	# build list-spec
 	my %spec = (
+		user => $user,
 		table => $table,
 		view => defined $g{db_tables}{"${table}_list"} ?
 			"${table}_list" : $table,
