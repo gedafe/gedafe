@@ -12,10 +12,10 @@ use Gedafe::Global qw(%g);
 use DBI;
 use DBD::Pg;
 
-use vars qw(@ISA @EXPORT);
+use vars qw(@ISA @EXPORT_OK);
 require Exporter;
 @ISA       = qw(Exporter);
-@EXPORT    = qw(
+@EXPORT_OK = qw(
 	DB_Connect
 	DB_FetchList
 	DB_GetRecord

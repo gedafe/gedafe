@@ -14,9 +14,17 @@ require Exporter;
 
 use CGI 2.00 qw(-compile :cgi);
 
-use Gedafe::Auth;
-use Gedafe::Global qw(%g *u Global_InitUser);
-use Gedafe::GUI;
+use Gedafe::Auth qw(AuthConnect);
+use Gedafe::Global qw(%g);
+use Gedafe::GUI qw(
+	GUI_Entry
+	GUI_List
+	GUI_ListRep
+	GUI_CheckFormID
+	GUI_PostEdit
+	GUI_Edit
+	GUI_Delete
+);
 use Gedafe::Util qw(MakeURL MyURL InitTemplate Template Error NextRefresh);
 
 sub Start(%)
@@ -84,8 +92,6 @@ sub Start(%)
 		Error(\%s, "Couldn't connect to database or database error.");
 	};
 
-	Global_InitUser($user);
-	
 	my $action = $q->url_param('action') || '';
 	if($action eq 'edit' or $action eq 'add' or $action eq 'delete') {
 		# cache forms...

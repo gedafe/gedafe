@@ -1,5 +1,5 @@
 # Gedafe, the Generic Database Frontend
-# copyright (c) 2000, ETH Zurich
+# copyright (c) 2000,2001 ETH Zurich
 # see http://isg.ee.ethz.ch/tools/gedafe
 
 # released under the GNU General Public License
@@ -7,7 +7,16 @@
 package Gedafe::GUI;
 use strict;
 use Gedafe::Global qw(%g);
-use Gedafe::DB;
+use Gedafe::DB qw(
+	DB_FetchList
+	DB_GetRecord
+	DB_AddRecord
+	DB_UpdateRecord
+	DB_GetCombo
+	DB_DeleteRecord
+	DB_GetDefault
+	DB_ID2HID
+);
 use Gedafe::Util qw(
 	ConnectToTicketsDaemon
 	MakeURL
@@ -22,10 +31,10 @@ use Gedafe::Util qw(
 
 use POSIX;
 
-use vars qw(@ISA @EXPORT);
+use vars qw(@ISA @EXPORT_OK);
 require Exporter;
 @ISA       = qw(Exporter);
-@EXPORT    = qw(
+@EXPORT_OK    = qw(
 	GUI_Entry
 	GUI_List
 	GUI_ListRep
@@ -33,7 +42,6 @@ require Exporter;
 	GUI_PostEdit
 	GUI_Edit
 	GUI_Delete
-	GUI_DB_Error
 );
 
 sub GUI_DB2HTML($$)
@@ -108,8 +116,9 @@ sub GUI_InitTemplateArgs($$)
 			});
 }
 
-sub GUI_Header($)
+sub GUI_Header($$)
 {
+	my $s = shift;
 	my $args = shift;
 
 	$args->{ELEMENT}='header';
@@ -142,6 +151,8 @@ sub GUI_Header($)
 	print Template($args);
 
 	delete $args->{ELEMENT};
+
+	$s->{header_sent}=1;
 }
 
 sub GUI_Footer($)
@@ -154,7 +165,8 @@ sub GUI_Footer($)
 
 sub GUI_Edit_Error($$$$$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $user = shift;
 	my $str = shift;
 	my $form_url = shift;
@@ -174,7 +186,7 @@ sub GUI_Edit_Error($$$$$$)
 	);
 
 	GUI_InitTemplateArgs($q, \%template_args);
-	GUI_Header(\%template_args);
+	GUI_Header($s, \%template_args);
 
 	$template_args{ELEMENT}='edit_error';
 	print Template(\%template_args);
@@ -201,7 +213,7 @@ sub GUI_CheckFormID($$)
 	if(!DropUnique($s, $q->param('form_id'))) {
 		print $q->header;
 		GUI_InitTemplateArgs($q, \%template_args);
-		GUI_Header(\%template_args);
+		GUI_Header($s, \%template_args);
 		$template_args{ELEMENT}='doubleform';
 		print Template(\%template_args);
 		GUI_Footer(\%template_args);
@@ -225,7 +237,7 @@ sub GUI_Entry($$$)
 	);
 
 	GUI_InitTemplateArgs($q, \%template_args);
-	GUI_Header(\%template_args);
+	GUI_Header($s, \%template_args);
 
 	$template_args{ELEMENT}='tables_list_header',
 	print Template(\%template_args);
@@ -393,14 +405,6 @@ sub GUI_List($$$)
 
 	my $next_refresh = NextRefresh();
 
-	my %template_args = (
-		USER => $user,
-		PAGE => 'list',
-		URL => $myurl,
-		TABLE => $table,
-		TITLE => "$g{db_tables}{$table}{desc}",
-	);
-	
 	# select view / table
 	my $view;
 	if(exists $g{db_tables}{"${table}_list"}) {
@@ -409,19 +413,26 @@ sub GUI_List($$$)
 	else {
 		$view = $table;
 	}
+
+	# does the view/table exist?
 	if(not defined $g{db_fields_list}{$view}) {
-		GUI_InitTemplateArgs($q, \%template_args);
-		GUI_Header(\%template_args);
-		print "<P>Can't find table $view\n";
-		GUI_Footer(\%template_args);
-		return;
+		Error($s, "no such table: $view\n");
 	}
+
+	my %template_args = (
+		USER => $user,
+		PAGE => 'list',
+		URL => $myurl,
+		TABLE => $table,
+		TITLE => "$g{db_tables}{$table}{desc}",
+	);
+	
 	my @fields_list = @{$g{db_fields_list}{$view}};
 	my $fields = $g{db_fields}{$view};
 
 	# header
 	GUI_InitTemplateArgs($q, \%template_args);
-	GUI_Header(\%template_args);
+	GUI_Header($s, \%template_args);
 
 	# filterfirst
 	my ($filterfirst_field, $filterfirst_value) =  GUI_FilterFirst($s, $dbh, $table, \%template_args);
@@ -649,7 +660,7 @@ sub GUI_ListRep($$$)
 	
 	if(not defined $g{db_fields_list}{$view}) {
 		GUI_InitTemplateArgs($q, \%template_args);
-		GUI_Header(\%template_args);
+		GUI_Header($s, \%template_args);
 		print "<P>Can't find table $view\n";
 		GUI_Footer(\%template_args);
 		return;
@@ -659,7 +670,7 @@ sub GUI_ListRep($$$)
 
 	# header
 	GUI_InitTemplateArgs($q, \%template_args);
-	GUI_Header(\%template_args);
+	GUI_Header($s, \%template_args);
 
 	# filterfirst
 	my ($filterfirst_field, $filterfirst_value) =  GUI_FilterFirst($s, $dbh, $view, \%template_args);
@@ -852,7 +863,7 @@ sub GUI_PostEdit($$$)
 				TITLE => 'Database Error'
 			);
 			GUI_InitTemplateArgs($q, \%template_args);
-			GUI_Header(\%template_args);
+			GUI_Header($s, \%template_args);
 			GUI_DB_Error($dbh->errstr, MyURL($q));
 			
 			$template_args{ELEMENT}='db_error';
@@ -888,7 +899,7 @@ sub GUI_PostEdit($$$)
 		my $err;
 		if(!DB_AddRecord($dbh,$table,\%record,\$err)) {
 			my $data = GUI_Hash2Str(\%record);
-			GUI_Edit_Error($q, $user, $err, $q->param('form_url'), $data, $action);
+			GUI_Edit_Error($s, $user, $err, $q->param('form_url'), $data, $action);
 		}
 	}
 	elsif($action eq 'edit') {
@@ -896,7 +907,7 @@ sub GUI_PostEdit($$$)
 		my $err;
 		if(!DB_UpdateRecord($dbh,$table,\%record,\$err)) {
 			my $data = GUI_Hash2Str(\%record);
-			GUI_Edit_Error($q, $user, $err, $q->param('form_url'), $data, $action);
+			GUI_Edit_Error($s, $user, $err, $q->param('form_url'), $data, $action);
 		}
 	}
 }
@@ -954,7 +965,7 @@ sub GUI_Edit($$$)
 	}
 
 	GUI_InitTemplateArgs($q, \%template_args);
-	GUI_Header(\%template_args);
+	GUI_Header($s, \%template_args);
 
 	# FORM
 	UniqueFormStart($next_url);
@@ -1161,7 +1172,7 @@ sub GUI_Delete($$$)
 	);
 
 	GUI_InitTemplateArgs($q, \%template_args);
-	GUI_Header(\%template_args);
+	GUI_Header($s, \%template_args);
 	UniqueFormStart($next_url);
 
 	$template_args{ELEMENT}='delete';

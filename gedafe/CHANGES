@@ -1,3 +1,8 @@
+2001-02-13
+----------
+* continue minor internal restructuration started on 2001-02-08
+* improve error reporting
+
 2001-02-11
 ----------
 * fix the encoding of values in urls for reedit_data. Use '!' instead of '%'.

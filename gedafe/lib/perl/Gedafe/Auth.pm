@@ -16,12 +16,12 @@ use Gedafe::Util qw(
 	NextRefresh
 );
 use Gedafe::Global qw(%g);
-use Gedafe::DB;
+use Gedafe::DB qw(DB_Connect);
 
-use vars qw(@ISA @EXPORT);
+use vars qw(@ISA @EXPORT_OK);
 require Exporter;
 @ISA       = qw(Exporter);
-@EXPORT    = qw(AuthConnect);
+@EXPORT_OK = qw(AuthConnect);
 
 sub Auth_GetTicket($$$$) {
 	my $s = shift;
