@@ -203,9 +203,38 @@ attributes are defined:
 
 =item widget
 
+Options: ['area','readonly','isearch','date(from=2000,to=2005)']
+
 Use this special widget for the edit form. I<area> makes Gedafe select a
 TEXTAREA widget for this field, such that longer amounts of text can be
 entered and I<readonly> specifies a read-only widget.
+
+I<isearch> as a widget for a column that references another table specifies
+a interactive record selecting applet. The applet is designed to replace
+comboboxes on tables with many records where the combobox would become 
+impracticaly large.
+Because the isearch applet searches in all columns of the referenced table 
+it ignores the table*_combo views, instead it use the original table or ,if 
+present, the table*_list view. Also note that the values of bytea columns 
+are translated to yield only the filename instead of the raw content.
+
+The isearch applet will only download a search resultset that is smaller 
+than 20kb to make sure that long waits are avoided. The progress of the 
+download is displayed with a blue bar progress indicator. 
+When the resultset is to large the user has the option to narrow down the
+search criteria by entering more characters to column search values and 
+then rescanning the resultspace by pressing the the 'scan' button. 
+Once a resultset is loaded entering characters to column search values
+immeadiately (interactivly) selects matching records.
+
+Please also note that for this applet to work you need to have a browser 
+that supports java, javascript and liveconnect. 
+(Mozilla, Netscape and IE will do fine)
+
+The I<date> widget on date columns generates a pulldown list to enter
+dates. The I<from> and I<to> fields specify the the range for the year
+list.
+
 
 =item copy
 
