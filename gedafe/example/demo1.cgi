@@ -11,10 +11,13 @@ use Gedafe::Start;
 
 $|=1; # do not buffer output to get a more responsive feeling
 
+
 Start(
     db_datasource  => 'dbi:Pg:dbname=demo1',
     list_rows      => 15,
     templates      => '/usr/local/gedafe/example/templates',
+    schema	   => 'public',
+    schema_search_path => " 'public','test' ",     
     pearl_dir      => '/usr/local/gedafe/example/mypearls',
     widget_dir      => '/usr/local/gedafe/example/mywidgets',
     isearch        => 'java/isearch.jar',

@@ -32,6 +32,7 @@ use Gedafe::DB qw(
 	DB_GetBlobType
 	DB_GetBlobName
 	DB_DumpBlob
+	DB_ReadDatabase
 );
 
 use Gedafe::Util qw(
@@ -122,6 +123,23 @@ sub Start(%)
 		die "Couldn't connect to database or database error";
 	};
 	
+	my $database_p = DB_ReadDatabase($dbh) ;
+	my $query;
+	if( $database_p->{version} >= 7.2){
+		# Set Schema search path
+		$query="SET SEARCH_PATH TO ";
+		if (defined $g{conf}{schema_search_path})   {
+			$query .=  ($g{conf}{schema_search_path}. ";");
+		} elsif (defined $g{conf}{schema})   {
+			$query .= "'" . ($g{conf}{schema} . "';");
+		} else {
+			$query .=" '\$user', 'public';";
+		}
+	}
+
+	my $forget = $dbh->do($query);
+	print STDERR "gedafe.Start. ($query) -> $forget\n"; 
+
 	$s{dbh}=$dbh;
 	$s{user}=$user;
 	$s{ticket_value}=$ticket_value;

@@ -35,6 +35,7 @@ require Exporter;
 	DB_DumpJSITable
 	DB_DumpTable
 	DB_FetchReferencedId
+	DB_ReadDatabase
 );
 
 sub DB_AddRecord($$$);
@@ -62,7 +63,7 @@ sub DB_RawField($$$$);
 sub DB_ReadDatabase($);
 sub DB_ReadFields($$$);
 sub DB_ReadTableAcls($$);
-sub DB_ReadTables($$);
+sub DB_ReadTables($$$);
 sub DB_Record2DB($$$$);
 sub DB_UpdateRecord($$$);
 sub DB_Widget($$);
@@ -92,9 +93,9 @@ sub DB_Init($$)
 
 	# read database
 	$g{db_database} = DB_ReadDatabase($dbh);
-
+	
 	# read tables
-	$g{db_tables} = DB_ReadTables($dbh, $g{db_database});
+	$g{db_tables} = DB_ReadTables($dbh, $g{db_database}, $g{conf}{schema});
 	defined $g{db_tables} or return undef;
 
 	# order tables
@@ -161,9 +162,9 @@ sub DB_ReadDatabase($)
 	return \%database;
 }
 
-sub DB_ReadTables($$)
+sub DB_ReadTables($$$)
 {
-	my ($dbh, $database) = @_;
+	my ($dbh, $database,$schema) = @_;
 	my %tables = ();
 	my ($query, $sth, $data);
 
@@ -172,18 +173,36 @@ sub DB_ReadTables($$)
 	# 7.1: views have relkind 'v'
 
 	# tables
-	$query = <<'END';
+	if($database->{version} >= 7.2){  # be backward compatible
+	$query = <<"END";
+SELECT c.relname, n.nspname
+FROM pg_class c, pg_namespace n
+WHERE (c.relkind = 'r' OR c.relkind = 'v')
+AND   (c.relname !~ '^pg_')
+AND   (c.relnamespace = n.oid) 
+END
+
+	} else { # no schema support before 7.3
+        $query = <<"END";
 SELECT c.relname
 FROM pg_class c
 WHERE (c.relkind = 'r' OR c.relkind = 'v')
-AND c.relname !~ '^pg_'
+AND   (c.relname !~ '^pg_')
 END
+
+	}
 	$sth = $dbh->prepare($query) or return undef;
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
 		$tables{$data->[0]} = { };
 		if($data->[0] =~ /^meta|(_list|_combo)$/) {
 			$tables{$data->[0]}{hide} = 1;
+		}
+		if($database->{version} >= 7.2){
+			# Hide Tables from other schemas
+			if ($data->[1] ne $schema){
+				$tables{$data->[0]}{hide} = 1;
+			}
 		}
 		if($data->[0] =~ /_rep$/) {
 			$tables{$data->[0]}{report} = 1;
@@ -685,8 +704,10 @@ sub DB_FetchListSelect($$)
 	my $v = $spec->{view};
 
 	# does the view/table exist?
-	defined $g{db_fields_list}{$v} or die "no such table: $v\n";
+	defined $g{db_fields_list}{$v}[0] or die "no such table: $v\n";
 
+	print STDERR "View $v\n seems to be defined\n";
+	print STDERR "First el in fieldlist : $g{db_fields_list}{$v}[0]\n";
 	# go through fields and build field list for SELECT (...)
 	my @fields = @{$g{db_fields_list}{$v}};
 	my @select_fields;

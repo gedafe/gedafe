@@ -3,6 +3,14 @@
         =========================================
 
 (arrows indicate actions that you should make when upgrading)
+------------------------------------------------------------------
+HEAD    (2004-02-11)
+  * Added schema support. See gedafe-user.pod. Should work with
+    postgres < 7.3 also. Changes to:
+    NEWS doc/gedafe-sql.pod doc/gedafe-user.pod example/demo1.cgi
+    lib/perl/Gedafe/DB.pm lib/perl/Gedafe/Start.pm
+    	(Johannes)
+------------------------------------------------------------------
 HEAD    (2004-02-09)
   * forgot a #endif in example example/templates/header.html
 ------------------------------------------------------------------
