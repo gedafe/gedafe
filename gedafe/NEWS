@@ -3,6 +3,8 @@
         =========================================
 
 (arrows indicate actions that you should make when upgrading)
+HEAD    (2004-02-09)
+  * forgot a #endif in example example/templates/header.html
 ------------------------------------------------------------------
 HEAD    (2004-02-09
   * New Button to toggle "Print format" and "screen format". Print format
