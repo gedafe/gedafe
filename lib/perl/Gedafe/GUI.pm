@@ -5,7 +5,10 @@
 # released under the GNU General Public License
 
 package Gedafe::GUI;
+
 use strict;
+use Data::Dumper;
+
 use Gedafe::Global qw(%g);
 use Gedafe::DB qw(
 	DB_FetchList
@@ -15,6 +18,7 @@ use Gedafe::DB qw(
 	DB_GetCombo
 	DB_DeleteRecord
 	DB_GetDefault
+	DB_ParseWidget
 	DB_ID2HID
 );
 use Gedafe::Util qw(
@@ -29,7 +33,6 @@ use Gedafe::Util qw(
 );
 
 use POSIX;
-use Data::Dumper;
 
 use vars qw(@ISA @EXPORT_OK);
 require Exporter;
@@ -182,7 +185,7 @@ sub GUI_CheckFormID($$)
 
 	if(!DropUnique($s, $q->param('form_id'))) {
 		print $q->header;
-		GUI_InitTemplateArgs($q, \%template_args);
+		GUI_InitTemplateArgs($s, \%template_args);
 		GUI_Header($s, \%template_args);
 		$template_args{ELEMENT}='doubleform';
 		print Template(\%template_args);
@@ -204,7 +207,7 @@ sub GUI_Entry($$$)
 		PAGE => 'entry',
 	);
 
-	GUI_InitTemplateArgs($q, \%template_args);
+	GUI_InitTemplateArgs($s, \%template_args);
 	GUI_Header($s, \%template_args);
 
 	$template_args{ELEMENT}='tables_list_header',
@@ -254,9 +257,9 @@ sub GUI_Entry($$$)
 	GUI_Footer(\%template_args);
 }
 
-sub GUI_EditLink($$$)
+sub GUI_EditLink($$$$)
 {
-	my ($s, $list, $row) = @_;
+	my ($s, $template_args, $list, $row) = @_;
 	my $edit_url;
 	$edit_url = MakeURL($s->{url}, {
 		action=>'edit',
@@ -265,23 +268,25 @@ sub GUI_EditLink($$$)
 	}); 
 	$template_args->{ELEMENT}='td_edit';
 	$template_args->{EDIT_URL}=$edit_url;
-	print Template(\%template_args);
-	delete $template_args{EDIT_URL};
+	$template_args->{ID}=$row->[0];
+	print Template($template_args);
+	delete $template_args->{EDIT_URL};
+	delete $template_args->{ID};
 }
 
-sub GUI_DeleteLink($$$)
+sub GUI_DeleteLink($$$$)
 {
-	my ($s, $list, $row) = @_;
+	my ($s, $template_args, $list, $row) = @_;
 	my $delete_url;
 	$delete_url =  MakeURL($s->{url}, {
 		action=>'delete',
 		id=>$row->[0],
 		refresh=>NextRefresh,
 	});
-	$template_args{ELEMENT}='td_delete';
-	$template_args{DELETE_URL}=$delete_url;
-	return Template(\%template_args);
-	delete $template_args{DELETE_URL};
+	$template_args->{ELEMENT}='td_delete';
+	$template_args->{DELETE_URL}=$delete_url;
+	return Template($template_args);
+	delete $template_args->{DELETE_URL};
 }
 
 sub GUI_ListTable($$$)
@@ -350,12 +355,12 @@ sub GUI_ListTable($$$)
 			$template_args{DATA}=$d;
 			print Template(\%template_args);
 		}
+		delete $template_args{DATA};
 
-		print GUI_EditLink($s, $list, $row) if $can_edit;
-		print GUI_DeleteLink($s, $list, $row) if $can_delete;
+		GUI_EditLink($s, \%template_args, $list, $row) if $can_edit;
+		GUI_DeleteLink($s, \%template_args, $list, $row) if $can_delete;
 
 		$template_args{ELEMENT}='xtr';
-		delete $template_args{DATA};
 		print Template(\%template_args);
 	}
 
@@ -369,21 +374,32 @@ sub GUI_ListButtons($$$$)
 {
 	my ($s, $list, $page, $position) = @_;
 
+	my %template_args = (
+		USER => $s->{user},
+		PAGE => $page,
+		URL => $s->{url},
+		TABLE => $list->{spec}{view},
+		TITLE => "$g{db_tables}{$list->{spec}{table}}{desc}",
+		TOP => $position eq 'top',
+		BOTTOM => $position eq 'bottom',
+	);
+
 	my $next_refresh = NextRefresh;
 
-	my $nextoffset = $list->{offset}+$list->{limit};
-	my $prevoffset = $list->{offset}-$list->{limit};
+	my $nextoffset = $list->{spec}{offset}+$list->{spec}{limit};
+	my $prevoffset = $list->{spec}{offset}-$list->{spec}{limit};
 	$prevoffset >= 0 or $prevoffset = 0;
 
+	my $can_add = ($list->{acl} =~ /a/);
 	my $add_url  = $can_add ? MakeURL($s->{url}, {
 			action => 'add',
 			refresh => $next_refresh,
 		}) : undef;
 
-	my $prev_url = $list->{offset} != 0 ? MakeURL($s->{url},
+	my $prev_url = $list->{spec}{offset} != 0 ? MakeURL($s->{url},
 		{ offset => $prevoffset }) : undef;
-	my $next_url = $list->{end} ? MakeURL($s->{url},
-		{ offset => $nextoffset }) : undef;
+	my $next_url = $list->{end} ? undef :
+		MakeURL($s->{url}, { offset => $nextoffset });
 
 	$template_args{ELEMENT}='buttons';
 	$template_args{ADD_URL}=$add_url;
@@ -407,7 +423,7 @@ sub GUI_List($$$)
 	);
 
 	# header
-	GUI_InitTemplateArgs($q, \%template_args);
+	GUI_InitTemplateArgs($s, \%template_args);
 	GUI_Header($s, \%template_args);
 
 	# build list-spec
@@ -469,16 +485,14 @@ sub GUI_Hash2Str($)
 	return join(',', @data);
 }
 
-sub GUI_Str2Hash($)
+sub GUI_Str2Hash($$)
 {
-	my ($str) = @_;
-	my %hash = ();
+	my ($str, $hash) = @_;
 	for my $s (split(/,/, $str)) {
 		if($s =~ /^(.*?):(.*)$/) {
-			$hash{$1} = GUI_URL_Decode($2);
+			$hash->{$1} = GUI_URL_Decode($2);
 		}
 	}
-	return \%hash;
 }
 
 sub GUI_WidgetRead($$)
@@ -518,7 +532,7 @@ sub GUI_PostEdit($$$)
 				USER => $user,
 				TITLE => 'Database Error'
 			);
-			GUI_InitTemplateArgs($q, \%template_args);
+			GUI_InitTemplateArgs($s, \%template_args);
 			GUI_Header($s, \%template_args);
 			GUI_DB_Error($g{db_error}, MyURL($q));
 			
@@ -616,7 +630,7 @@ sub GUI_Edit($$$)
 		$next_url = $cancel_url;
 	}
 
-	GUI_InitTemplateArgs($q, \%template_args);
+	GUI_InitTemplateArgs($s, \%template_args);
 	GUI_Header($s, \%template_args);
 
 	# FORM
@@ -666,7 +680,7 @@ sub GUI_Edit($$$)
 		if($field eq "${table}_id") { next; }
 
 		my $value = exists $values{$field} ? $values{$field} : '';
-		my $inputelem = GUI_EditField($s,$dbh,$table,$field,$value);
+		my $inputelem = GUI_WidgetWrite($dbh,$table,$field,$value);
 
 		$template_args{ELEMENT} = 'editfield';
 		$template_args{FIELD} = $field;
@@ -725,9 +739,12 @@ sub GUI_MakeCombo($$$$$)
 	}
 }
 
-sub GUI_EditField($$$$)
+sub GUI_WidgetWrite($$$$)
 {
-	my ($dbh, $table, $field, $value) = @_;
+	my $dbh = shift;
+	my $table = shift;
+	my $field = shift;
+	my $value = shift;
 
 	my $f = $g{db_fields}{$table}{$field};
 
@@ -739,60 +756,47 @@ sub GUI_EditField($$$$)
 		}
 	}
 
-	if($widget eq 'readonly') {
+	my ($w, $warg) = DB_ParseWidget($g{db_fields}{$table}, $f->{widget});
+
+	if($w eq 'readonly') {
 		return $value || '&nbsp;';
 	}
-
-	if($widget eq 'area') {
-		return "<TEXTAREA NAME=\"field_$field\" ROWS=\"4\" COLS=\"60\" WRAP=\"virtual\">".
-			$value."</TEXTAREA>";
+	if($w eq 'text') {
+		my $size = defined $warg->{size} ? $warg->{size} : '20';
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"$size\" VALUE=\"".$value."\">";
 	}
-	if($type eq 'date') {
+	if($w eq 'area') {
+		my $rows = defined $warg->{rows} ? $warg->{rows} : '4';
+		my $cols = defined $warg->{cols} ? $warg->{cols} : '60';
+		return "<TEXTAREA NAME=\"field_$field\" ROWS=\"$rows\" COLS=\"$cols\" WRAP=\"virtual\">".$value."</TEXTAREA>";
+	}
+        if($w eq 'varchar') {
+		my $size = defined $warg->{size} ? $warg->{size} : '20';
+		my $maxlength = defined $warg->{maxlength} ? $warg->{maxlength} : '100';
+                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"$size\" MAXLENGTH=\"$maxlength\" VALUE=\"$value\">";
+        }
+	if($w eq 'checkbox') {
+		return "<INPUT TYPE=\"checkbox\" NAME=\"field_$field\" VALUE=\"1\"".($value ? 'CHECKED' : '').">";
+	}
+	if($w eq 'hid') {
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
 	}
-	if($type eq 'time') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
-	}
-	if($type eq 'timestamp') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"22\" VALUE=\"".$value."\">";
-	}
-	if($type eq 'int4') {
+	if($w eq 'idcombo' or $w eq 'hidcombo') {
 		my $out;
-		if(exists $meta->{ref_combo}) {
-			$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10>";
+		my $combo = GUI_MakeCombo($dbh, $table, $field, "combo_$field", $value);
+		if($w eq 'hidcombo') {
+			# replace value with HID if 'hidcombo'
+			$value = DB_ID2HID($dbh,$warg->{'ref'},$value);
 		}
-		else {
-			$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=\"$value\">";
+		$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10";
+		if($combo !~ /SELECTED/) {
+			$out .= " VALUE=\"$value\"";
 		}
-		$out .= GUI_MakeCombo($dbh, $table, $field, "combo_$field", $value);
+		$out .= ">\n$combo";
 		return $out;
 	}
-	if($type eq 'numeric' or $type eq 'float8') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"$value\">";
-	}
-	if($type eq 'bpchar') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"30\" VALUE=\"$value\">";
-	}
-	if($type eq 'text') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"40\" VALUE=\"$value\">";
-	}
-        if($type eq 'varchar') {                                                                                            
-                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" MAXLENGTH=\"$length\" VALUE=\"$value\">";        
-        }                                                                                                                   
 
-	if($type eq 'name') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" VALUE=\"$value\">";
-	}
-	if($type eq 'bool') {
-		if($value) {
-			return "<INPUT TYPE=\"checkbox\" NAME=\"field_$field\" VALUE=\"1\" CHECKED>";
-		}
-		else {
-			return "<INPUT TYPE=\"checkbox\" NAME=\"field_$field\" VALUE=\"1\">";
-		}
-	}
-
-	return "Unknown type: $type";
+	return "Unknown widget: $w";
 }
 
 sub GUI_Delete($$$)
@@ -812,7 +816,7 @@ sub GUI_Delete($$$)
 		NEXT_URL => $next_url,
 	);
 
-	GUI_InitTemplateArgs($q, \%template_args);
+	GUI_InitTemplateArgs($s, \%template_args);
 	GUI_Header($s, \%template_args);
 	UniqueFormStart($s, $next_url);
 

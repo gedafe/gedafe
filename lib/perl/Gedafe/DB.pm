@@ -6,6 +6,7 @@
 
 package Gedafe::DB;
 use strict;
+use Data::Dumper;
 
 use Gedafe::Global qw(%g);
 
@@ -24,6 +25,7 @@ require Exporter;
 	DB_GetCombo
 	DB_DeleteRecord
 	DB_GetDefault
+	DB_ParseWidget
 	DB_ID2HID
 	DB_HID2ID
 );
@@ -341,8 +343,7 @@ sub DB_Widget($$)
 # Parse widget specification, split args, verify if it is a valid widget
 sub DB_ParseWidget($$)
 {
-	my $fields = shift;
-	my $widget = shift;
+	my ($fields, $widget) = @_;
 	$widget =~ /^(\w+)(\((.*)\))?$/ or die "syntax error for widget: $widget";
 	my ($type, $args_str) = ($1, $3);
 	my %args=();
@@ -506,25 +507,13 @@ END
 				$m = $meta_fields{$table}{$field};
 			}
 			if(defined $m) {
-				$f->{widget}    = $m->{widget}    if exists $m->{widget};
-				$f->{reference} = $m->{reference} if exists $m->{reference};
-				$f->{copy}      = $m->{copy}      if exists $m->{copy};
-				$f->{sortfunc}  = $m->{sortfunc}  if exists $m->{sortfunc};
+				$f->{widget}    = $m->{widget};
+				$f->{reference} = $m->{reference};
+				$f->{copy}      = $m->{copy};
+				$f->{sortfunc}  = $m->{sortfunc};
 			}
-			if(! exists $f->{reference}) {
-				next field;
-			}
-			my $ref = $f->{reference};
-			if(! exists $tables->{$ref}) {
-				next field;
-			}
-			my $rt = $tables->{$ref};
-
-			if(exists $rt->{combo}) {
-				$f->{ref_combo} = 1;
-			}
-			if(exists $fields{$ref}{"${ref}_hid"}) {
-				$f->{ref_hid} = 1;
+			if(! defined $f->{widget}) {
+				$f->{widget} = DB_Widget(\%fields, $f);
 			}
 		}
 	}
@@ -684,9 +673,11 @@ sub DB_FetchList($$)
 	# can find out when we are at the end
 	$spec->{limit}++;
 
-	my %list;
-	$list{spec} = $spec;
-	$list{acl} = $acl;
+	my %list = (
+		spec => $spec,
+		acl  => $acl,
+		data => [],
+	);
 	my $sth;
 	($list{fields}, $sth) = DB_FetchListSelect($dbh, $spec);
 
