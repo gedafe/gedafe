@@ -1206,7 +1206,7 @@ sub GUI_EditField($$$$)
 			$value."</TEXTAREA>";
 	}
 	if($type eq 'date') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$escval."\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"11\" VALUE=\"".$escval."\">";
 	}
 	if($type eq 'time') {
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$escval."\">";
@@ -1225,7 +1225,7 @@ sub GUI_EditField($$$$)
 		$out .= GUI_MakeCombo($dbh, $table, $field, "combo_$field", $value);
 		return $out;
 	}
-	if($type eq 'numeric' or $type eq 'float8') {
+	if($type eq 'numeric' or $type eq 'float4' or $type eq 'float8') {
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"$escval\">";
 	}
 	if($type eq 'bpchar') {

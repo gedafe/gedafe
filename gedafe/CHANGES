@@ -1,3 +1,7 @@
+2003-02-17
+----------
+* bigger text field for dates, float4
+
 2002-11-28
 ----------
 * try to enforce strict ordering to make the scrolling while sorting on a
