@@ -1,3 +1,11 @@
+2002-04-11
+----------
+* released 1.0.7
+* added documentation about configuration of password or crypt authentication
+  in PostgreSQL
+* PostgreSQL 7.2.1 wasn't correctly detected (reported by
+  Freek Zindel <freek@zindel.nl>)
+
 2002-03-17
 ----------
 * released 1.0.6
