@@ -119,11 +119,15 @@ sub DB_ReadTables($)
 
 	my ($query, $sth, $data, $table);
 
+	# combo
+	# 7.0: views have relkind 'r'
+	# 7.1: views have relkind 'v'
+
 	# tables
 	$query = <<'END';
 SELECT c.relname
 FROM pg_class c
-WHERE c.relkind = 'r'
+WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND c.relname !~ '^pg_'
 END
 	$sth = $dbh->prepare($query) or return undef;
@@ -144,7 +148,7 @@ END
 	$query = <<'END';
 SELECT c.relname, d.description 
 FROM pg_class c, pg_description d
-WHERE c.relkind = 'r'
+WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND c.relname !~ '^pg_'
 AND c.relname !~ '(^meta_|_combo$)'
 AND c.oid = d.objoid
@@ -184,8 +188,7 @@ END
 	}
 	$sth->finish;
 	
-	# combo
-	$query = "SELECT 1 FROM pg_class c WHERE c.relkind = 'r' AND c.relname = ?";
+	$query = "SELECT 1 FROM pg_class c WHERE (c.relkind = 'r' OR c.relkind='v') AND c.relname = ?";
 	$sth = $dbh->prepare($query);
 	for $table (keys %tables) {
 		$sth->execute("${table}_combo");
