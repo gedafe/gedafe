@@ -12,24 +12,24 @@ Tobias Oetiker and David Schweikert are proud to announce:
 Introduction
 ------------
 
-    Gedafe (the Generic Database Frontend) is an application independent
-    web frontend for databases. This means that the frontend doesn't
-    contain any information about what structure and contents of the
-    database.
+    Gedafe (Generic Database Frontend) is an application independent
+    end-user web frontend for databases. Application independant means,
+    that the frontend doesn't have any information about the
+    structure and contents of the database.
 
-    The idea is to put all the application logic into the database,
-    along with meta-information on how to present the data and then to
-    use a generic frontend that gathers this information and uses it
+    The idea behind the Gedafe is to put all the application logic
+    into the database, along with meta-information on how to present
+    the data. The frontend then gathers this information and uses it
     to build the user interface. This approach greatly reduces
-    development time since you only have to develop the application
-    at the database level and the web frontend comes for free.
+    development time since you only have to develop the application at
+    the database level and the web frontend comes for free.
 
     And there is more:
   
     * Gedafe also uses a flexible templating system. It allows you
       customize the look of the user interface to large degree.
 
-    * Gedafe generated interfaces also supports "deep linking" this
+    * Gedafe generated interfaces support "deep linking" this
       means that you can bookmark every page as it is presented.
 
     * At the moment Gedafe works only with PostgreSQL. But the
@@ -37,7 +37,6 @@ Introduction
 
     * Gedafe is *NOT* yet another database-administration frontend
       with table editing ability. It is a real user interface.
-
 
 Release Notes
 -------------
