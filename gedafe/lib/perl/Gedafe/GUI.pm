@@ -1,5 +1,5 @@
 # Gedafe, the Generic Database Frontend
-# copyright (c) 2000, ETH Zurich
+# copyright (c) 2000,2001 ETH Zurich
 # see http://isg.ee.ethz.ch/tools/gedafe
 
 # released under the GNU General Public License
@@ -7,47 +7,42 @@
 package Gedafe::GUI;
 use strict;
 use Gedafe::Global qw(%g);
-use Gedafe::DB;
-use Gedafe::Util;
+use Gedafe::DB qw(
+	DB_FetchList
+	DB_GetRecord
+	DB_AddRecord
+	DB_UpdateRecord
+	DB_GetCombo
+	DB_DeleteRecord
+	DB_GetDefault
+	DB_ID2HID
+);
+use Gedafe::Util qw(
+	ConnectToTicketsDaemon
+	MakeURL
+	MyURL
+	Template
+	Error
+	DropUnique
+	UniqueFormStart
+	UniqueFormEnd
+	NextRefresh
+);
 
-use CGI;
-#use CGI::Carp; 
 use POSIX;
 
-use vars qw(@ISA @EXPORT);
+use vars qw(@ISA @EXPORT_OK);
 require Exporter;
 @ISA       = qw(Exporter);
-@EXPORT    = qw(
+@EXPORT_OK    = qw(
 	GUI_Entry
 	GUI_List
 	GUI_ListRep
-	GUI_Form
-	GUI_xForm
 	GUI_CheckFormID
 	GUI_PostEdit
 	GUI_Edit
 	GUI_Delete
-	GUI_DB_Error
-	GUI_DB_Error_Form
-	GUI_NextRefresh
 );
-
-sub rand_ascii_32
-{
-	return sprintf "%04x%04x", rand()*(1<<16), rand()*(1<<16);
-}
-
-sub GUI_NextRefresh(;$)
-{
-	return rand_ascii_32;
-	#my $q = shift;
-	#my $refresh = $q->url_param('refresh') || 0;
-	#$refresh++;
-	#if($refresh >= 1000) {
-	#	$refresh=0;
-	#}
-	#return $refresh;
-}
 
 sub GUI_DB2HTML($$)
 {
@@ -56,16 +51,21 @@ sub GUI_DB2HTML($$)
 
 	# undef -> ''
 	$str = '' unless defined $str;
+
 	# trim space
 	$str =~ s/^\s+//;
 	$str =~ s/\s+$//;
 
 	if($type eq 'bool') {
-		$str = ($str =~ /^(t|true|y|yes|TRUE|1)$/ ? 'yes' : 'no');
+		$str = ($str ? 'yes' : 'no');
+	}
+	if($type eq 'text' and $str !~ /<[^>]+>/) { #make sure the text does not contain html
+		$str =~ s/\n/<BR>/g;
 	}
 	if($str eq '') {
 		$str = '&nbsp;';
 	}
+
 	return $str;
 }
 
@@ -74,7 +74,9 @@ sub GUI_InitTemplateArgs($$)
 	my $q = shift;
 	my $args = shift;
 
-	my $refresh = GUI_NextRefresh($q);
+	my $refresh = NextRefresh();
+
+	$args->{DATABASE_DESC}=$g{db_database}{desc};
 
 	$args->{DOCUMENTATION_URL}=$g{conf}{documentation_url};
 	$args->{THEME}=$q->url_param('theme');
@@ -116,8 +118,9 @@ sub GUI_InitTemplateArgs($$)
 			});
 }
 
-sub GUI_Header($)
+sub GUI_Header($$)
 {
+	my $s = shift;
 	my $args = shift;
 
 	$args->{ELEMENT}='header';
@@ -150,6 +153,8 @@ sub GUI_Header($)
 	print Template($args);
 
 	delete $args->{ELEMENT};
+
+	$s->{header_sent}=1;
 }
 
 sub GUI_Footer($)
@@ -162,7 +167,8 @@ sub GUI_Footer($)
 
 sub GUI_Edit_Error($$$$$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $user = shift;
 	my $str = shift;
 	my $form_url = shift;
@@ -182,7 +188,7 @@ sub GUI_Edit_Error($$$$$$)
 	);
 
 	GUI_InitTemplateArgs($q, \%template_args);
-	GUI_Header(\%template_args);
+	GUI_Header($s, \%template_args);
 
 	$template_args{ELEMENT}='edit_error';
 	print Template(\%template_args);
@@ -191,97 +197,12 @@ sub GUI_Edit_Error($$$$$$)
 	exit;
 }
 
-sub GUI_DB_Error($$)
-{
-	my $str = shift;
-	my $url = shift;
-
-	print Template({
-		PAGE => 'db_error',
-		ELEMENT => 'db_error',
-		ERROR => $str,
-		NEXT_URL => $url,
-	});
-	exit;
-}
-
-sub GUI_Form($)
-{
-	my $action = shift;
-	print "<FORM ACTION=\"$action\" METHOD=\"POST\">\n";
-}
-
-sub GUI_GetUnique
-{
-	# unique_id
-	my $socket = ConnectToTicketsDaemon();
-	print $socket "SITE $g{conf}{app_site} $g{conf}{app_path}\n";
-	<$socket>;
-	print $socket "GETUNIQUE\n";
-	$_ = <$socket>;
-	close($socket);
-	if(! /^([\w-]+)$/) {
-		die "Couldn't understand ticket daemon reply: $_";
-	}
-	return $1;
-}
-
-sub GUI_DropUnique($)
-{
-	my $unique_id = shift;
-	if(defined $unique_id) {
-		my $socket = ConnectToTicketsDaemon();
-		print $socket "SITE $g{conf}{app_site} $g{conf}{app_path}\n";
-		<$socket>;
-		print $socket "DROPUNIQUE $unique_id\n";
-		$_ = <$socket>;
-		close($socket);
-		if(!/^OK$/) {
-			return 0;
-		}
-	}
-	return 1;
-}
-
-sub GUI_xForm($;$)
-{
-	my $form_url = shift;
-	my $next_url = shift || $form_url;
-	#my $form_data = shift;
-
-	my $form_id = GUI_GetUnique;
-
-	print "\n<INPUT TYPE=\"hidden\" NAME=\"form_id\" VALUE=\"$form_id\">\n";
-	print "<INPUT TYPE=\"hidden\" NAME=\"form_url\" VALUE=\"$form_url\">\n";
-	print "<INPUT TYPE=\"hidden\" NAME=\"next_url\" VALUE=\"$next_url\">\n";
-	print "</FORM>\n";
-}
-
-#$sub GUI_CheckUniqueID($$)
-#{
-#	my $user = shift;
-#	my $q = shift;
-#
-#	my %template_args = (
-#		PAGE => 'doubleurl',
-#		USER => $user,
-#		TITLE => "Duplicate Action URL",
-#	);
-#
-#	if(!GUI_DropUnique($q->url_param('unique_id'))) {
-#		print $q->header;
-#		GUI_Header($q, \%template_args);
-#		$template_args{ELEMENT}='doubleurl';
-#		print Template(\%template_args);
-#		GUI_Footer("doubleurl");
-#		exit;
-#	}
-#}
-
+# fixme: move to Util
 sub GUI_CheckFormID($$)
 {
+	my $s = shift;
 	my $user = shift;
-	my $q = shift;
+	my $q = $s->{cgi};
 
 	my $next_url = $q->param('next_url');
 	my %template_args = (
@@ -291,10 +212,10 @@ sub GUI_CheckFormID($$)
 		NEXT_URL => $next_url,
 	);
 
-	if(!GUI_DropUnique($q->param('form_id'))) {
+	if(!DropUnique($s, $q->param('form_id'))) {
 		print $q->header;
 		GUI_InitTemplateArgs($q, \%template_args);
-		GUI_Header(\%template_args);
+		GUI_Header($s, \%template_args);
 		$template_args{ELEMENT}='doubleform';
 		print Template(\%template_args);
 		GUI_Footer(\%template_args);
@@ -304,11 +225,12 @@ sub GUI_CheckFormID($$)
 
 sub GUI_Entry($$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $user = shift;
 	my $dbh = shift;
 
-	my $refresh = GUI_NextRefresh($q);
+	my $refresh = NextRefresh();
 
 	my %template_args = (
 		USER => $user,
@@ -317,7 +239,7 @@ sub GUI_Entry($$$)
 	);
 
 	GUI_InitTemplateArgs($q, \%template_args);
-	GUI_Header(\%template_args);
+	GUI_Header($s, \%template_args);
 
 	$template_args{ELEMENT}='tables_list_header',
 	print Template(\%template_args);
@@ -325,6 +247,8 @@ sub GUI_Entry($$$)
 	my $t;
 	$template_args{ELEMENT}='entrytable';
 	foreach $t (@{$g{db_editable_tables_list}}) {
+		if(defined $g{db_tables}{$t}{acls}{$user} and
+			$g{db_tables}{$t}{acls}{$user} !~ /r/) { next; }
 		my $desc = $g{db_tables}{$t}{desc};
 		$desc =~ s/ /&nbsp;/g;
 		$template_args{TABLE_DESC}=$desc;
@@ -343,6 +267,8 @@ sub GUI_Entry($$$)
 
 	$template_args{ELEMENT}='entrytable';
 	foreach $t (@{$g{db_report_views}}) {
+		if(defined $g{db_tables}{$t}{acls}{$user} and
+			$g{db_tables}{$t}{acls}{$user} !~ /r/) { next; }
 		my $desc = $g{db_tables}{$t}{desc};
 		$desc =~ s/ /&nbsp;/g;
 		$template_args{TABLE_DESC}=$desc;
@@ -360,19 +286,20 @@ sub GUI_Entry($$$)
 
 sub GUI_FilterFirst($$$$)
 {
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $dbh = shift;
-	my $q = shift;
 	my $view = shift;
 	my $template_args = shift;
 	my $myurl = MyURL($q);
-	my $filterfirst_field = $g{db_tables}{$view}{filterfirst};
+	my $filterfirst_field = $g{db_tables}{$view}{meta}{filterfirst};
 	my $filterfirst_value = $q->url_param('filterfirst') || $q->url_param('combo_filterfirst') || '';
 
 	# filterfirst
 	if(defined $filterfirst_field)
 	{
 		if(not defined $g{db_fields}{$view}{$filterfirst_field}{ref_combo}) {
-			GUI_DB_Error("combo not found for $filterfirst_field.", $myurl);
+			Error($s, "combo not found for $filterfirst_field.");
 		}
 		else {
 			my $filterfirst_combo = GUI_MakeCombo($dbh, $view, $filterfirst_field, "combo_filterfirst", $filterfirst_value);
@@ -387,7 +314,7 @@ sub GUI_FilterFirst($$$$)
 			$template_args->{FILTERFIRST_FIELD_DESC}=$g{db_fields}{$view}{$filterfirst_field}{desc};
 			$template_args->{FILTERFIRST_COMBO}=$filterfirst_combo;
 			$template_args->{FILTERFIRST_HIDDEN}=$filterfirst_hidden;
-			$template_args->{FILTERFIRST_ACTION}=$g{conf}{app_url};
+			$template_args->{FILTERFIRST_ACTION}=$s->{url};
 			print Template($template_args);
 			delete $template_args->{ELEMENT};
 			delete $template_args->{FILTERFIRST_FIELD};
@@ -404,7 +331,8 @@ sub GUI_FilterFirst($$$$)
 
 sub GUI_Search($$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $view = shift;
 	my $template_args = shift;
 	my $search_field = $q->url_param('search_field') || '';
@@ -432,7 +360,7 @@ sub GUI_Search($$$)
 		$search_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
 	}
 	$template_args->{ELEMENT} = 'search';
-	$template_args->{SEARCH_ACTION} = $g{conf}{app_url};
+	$template_args->{SEARCH_ACTION} = $s->{url};
 	$template_args->{SEARCH_COMBO} = $search_combo;
 	$template_args->{SEARCH_HIDDEN} = $search_hidden;
 	$template_args->{SEARCH_VALUE} = $search_value;
@@ -464,18 +392,35 @@ sub GUI_Search($$$)
 
 sub GUI_List($$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $user = shift;
 	my $dbh = shift;
 	my $myurl = MyURL($q);
 	my $table = $q->url_param('table');
 	my $orderby = $q->url_param('orderby') || '';
 	my $descending = $q->url_param('descending') || '';
-	my $can_add = ($g{db_tables}{$table}{acls}{$user} =~ /a/);
-	my $can_edit = ($g{db_tables}{$table}{acls}{$user} =~ /w/);
-	my $can_delete = ($g{db_tables}{$table}{acls}{$user} =~ /w/);
+	my $acl = defined $g{db_tables}{$table}{acls}{$user} ?
+		$g{db_tables}{$table}{acls}{$user} : '';
+	my $can_add = ($acl =~ /a/);
+	my $can_edit = ($acl =~ /w/);
+	my $can_delete = ($acl =~ /w/);
 
-	my $next_refresh = GUI_NextRefresh($q);
+	my $next_refresh = NextRefresh();
+
+	# select view / table
+	my $view;
+	if(exists $g{db_tables}{"${table}_list"}) {
+		$view = "${table}_list";
+	}
+	else {
+		$view = $table;
+	}
+
+	# does the view/table exist?
+	if(not defined $g{db_fields_list}{$view}) {
+		Error($s, "no such table: $view\n");
+	}
 
 	my %template_args = (
 		USER => $user,
@@ -485,33 +430,18 @@ sub GUI_List($$$)
 		TITLE => "$g{db_tables}{$table}{desc}",
 	);
 	
-	# select view / table
-	my $view;
-	if(exists $g{db_tables}{"${table}_list"}) {
-		$view = "${table}_list";
-	}
-	else {
-		$view = $table;
-	}
-	if(not defined $g{db_fields_list}{$view}) {
-		GUI_InitTemplateArgs($q, \%template_args);
-		GUI_Header(\%template_args);
-		print "<P>Can't find table $view\n";
-		GUI_Footer(\%template_args);
-		return;
-	}
 	my @fields_list = @{$g{db_fields_list}{$view}};
 	my $fields = $g{db_fields}{$view};
 
 	# header
 	GUI_InitTemplateArgs($q, \%template_args);
-	GUI_Header(\%template_args);
+	GUI_Header($s, \%template_args);
 
 	# filterfirst
-	my ($filterfirst_field, $filterfirst_value) =  GUI_FilterFirst($dbh, $q, $table, \%template_args);
+	my ($filterfirst_field, $filterfirst_value) =  GUI_FilterFirst($s, $dbh, $table, \%template_args);
 
 	# search
-	my ($search_field, $search_value) = GUI_Search($q, $view, \%template_args);
+	my ($search_field, $search_value) = GUI_Search($s, $view, \%template_args);
 
 	# TABLE
 	$template_args{ELEMENT}='table';
@@ -689,7 +619,7 @@ sub GUI_List($$$)
 	print Template(\%template_args);
 
 	if(defined $error) {
-		GUI_DB_Error($error,$myurl);
+		Error($s, $error);
 	}
 
 	# buttons
@@ -714,7 +644,8 @@ sub GUI_List($$$)
 
 sub GUI_ListRep($$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $user = shift;
 	my $dbh = shift;
 	my $myurl = MyURL($q);
@@ -732,7 +663,7 @@ sub GUI_ListRep($$$)
 	
 	if(not defined $g{db_fields_list}{$view}) {
 		GUI_InitTemplateArgs($q, \%template_args);
-		GUI_Header(\%template_args);
+		GUI_Header($s, \%template_args);
 		print "<P>Can't find table $view\n";
 		GUI_Footer(\%template_args);
 		return;
@@ -742,13 +673,13 @@ sub GUI_ListRep($$$)
 
 	# header
 	GUI_InitTemplateArgs($q, \%template_args);
-	GUI_Header(\%template_args);
+	GUI_Header($s, \%template_args);
 
 	# filterfirst
-	my ($filterfirst_field, $filterfirst_value) =  GUI_FilterFirst($dbh, $q, $view, \%template_args);
+	my ($filterfirst_field, $filterfirst_value) =  GUI_FilterFirst($s, $dbh, $view, \%template_args);
 
 	# search
-	my ($search_field, $search_value) = GUI_Search($q, $view, \%template_args);
+	my ($search_field, $search_value) = GUI_Search($s, $view, \%template_args);
 
 	# orderby
 	if($orderby eq '') {
@@ -841,7 +772,7 @@ sub GUI_ListRep($$$)
 	print Template(\%template_args);
 
 	if(defined $error) {
-		GUI_DB_Error($error,$myurl);
+		Error($s, $error);
 	}
 
 	# buttons
@@ -859,15 +790,20 @@ sub GUI_ListRep($$$)
 	GUI_Footer(\%template_args);
 }
 
+# CGI.pm already encodes/decodes parameters, but we want to do it ourselves
+# since we need to differentiate for example in reedit_data between a comma
+# as value and a comma as separator. Therefore we use the escape '!' instead
+# of '%'.
 sub GUI_URL_Encode($)
 {
-	my @encode_chars = ('&', '+', '>', '<', ' ', '%', '/', '?', ';', "\n", "\r", ':', ',');
+	my @encode_chars = ('&', '+', '>', '<', ' ', '%', '!', '/', '?', ';', "\n", "\r", ':', ',');
 	my $str = shift;
 	my $enc = '';
 	my $c;
+	defined $str or return '';
 	foreach $c (split //, $str) {
 		if(grep { $c eq $_ } @encode_chars) {
-			$enc .= '%'.sprintf('%2X',ord($c));
+			$enc .= '!'.sprintf('%2X',ord($c));
 		}
 		else {
 			$enc .= $c;
@@ -879,7 +815,7 @@ sub GUI_URL_Encode($)
 sub GUI_URL_Decode($)
 {
 	$_ = shift;
-	s/%(\d\d)/chr(hex($1))/ge;
+	s/!([0-9a-fA-F]{2})/pack("c",hex($1))/ge;
 	return $_;
 }
 
@@ -900,19 +836,17 @@ sub GUI_Str2Hash($$)
 	my $str = shift;
 	my $hash = shift;
 
-	foreach(split(/,/, $str)) {
-		if(/^(.*?):(.*)$/) {
+	foreach my $s (split(/,/, $str)) {
+		if($s =~ /^(.*?):(.*)$/) {
 			$hash->{$1} = GUI_URL_Decode($2);
 		}
-#		else {
-#			print "<P>ERROR: $_\n";
-#		}
 	}
 }
 
 sub GUI_PostEdit($$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $user = shift;
 	my $dbh = shift;
 
@@ -927,14 +861,18 @@ sub GUI_PostEdit($$$)
 	if($action eq 'delete') {
 		if(!DB_DeleteRecord($dbh,$table,$q->param('id'))) {
 			my %template_args = (
-				PAGE => 'dberror',
+				PAGE => 'db_error',
 				USER => $user,
 				TITLE => 'Database Error'
 			);
 			GUI_InitTemplateArgs($q, \%template_args);
-			GUI_Header(\%template_args);
-
+			GUI_Header($s, \%template_args);
 			GUI_DB_Error($dbh->errstr, MyURL($q));
+			
+			$template_args{ELEMENT}='db_error';
+			$template_args{ERROR}=$dbh->errstr;
+			$template_args{NEXT_URL}=MyURL($q);
+			print Template(\%template_args);
 
 			GUI_Footer(\%template_args);
 		}
@@ -964,7 +902,7 @@ sub GUI_PostEdit($$$)
 		my $err;
 		if(!DB_AddRecord($dbh,$table,\%record,\$err)) {
 			my $data = GUI_Hash2Str(\%record);
-			GUI_Edit_Error($q, $user, $err, $q->param('form_url'), $data, $action);
+			GUI_Edit_Error($s, $user, $err, $q->param('form_url'), $data, $action);
 		}
 	}
 	elsif($action eq 'edit') {
@@ -972,14 +910,15 @@ sub GUI_PostEdit($$$)
 		my $err;
 		if(!DB_UpdateRecord($dbh,$table,\%record,\$err)) {
 			my $data = GUI_Hash2Str(\%record);
-			GUI_Edit_Error($q, $user, $err, $q->param('form_url'), $data, $action);
+			GUI_Edit_Error($s, $user, $err, $q->param('form_url'), $data, $action);
 		}
 	}
 }
 
 sub GUI_Edit($$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $user = shift;
 	my $dbh = shift;
 	my $action = $q->url_param('action');
@@ -993,8 +932,7 @@ sub GUI_Edit($$$)
 	}
 
 	if(not exists $g{db_tables}{$table}) {
-		print "<p>Error: no such table ($table).\n";
-		exit;
+		Error($s, "Error: no such table ($table).");
 	}
 
 	my $title = $g{db_tables}{$table}{desc};
@@ -1010,7 +948,7 @@ sub GUI_Edit($$$)
 		REEDIT => $reedit,
 	);
 	
-	my $form_url = MakeURL(MyURL($q), { refresh => GUI_NextRefresh($q) });
+	my $form_url = MakeURL(MyURL($q), { refresh => NextRefresh() });
 	my $next_url;
 	my $cancel_url = MakeURL($form_url, {
 		action => 'list',
@@ -1020,6 +958,7 @@ sub GUI_Edit($$$)
 	});
 	if($action eq 'add') {
 		$next_url = MakeURL($form_url, {
+			action => $action,
 			reedit_action => '',
 			reedit_data => '',
 		});
@@ -1029,10 +968,10 @@ sub GUI_Edit($$$)
 	}
 
 	GUI_InitTemplateArgs($q, \%template_args);
-	GUI_Header(\%template_args);
+	GUI_Header($s, \%template_args);
 
 	# FORM
-	GUI_Form($next_url);
+	UniqueFormStart($next_url);
 	print "<INPUT TYPE=\"hidden\" NAME=\"post_action\" VALUE=\"$action\">\n";
 
 	# Initialise values
@@ -1048,10 +987,13 @@ sub GUI_Edit($$$)
 	}
 	elsif($action eq 'add') {
 		# take filterfirst value if set
-		my $ff_field = $g{db_tables}{$table}{filterfirst};
+		my $ff_field = $g{db_tables}{$table}{meta}{filterfirst};
 		my $ff_value = $q->url_param('filterfirst') || $q->url_param('combo_filterfirst') || '';
 		if(defined $ff_value and defined $ff_field) {
-			$values{$ff_field} = DB_ID2HID($dbh, $table, $g{db_tables}{$table}{filterfirst}, $ff_value);
+			if(defined $g{db_fields}{$table}{$ff_field}{ref_hid}) {
+				# convert ID reference to HID
+				$values{$ff_field} = DB_ID2HID($dbh, $g{db_fields}{$table}{$ff_field}{reference}, $ff_value);
+			}
 		}
 		# copy fields from previous add form
 		foreach(@fields_list) {
@@ -1076,11 +1018,6 @@ sub GUI_Edit($$$)
 
 		my $value = exists $values{$field} ? $values{$field} : '';
 		my $inputelem = GUI_EditField($dbh,$table,$field,$value);
-		if(not defined $inputelem) {
-			GUI_xForm($form_url, $next_url);
-			GUI_DB_Error($dbh->errstr, $form_url);
-			return;
-		}
 
 		$template_args{ELEMENT} = 'editfield';
 		$template_args{FIELD} = $field;
@@ -1101,7 +1038,7 @@ sub GUI_Edit($$$)
 	$template_args{CANCEL_URL} = $cancel_url;
 	print Template(\%template_args);
 
-	GUI_xForm($form_url, $next_url);
+	UniqueFormEnd($s, $form_url, $next_url);
 	GUI_Footer(\%template_args);
 }
 
@@ -1125,12 +1062,13 @@ sub GUI_MakeCombo($$$$$)
 			return undef;
 		}
 		$str = "<SELECT SIZE=\"1\" name=\"$name\">\n";
-                # the emptz option must not be empty! else the MORE ... disapears off screen
+                # the empty option must not be empty! else the MORE ... disapears off screen
 		$str .= "<OPTION VALUE=\"\">Make your Choice ...</OPTION>\n";
 		foreach(@combo) {
 			my $id = $_->[0];
 			$id=~s/^\s+//; $id=~s/\s+$//;
-			my $text = "$_->[0] -- $_->[1]";
+			#my $text = "$_->[0] -- $_->[1]";
+			my $text = $_->[1];
 			if($value eq $id) {
 				$str .= "<OPTION SELECTED VALUE=\"$id\">$text</OPTION>\n";
 			}
@@ -1151,7 +1089,8 @@ sub GUI_EditField($$$$)
 
 	my $meta = $g{db_fields}{$table}{$field};
 	my $type = $meta->{type};
-	my $widget = $meta->{widget} || '';
+        my $length = $meta->{atttypmod}-4;
+ 	my $widget = $meta->{widget} || '';
 
 	if(not defined $value or $value eq '') {
 		$value = DB_GetDefault($dbh,$table,$field);
@@ -1169,10 +1108,13 @@ sub GUI_EditField($$$$)
 			$value."</TEXTAREA>";
 	}
 	if($type eq 'date') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=".$value.">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
 	}
 	if($type eq 'time') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=".$value.">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
+	}
+	if($type eq 'timestamp') {
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"22\" VALUE=\"".$value."\">";
 	}
 	if($type eq 'int4') {
 		my $out;
@@ -1186,16 +1128,20 @@ sub GUI_EditField($$$$)
 		return $out;
 	}
 	if($type eq 'numeric' or $type eq 'float8') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"$value\">";
 	}
 	if($type eq 'bpchar') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=30 VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"30\" VALUE=\"$value\">";
 	}
 	if($type eq 'text') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=40 VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"40\" VALUE=\"$value\">";
 	}
+        if($type eq 'varchar') {                                                                                            
+                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" MAXLENGTH=\"$length\" VALUE=\"$value\">";        
+        }                                                                                                                   
+
 	if($type eq 'name') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=20 VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" VALUE=\"$value\">";
 	}
 	if($type eq 'bool') {
 		if($value) {
@@ -1211,7 +1157,8 @@ sub GUI_EditField($$$$)
 
 sub GUI_Delete($$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $user = shift;
 	my $dbh = shift;
 	my $table = $q->url_param('table');
@@ -1228,15 +1175,15 @@ sub GUI_Delete($$$)
 	);
 
 	GUI_InitTemplateArgs($q, \%template_args);
-	GUI_Header(\%template_args);
-	GUI_Form($next_url);
+	GUI_Header($s, \%template_args);
+	UniqueFormStart($next_url);
 
 	$template_args{ELEMENT}='delete';
 	print Template(\%template_args);
 
 	print "<INPUT TYPE=\"hidden\" NAME=\"post_action\" VALUE=\"delete\">\n";
 	print "<INPUT TYPE=\"hidden\" NAME=\"id\" VALUE=\"$id\">\n";
-	GUI_xForm($next_url, $next_url);
+	UniqueFormEnd($s, $next_url, $next_url);
 	GUI_Footer(\%template_args);
 }
 
