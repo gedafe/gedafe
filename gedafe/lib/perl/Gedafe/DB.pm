@@ -1841,11 +1841,18 @@ sub DB_GetMNCombo($$$$$)
 			$query .= "WHERE   $aid = $mncombo_filter AND ";
 			$query .= "		$mncombo_aid = $aid AND ";
 			$query .= "		$bid = $mncombo_bid ";
-			if ($g{db_fields}{$table}{$vfield}{ordered} eq '1'){
-				$query .= " ORDER BY ".$mncombo_reference."_order DESC";
-			};
 			$query .= ")";
-		
+			
+			
+			# preserve order for 'already selected' combo if 'ordered M:N'
+			# 
+			if (($g{db_fields}{$table}{$vfield}{ordered} eq '1') and ($op eq ' in ')){
+				$query = "SELECT id, text ";
+				$query .= "FROM  $mncombo_view, $mncombo_reference ";
+				$query .= "WHERE $mncombo_aid = $mncombo_filter ";
+				$query .= "AND id = $mncombo_bid ";
+				$query .= "ORDER BY ".$mncombo_reference."_order ASC";
+			}		
 		};
 		
 		
@@ -1946,82 +1953,80 @@ sub _DB_UpdateMN($$$){
 		#get the new list from the mncombo widget         
 		my @mntable_fields = $g{s}{cgi}->param($fname);
 		
-		#if ( scalar(@mntable_fields) ne 0 ){
-			my $mncombo_firstfield = $g{db_mnfields}{$table}{$vfield}{mnfirstfield_name};
-			my $mncombo_secondfield = $g{db_mnfields}{$table}{$vfield}{mnsecondfield_name};
+		my $mncombo_firstfield = $g{db_mnfields}{$table}{$vfield}{mnfirstfield_name};
+		my $mncombo_secondfield = $g{db_mnfields}{$table}{$vfield}{mnsecondfield_name};
 			
-			#get the old list
-			my $mntable_fields_old = _DB_GetIDMN($dbh, $mntable, $ID, $mncombo_firstfield, $mncombo_secondfield );
-			#find rows to delete => delete list
-			my $mntable_fields_delete = _DB_Difference($mntable_fields_old, \@mntable_fields);
-			#find rows to add => add list
-			my $mntable_fields_add = _DB_Difference(\@mntable_fields, $mntable_fields_old);
+		#get the old list
+		my $mntable_fields_old = _DB_GetIDMN($dbh, $mntable, $ID, $mncombo_firstfield, $mncombo_secondfield );
+		#find rows to delete => delete list
+		my $mntable_fields_delete = _DB_Difference($mntable_fields_old, \@mntable_fields);
+		#find rows to add => add list
+		my $mntable_fields_add = _DB_Difference(\@mntable_fields, $mntable_fields_old);
 			
-			#delete query
-			if (scalar(@$mntable_fields_delete) ne 0){
-				for my $val (@$mntable_fields_delete){
-					my @mntable_row = ();
-					if ( $mntable_first eq $table ){
-						push @mntable_row, $ID;
-						push @mntable_row, $val;
-					}else {
-						push @mntable_row, $val;
-						push @mntable_row, $ID;
-					}
-					$query = _DB_DeleteMN($mntable, \@fields_list,\@mntable_row);
-					($result,$oid) = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
+		#delete query
+		if (scalar(@$mntable_fields_delete) ne 0){
+			for my $val (@$mntable_fields_delete){
+				my @mntable_row = ();
+				if ( $mntable_first eq $table ){
+					push @mntable_row, $ID;
+					push @mntable_row, $val;
+				}else {
+					push @mntable_row, $val;
+					push @mntable_row, $ID;
 				}
+				$query = _DB_DeleteMN($mntable, \@fields_list,\@mntable_row);
+				($result,$oid) = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
 			}
+		}
 			
-			#add query
-			if ( scalar(@$mntable_fields_add) ne 0){
-				if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
-					push @fields_list, "${mntable}_order";
-				};
-				my $order = scalar(@mntable_fields);
-				
-				for my $val (@$mntable_fields_add){
-					my @mntable_row = ();
-					if ( $mntable_first eq $table ){
-						push @mntable_row, $ID;
-						push @mntable_row, $val;
-					}else {
-						push @mntable_row, $val;
-						push @mntable_row, $ID;
-					}
-					if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
-							push @mntable_row, $order--;
-					}
-					
-					$query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
-					($result,$oid) = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
-				}
-			}
-			
-			#update query
-			if ( scalar(@mntable_fields) ne 0 and $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
-				@fields_list = grep !/${mntable}_order/, @fields_list;
+		#add query
+		if ( scalar(@$mntable_fields_add) ne 0){
+			if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
 				push @fields_list, "${mntable}_order";
-				
-				my $order = 1;#scalar(@mntable_fields);
-				
-				for my $val (@mntable_fields){
-					my @mntable_row = ();
-					if ( $mntable_first eq $table ){
-						push @mntable_row, $ID;
-						push @mntable_row, $val;
-					}else {
-						push @mntable_row, $val;
-						push @mntable_row, $ID;
-					}
-					push @mntable_row, $order++;
-					
-					$query = _DB_UpdateOrderMN($mntable, \@fields_list,\@mntable_row);
-					($result,$oid) = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
-				}
-			}
+			};
+			my $order = scalar(@mntable_fields);
 			
-		#}
+			for my $val (@$mntable_fields_add){
+				my @mntable_row = ();
+				if ( $mntable_first eq $table ){
+					push @mntable_row, $ID;
+					push @mntable_row, $val;
+				}else {
+					push @mntable_row, $val;
+					push @mntable_row, $ID;
+				}
+				if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
+							push @mntable_row, $order--;
+				}
+				
+				$query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
+				($result,$oid) = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
+			}
+		}
+			
+		#update query
+		if ( scalar(@mntable_fields) ne 0 and $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
+			@fields_list = grep !/${mntable}_order/, @fields_list;
+			push @fields_list, "${mntable}_order";
+			
+			my $order = 1;#scalar(@mntable_fields);
+			
+			for my $val (@mntable_fields){
+				my @mntable_row = ();
+				if ( $mntable_first eq $table ){
+					push @mntable_row, $ID;
+					push @mntable_row, $val;
+				}else {
+					push @mntable_row, $val;
+					push @mntable_row, $ID;
+				}
+				push @mntable_row, $order++;
+				
+				$query = _DB_UpdateOrderMN($mntable, \@fields_list,\@mntable_row);
+				($result,$oid) = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
+			}
+		}
+				
 	}
 	return $result;
 };
