@@ -262,9 +262,23 @@ C<today> or C<yesterday> can be specified as search value for a 'Date' field.
 
 =item *
 
-
 Numbers can be entered as C<hh:mm> (for example C<0:10>). The C<mm> part will
 be multiplied by 100/60 and added to C<hh>.
+
+=item *
+
+Some supporting perl modules are auto-detected and only used if they are
+installed on the system gedafe is running on.  These are currently:
+
+=over 4
+
+=item -
+
+Text::CSV_XS : for exporting data as comma-separated value (CSV) format; if not
+installed, only the default tab-delimited format will be available for
+exporting data.
+
+=back
 
 =back
 

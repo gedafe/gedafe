@@ -53,6 +53,22 @@ require Exporter;
 	GUI_DumpTable
 );
 
+# setup for GUI_Export
+my ($csv, @exp_fmt_choices, %exp_fmt_choices);
+BEGIN {
+    # add default (built-in) export format: tab-separated
+    push(@exp_fmt_choices, 'tsv');
+    $exp_fmt_choices{'tsv'} = "Tab-separated (TSV)";
+    eval {
+       # load modules necessary for formatting exported data:
+       # if they don't load (aren't installed), no biggie- will fallback
+       require Text::CSV_XS;
+       $csv = Text::CSV_XS->new({binary => 1});
+       push(@exp_fmt_choices, 'csv');
+       $exp_fmt_choices{'csv'} = "Comma-separated (CSV)";
+    };
+}
+
 sub GUI_HTMLMarkup($)
 {
 	my $str = shift;
@@ -615,6 +631,8 @@ sub GUI_List($$$)
 		URL => $s->{url},
 		TABLE => $table,
 		TITLE => "$g{db_tables}{$table}{desc}",
+		EXPORT_AS_CHOICE => $#exp_fmt_choices > 0,
+		EXPORT_CHOICES => "<SELECT NAME=\"export_format\">\n".join("\n", map { "<OPTION VALUE=\"$_\">$exp_fmt_choices{$_}</OPTION>" } @exp_fmt_choices).'</SELECT>',
 		EXPORT_URL => MakeURL(MyURL($q), { action => 'export' }),
 	);
 
@@ -667,19 +685,45 @@ sub GUI_List($$$)
 sub GUI_ExportData($$)
 {
 	my ($s, $list) = @_;
+	my $q = $s->{cgi};
+
+	# decide what export format to use: 'csv' only if Text::CSV_XS loaded
+	my $exp_fmt = ref $csv && $q->param('export_format') eq 'csv' ? 'csv' : 'tsv';
+
+	# print HTTP Content-type header
+	if ($exp_fmt eq 'csv') {
+	    print $q->header(-type=>'text/csv',
+			     -attachment=>$list->{spec}{table}.'.csv',
+			     -expires=>'-1d');
+	} else {
+	    print $q->header(-type=>'text/tab-separated-values',
+			     -attachment=>$list->{spec}{table}.'.tsv',
+			     -expires=>'-1d');
+	}
 
 	# fields
 	my $fields = $g{db_fields}{$list->{spec}{view}};
-	print join("\t", map {$fields->{$_}{desc}} @{$list->{fields}})."\n";
+	if ($exp_fmt eq 'csv') {
+	    my $status = $csv->combine(map {$fields->{$_}{desc}} @{$list->{fields}});
+	    print $csv->string(). "\n";
+	} else {
+	    print join("\t", map {$fields->{$_}{desc}} @{$list->{fields}})."\n";
+	}
 
 	# data
 	for my $row (@{$list->{data}}) {
-		print join("\t", map {
+		# if correct module is loaded and user selected 'CSV'
+		if ($exp_fmt eq 'csv') {
+		    my $status = $csv->combine(@{$row->[1]});
+		    print $csv->string() . "\n";
+		} else {
+		    print join("\t", map {
 			my $str=$_;
 			$str=~s/\t/        /g;
 			$str=~s/\n/\r/g;
 			$str;
-		} @{$row->[1]})."\n";
+		    } @{$row->[1]})."\n";
+		}
 	}
 }
 
