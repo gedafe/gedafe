@@ -100,7 +100,7 @@ sub DB_ReadDatabase($)
 	$sth->execute() or return undef;
 	$data = $sth->fetchrow_arrayref();
 	$sth->finish;
-	if($data->[0] =~ /^PostgreSQL (\d+\.\d+) /) {
+	if($data->[0] =~ /^PostgreSQL (\d+\.\d+)/) {
 		$database{version} = $1;
 	}
 	else {
