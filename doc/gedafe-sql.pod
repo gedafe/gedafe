@@ -31,18 +31,25 @@ especially on insert and update queries.
 Each field in the user defined tables must have a unique name. This
 simplifies writing queries because there is no need for fully
 qualified field naming. The unique names must be built by appending
-the field name to the table name with an underscore in between.
+the field name to the table name with an underscore in between. 
+
+It is allowed to omit the I<table>B<-> for non ID fields,
+but you may not begin a column name with the reserved prefixes 
+B<gedafe_> or B<meta_>. Also the column names I<table>B<_id> 
+and I<table>B<_hid> are reserved to ID fields (see below).
 
 Example:
 
  CREATE TABLE customer (
-   customer_name TEXT, 
-   customer_age  INT,
-   customer_address TEXT);
+   customer_name    TEXT, 
+   customer_age     INT,
+   customer_address TEXT,
+   timestamp        TIMESTAMP DEFAULT now(),  -- lax naming ok here
+   meta_customer    integer 	-- WRONG, "meta_*" is reserved
+ );
 
-Gedafe currently assumes that you follow this rule. If you don't things will
-not work as expected. We are planning to relaxe this requirement in the
-future (nevertheless it will remain "good practice" :-))
+Using the table name + underscore prefix is nevertheless regarded 
+"good practice".
 
 =head2 Non Speaking Unique ID
 
@@ -65,7 +72,9 @@ Example:
    customer_hid TEXT UNIQUE,
    customer_name TEXT, 
    customer_age INT,
-   customer_address TEXT);
+   customer_address TEXT,
+   timestamp        TIMESTAMP DEFAULT now(),  -- lax naming ok here
+ )
 
 The reason we are requiering unique nonspeaking ids is twofold. First gedafe
 need some way to uniquely identify each database record (*_list, *_combo,

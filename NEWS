@@ -4,6 +4,11 @@
 
 (arrows indicate actions that you should make when upgrading)
 
+HEAD	(2004-01-20) 
+------------------------------------------------------------------------------
+  * Allow column names not starting with the table name.
+    (documentation change in doc/gedafe-sql.pod (johannes)
+
 HEAD	(2003-12-12)
 ------------------------------------------------------------------------------
   * offer a button to copy a record "as new" i.e. "clone" a record. 	
