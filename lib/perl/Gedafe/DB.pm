@@ -9,8 +9,6 @@ use strict;
 
 use Gedafe::Global qw(%g);
 
-use Data::Dumper;
-
 use DBI;
 use DBD::Pg;
 

@@ -4,7 +4,7 @@ gedafe-user - the Generic Database Front-End (GeDaFE) User-Manual
 
 =head1 DESCRIPTION
 
-GeDaFE (the Generic Database Front-End) is a web-based database front-end
+Gedafe (the Generic Database Front-End) is a web-based database front-end
 that is database-application independent. That means that the (perl) code
 doesn't contain any information about what tables are present in the
 database or how the data is organized.
@@ -349,5 +349,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 =head1 AUTHOR
 
-David Schweikert <dws@ee.ethz.ch> and
-Tobias Oetiker <oetiker@ee.ethz.ch>
+David Schweikert E<lt>dws@ee.ethz.chE<gt>
+
+Tobias Oetiker E<lt>oetiker@ee.ethz.chE<gt>
+
+Fritz Zaucker E<lt>zaucker@ee.ethz.chE<gt>
