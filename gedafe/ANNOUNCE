@@ -17,7 +17,7 @@ Introduction
     that the frontend doesn't have any information about the
     structure and contents of the database.
 
-    The idea behind the Gedafe is to put all the application logic
+    The idea behind Gedafe is to put all the application logic
     into the database, along with meta-information on how to present
     the data. The frontend then gathers this information and uses it
     to build the user interface. This approach greatly reduces
@@ -50,5 +50,5 @@ Availability
     Gedafe is released under the GNU General Public License.
     Read more about it and download at
 
-    >> http://isg.ee.ethz.ch/tools/gedafe
+    >> http://isg.ee.ethz.ch/tools/gedafe <<
 
