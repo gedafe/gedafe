@@ -1,0 +1,42 @@
+Gedafe Examples
+===============
+
+This directory contains an example application for Gedafe.
+
+Useful Functions
+----------------
+
+Gedafe is built on the premessis, that all application logic is embeded into
+the database. This means that you have to use stored procedures in order
+to achieve complex application logic.
+
+In the file useful-functions.sql you can find some example code to get you
+started.
+
+
+Simple Application
+------------------
+
+It's a very simple ordering system with products, 
+customers and orders.
+
+demo1.sql contains the PostgreSQL command to create the database. You have
+to first create a database called 'demo1':
+ 
+  $ createdb -U postgres demo1
+
+and then execute:
+
+  $ psql -U postgres -f demo1.sql demo1
+
+demo1.cgi is the Gedafe startup script for this application. Note that you
+have to adjust the paths in demo1.cgi to match up with the place you have
+installed Gedafe.
+
+Example templates are also included (in the 'templates' directory).
+These are usable for any application.
+
+The 'images' directory contains the images that are references in the
+example templates. Install them so that they can be accessed under the
+relative URL 'images' (relative to the script, if you want them in another
+place just change the templates).

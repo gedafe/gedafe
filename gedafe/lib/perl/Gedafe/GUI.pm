@@ -11,7 +11,6 @@ use Gedafe::DB;
 use Gedafe::Util;
 
 use CGI;
-#use CGI::Carp; 
 use POSIX;
 
 use vars qw(@ISA @EXPORT);
@@ -40,13 +39,6 @@ sub rand_ascii_32
 sub GUI_NextRefresh(;$)
 {
 	return rand_ascii_32;
-	#my $q = shift;
-	#my $refresh = $q->url_param('refresh') || 0;
-	#$refresh++;
-	#if($refresh >= 1000) {
-	#	$refresh=0;
-	#}
-	#return $refresh;
 }
 
 sub GUI_DB2HTML($$)
@@ -56,16 +48,21 @@ sub GUI_DB2HTML($$)
 
 	# undef -> ''
 	$str = '' unless defined $str;
+
 	# trim space
 	$str =~ s/^\s+//;
 	$str =~ s/\s+$//;
 
 	if($type eq 'bool') {
-		$str = ($str =~ /^(t|true|y|yes|TRUE|1)$/ ? 'yes' : 'no');
+		$str = ($str ? 'yes' : 'no');
+	}
+	if($type eq 'text' and $str !~ /<[^>]+>/) { #make sure the text does not contain html
+		$str =~ s/\n/<BR>/g;
 	}
 	if($str eq '') {
 		$str = '&nbsp;';
 	}
+
 	return $str;
 }
 
@@ -247,7 +244,6 @@ sub GUI_xForm($;$)
 {
 	my $form_url = shift;
 	my $next_url = shift || $form_url;
-	#my $form_data = shift;
 
 	my $form_id = GUI_GetUnique;
 
@@ -256,27 +252,6 @@ sub GUI_xForm($;$)
 	print "<INPUT TYPE=\"hidden\" NAME=\"next_url\" VALUE=\"$next_url\">\n";
 	print "</FORM>\n";
 }
-
-#$sub GUI_CheckUniqueID($$)
-#{
-#	my $user = shift;
-#	my $q = shift;
-#
-#	my %template_args = (
-#		PAGE => 'doubleurl',
-#		USER => $user,
-#		TITLE => "Duplicate Action URL",
-#	);
-#
-#	if(!GUI_DropUnique($q->url_param('unique_id'))) {
-#		print $q->header;
-#		GUI_Header($q, \%template_args);
-#		$template_args{ELEMENT}='doubleurl';
-#		print Template(\%template_args);
-#		GUI_Footer("doubleurl");
-#		exit;
-#	}
-#}
 
 sub GUI_CheckFormID($$)
 {
@@ -325,6 +300,8 @@ sub GUI_Entry($$$)
 	my $t;
 	$template_args{ELEMENT}='entrytable';
 	foreach $t (@{$g{db_editable_tables_list}}) {
+		if(defined $g{db_tables}{$t}{acls}{$user} and
+			$g{db_tables}{$t}{acls}{$user} !~ /r/) { next; }
 		my $desc = $g{db_tables}{$t}{desc};
 		$desc =~ s/ /&nbsp;/g;
 		$template_args{TABLE_DESC}=$desc;
@@ -343,6 +320,8 @@ sub GUI_Entry($$$)
 
 	$template_args{ELEMENT}='entrytable';
 	foreach $t (@{$g{db_report_views}}) {
+		if(defined $g{db_tables}{$t}{acls}{$user} and
+			$g{db_tables}{$t}{acls}{$user} !~ /r/) { next; }
 		my $desc = $g{db_tables}{$t}{desc};
 		$desc =~ s/ /&nbsp;/g;
 		$template_args{TABLE_DESC}=$desc;
@@ -365,7 +344,7 @@ sub GUI_FilterFirst($$$$)
 	my $view = shift;
 	my $template_args = shift;
 	my $myurl = MyURL($q);
-	my $filterfirst_field = $g{db_tables}{$view}{filterfirst};
+	my $filterfirst_field = $g{db_tables}{$view}{meta}{filterfirst};
 	my $filterfirst_value = $q->url_param('filterfirst') || $q->url_param('combo_filterfirst') || '';
 
 	# filterfirst
@@ -471,9 +450,11 @@ sub GUI_List($$$)
 	my $table = $q->url_param('table');
 	my $orderby = $q->url_param('orderby') || '';
 	my $descending = $q->url_param('descending') || '';
-	my $can_add = ($g{db_tables}{$table}{acls}{$user} =~ /a/);
-	my $can_edit = ($g{db_tables}{$table}{acls}{$user} =~ /w/);
-	my $can_delete = ($g{db_tables}{$table}{acls}{$user} =~ /w/);
+	my $acl = defined $g{db_tables}{$table}{acls}{$user} ?
+		$g{db_tables}{$table}{acls}{$user} : '';
+	my $can_add = ($acl =~ /a/);
+	my $can_edit = ($acl =~ /w/);
+	my $can_delete = ($acl =~ /w/);
 
 	my $next_refresh = GUI_NextRefresh($q);
 
@@ -865,6 +846,7 @@ sub GUI_URL_Encode($)
 	my $str = shift;
 	my $enc = '';
 	my $c;
+	defined $str or return '';
 	foreach $c (split //, $str) {
 		if(grep { $c eq $_ } @encode_chars) {
 			$enc .= '%'.sprintf('%2X',ord($c));
@@ -904,9 +886,6 @@ sub GUI_Str2Hash($$)
 		if(/^(.*?):(.*)$/) {
 			$hash->{$1} = GUI_URL_Decode($2);
 		}
-#		else {
-#			print "<P>ERROR: $_\n";
-#		}
 	}
 }
 
@@ -1020,6 +999,7 @@ sub GUI_Edit($$$)
 	});
 	if($action eq 'add') {
 		$next_url = MakeURL($form_url, {
+			action => $action,
 			reedit_action => '',
 			reedit_data => '',
 		});
@@ -1048,10 +1028,13 @@ sub GUI_Edit($$$)
 	}
 	elsif($action eq 'add') {
 		# take filterfirst value if set
-		my $ff_field = $g{db_tables}{$table}{filterfirst};
+		my $ff_field = $g{db_tables}{$table}{meta}{filterfirst};
 		my $ff_value = $q->url_param('filterfirst') || $q->url_param('combo_filterfirst') || '';
 		if(defined $ff_value and defined $ff_field) {
-			$values{$ff_field} = DB_ID2HID($dbh, $table, $g{db_tables}{$table}{filterfirst}, $ff_value);
+			if(defined $g{db_fields}{$table}{$ff_field}{ref_hid}) {
+				# convert ID reference to HID
+				$values{$ff_field} = DB_ID2HID($dbh, $g{db_fields}{$table}{$ff_field}{reference}, $ff_value);
+			}
 		}
 		# copy fields from previous add form
 		foreach(@fields_list) {
@@ -1125,12 +1108,13 @@ sub GUI_MakeCombo($$$$$)
 			return undef;
 		}
 		$str = "<SELECT SIZE=\"1\" name=\"$name\">\n";
-                # the emptz option must not be empty! else the MORE ... disapears off screen
+                # the empty option must not be empty! else the MORE ... disapears off screen
 		$str .= "<OPTION VALUE=\"\">Make your Choice ...</OPTION>\n";
 		foreach(@combo) {
 			my $id = $_->[0];
 			$id=~s/^\s+//; $id=~s/\s+$//;
-			my $text = "$_->[0] -- $_->[1]";
+			#my $text = "$_->[0] -- $_->[1]";
+			my $text = $_->[1];
 			if($value eq $id) {
 				$str .= "<OPTION SELECTED VALUE=\"$id\">$text</OPTION>\n";
 			}
@@ -1151,7 +1135,8 @@ sub GUI_EditField($$$$)
 
 	my $meta = $g{db_fields}{$table}{$field};
 	my $type = $meta->{type};
-	my $widget = $meta->{widget} || '';
+        my $length = $meta->{atttypmod}-4;
+ 	my $widget = $meta->{widget} || '';
 
 	if(not defined $value or $value eq '') {
 		$value = DB_GetDefault($dbh,$table,$field);
@@ -1169,10 +1154,13 @@ sub GUI_EditField($$$$)
 			$value."</TEXTAREA>";
 	}
 	if($type eq 'date') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=".$value.">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
 	}
 	if($type eq 'time') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=".$value.">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
+	}
+	if($type eq 'timestamp') {
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"22\" VALUE=\"".$value."\">";
 	}
 	if($type eq 'int4') {
 		my $out;
@@ -1186,16 +1174,20 @@ sub GUI_EditField($$$$)
 		return $out;
 	}
 	if($type eq 'numeric' or $type eq 'float8') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"$value\">";
 	}
 	if($type eq 'bpchar') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=30 VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"30\" VALUE=\"$value\">";
 	}
 	if($type eq 'text') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=40 VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"40\" VALUE=\"$value\">";
 	}
+        if($type eq 'varchar') {                                                                                            
+                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" MAXLENGTH=\"$length\" VALUE=\"$value\">";        
+        }                                                                                                                   
+
 	if($type eq 'name') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=20 VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" VALUE=\"$value\">";
 	}
 	if($type eq 'bool') {
 		if($value) {

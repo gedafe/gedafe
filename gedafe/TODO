@@ -1,0 +1,29 @@
+Bugs
+----
+- none known :-)
+
+Documentation
+-------------
+- put a hint of possible gedafed problem when "Premature end of script"
+  appears in the logs. This is a common error.
+
+Small features
+--------------
+- add a widget for referencing fields where only
+  the combo-box is wanted
+- url in templates
+- add the align attribute in meta_fields ?
+- improve README (put what additional software is needed)
+- TUTORIAL ?
+- case-insensitive search
+- meta_fields: combo
+- use CGI in Auth.pm?
+
+Big features
+------------
+- integrate PearlReports
+  - export to CSV (excel)
+- multi-language
+- rewrite Text::CPPTemplate
+- make nicer templates
+- multi-level combos
