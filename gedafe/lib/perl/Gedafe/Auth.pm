@@ -84,7 +84,7 @@ sub Auth_Login($)
 		});
 	$s->{header_sent}=1;
 
-	UniqueFormStart($next_url);
+	UniqueFormStart($s, $next_url);
 
 	print Template({ PAGE => 'login', ELEMENT => 'login' });
 
