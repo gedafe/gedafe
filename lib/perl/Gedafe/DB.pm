@@ -133,8 +133,6 @@ sub DB_Init($$)
 			];
 	}
 
-
-
 #	Here you can use Dumper to inspect parts of $g
 	return 1;
 }
@@ -824,6 +822,65 @@ sub DB_GetNumRecords($$)
 	return DB_FetchList($s, $spec);
 }
 
+sub DB_SearchWhere($$)
+{
+	my ($view, $search_spec) = @_;
+	defined $search_spec         or return undef;
+	ref($search_spec) eq 'ARRAY' or return undef;
+	scalar(@{$search_spec})>0    or return undef;
+
+	my $query = '';
+	my @query_params = ();
+	my @ands = ();
+
+	for my $line (@$search_spec){
+		my $field = $line->{field};
+		my $field_type;
+		if($field eq '#ALL#') {
+			my @fieldlist = ();
+			for my $f (@{$g{db_fields_list}{$view}}) {
+				next if($g{db_fields}{$view}{$f}{type} eq 'bytea');
+				next if($g{db_fields}{$view}{$f}{type} eq 'bool');
+				push @fieldlist, "COALESCE(${f}::text, '')";
+			}
+			$field = '('.join("||' '||",@fieldlist).')::text';
+			$field_type = 'text';
+		}
+		else {
+			$field_type = $g{db_fields}{$view}{$field}{type};
+		}
+
+		$query .= ' AND ' if $query;
+		for my $search_elem (@{$line->{parsed}}) {
+			my $op = $search_elem->{op};
+			if(not defined $op) {
+				if($field_type eq 'varchar' or $field_type eq 'text') {
+					$op = 'ilike';
+				}
+				else {
+					$op = '=';
+				}
+			}
+			$query .= $search_elem->{join_op};
+			$query .= '(';
+			$query .= 'NOT ' if $search_elem->{neg};
+			$query .= $field;
+			$query .= " $op ";
+			$query .= '?' if defined $search_elem->{operand};
+			$query .= ')';
+			if(defined $search_elem->{operand}) {
+				if($op eq 'ilike') {
+					push @query_params, "\%$search_elem->{operand}\%";
+				}
+				else {
+					push @query_params, $search_elem->{operand};
+				}
+			}
+		}
+	}
+	#print STDERR "## search: $query\n";
+	return $query, \@query_params;
+}
 
 sub DB_FetchListSelect($$)
 {
@@ -833,9 +890,6 @@ sub DB_FetchListSelect($$)
 
 	# does the view/table exist?
 	defined $g{db_fields_list}{$v}[0] or die "no such table: $v\n";
-
-	#print STDERR "View $v\n seems to be defined\n";
-	#print STDERR "First el in fieldlist : $g{db_fields_list}{$v}[0]\n";
 
 	# go through fields and build field list for SELECT (...)
 	my @fields = @{$g{db_fields_list}{$v}};
@@ -897,65 +951,16 @@ sub DB_FetchListSelect($$)
 	my $query = "SELECT ";
 	$query .= $spec->{countrows} ? "COUNT(*)" : join(', ',@select_fields);
 	$query .= " FROM $v";
-	my $searching=0;
-	if(defined $spec->{search} and ref($spec->{search}) eq 'ARRAY'
-		and scalar(@{$spec->{search}})>0)
-	{
-		my @tree = @{$spec->{search}};
-		my $type;
-		my @ands = ();
-		for my $line (@tree){
-		    my $field = $line->{field};
-		    #build expression that is the conjunction of all fields in db
-		    if($field eq '#ALL#'){
-			my @fieldlist = ();
-			my $fields = $g{db_fields}{$spec->{view}};
-			foreach(@{$g{db_fields_list}{$spec->{view}}}) {
-			    next if($g{db_fields}{$spec->{view}}{$_}{type} eq 'bytea');
-			    if($g{db_fields}{$spec->{view}}{$_}{type} eq 'bool'){
-				push @fieldlist,"(CASE WHEN $_ THEN ' true 1 yes ' ELSE ' false 0 no ' END)";
-			    }else{
-				push @fieldlist,$_;
-}
 
-			}
-			for(@fieldlist){
-			    $_ = "COALESCE(".$_."::text,'')";
-			}
-			$field = join("||' '||",@fieldlist);
-		    }
-
-		    if($field =~ /meta_rc_(.*)/){
-			push @ands, "($select_fields[0] in (select $spec->{table}_id from $spec->{table} WHERE $1 = ".$line->{tree}[0][0]."))";
-		    } else {
-			#roll out tree of conjuctions and disjunctions
-			my @ors = @{$line->{tree}};
-			foreach my $or (@ors){
-			    my @innerand = @$or;
-			    foreach my $and (@innerand){
-				if($line->{op} =~ /like/){
-				    $and = "%$and%";
-				}
-				$and = "(".$field." ".$line->{op}." '".$and."')";
-			    }
-			    $or = join " AND ",@innerand;
-			    $or = "( $or ) ";
-			}
-			push @ands,"( ".join(" OR ",@ors)." ) ";
-		    }
-		}
-		$query .= " WHERE ".join(" AND ",@ands);
-		$searching=1;
+	my ($search_where, $search_params) = DB_SearchWhere($spec->{view}, $spec->{search});
+	if(defined $search_where) {
+		$query .= " WHERE $search_where" if defined $search_where;
+		push @query_parameters, @$search_params;
 	}
 	if(defined $spec->{filter_field} and defined $spec->{filter_value}) {
-		if($searching) {
-			$query .= ' AND';
-		}
-		else {
-			$query .= ' WHERE';
-		}
-		$query .= " $spec->{filter_field} = ? ";
-		push @query_parameters, "$spec->{filter_value}";
+		$query .= $search_where ? ' AND ' : ' WHERE ';
+		$query .= "$spec->{filter_field} = ? ";
+		push @query_parameters, $spec->{filter_value};
 	}
 	unless ($spec->{countrows}) {
 		if (defined $spec->{orderby} and $spec->{orderby} ne '') {
