@@ -13,8 +13,8 @@ $Id$
 
    [ ] a. combo always reference id even if there is a hid (david)
    [ ] b. selectable widgets (david)
-   [ ] c. interactive search (freek)
-   [ ] d. pull-down date widget (freek)
+   [x] c. interactive search (freek)
+   [x] d. pull-down date widget (freek)
    [ ] e. binary files upload with blobs/bytea fields (freek)
    [ ] f. html markup (adi)
    [ ] g. first/last navigation links (adi)
