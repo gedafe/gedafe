@@ -1,5 +1,6 @@
 2000-12-10
 ----------
+* released version 0.9.16
 * Changed meta_fields and meta_tables to use attribute/value instead of
   columns. The old format is still supported for compatibility.
 
