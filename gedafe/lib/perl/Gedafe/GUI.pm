@@ -300,6 +300,8 @@ sub GUI_Entry($$$)
 	my $t;
 	$template_args{ELEMENT}='entrytable';
 	foreach $t (@{$g{db_editable_tables_list}}) {
+		if(defined $g{db_tables}{$t}{acls}{$user} and
+			$g{db_tables}{$t}{acls}{$user} !~ /r/) { next; }
 		my $desc = $g{db_tables}{$t}{desc};
 		$desc =~ s/ /&nbsp;/g;
 		$template_args{TABLE_DESC}=$desc;
@@ -318,6 +320,8 @@ sub GUI_Entry($$$)
 
 	$template_args{ELEMENT}='entrytable';
 	foreach $t (@{$g{db_report_views}}) {
+		if(defined $g{db_tables}{$t}{acls}{$user} and
+			$g{db_tables}{$t}{acls}{$user} !~ /r/) { next; }
 		my $desc = $g{db_tables}{$t}{desc};
 		$desc =~ s/ /&nbsp;/g;
 		$template_args{TABLE_DESC}=$desc;

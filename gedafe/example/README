@@ -18,7 +18,7 @@ Gedafe.
 Example templates are also included (in the 'templates' directory).
 These are usable for any application.
 
-The 'images' directory contains the images that are references in the
-example templates. Install them so that they can be accessed under the
-URL '/images' (if you want them in another place just change the
-templates).
+The 'images' directory contains the images that are references in the example
+templates. Install them so that they can be accessed under the relative URL
+'images' (relative to the script, if you want them in another place just
+change the templates).
