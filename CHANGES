@@ -1,3 +1,7 @@
+2001-01-27
+----------
+* searches match now substrings and are case insensitive
+
 2001-01-24
 ----------
 * released version 1.0.0
