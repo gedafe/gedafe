@@ -118,7 +118,7 @@ sub DB_ReadDatabase($)
 	$query = "SELECT description FROM pg_description WHERE objoid = $oid";
 	$sth = $dbh->prepare($query);
 	$sth->execute() or die $sth->errstr;
-	$data = $sth->fetchrow_arrayref() or die $sth->errstr;
+	$data = $sth->fetchrow_arrayref();
 	$database{desc} = $data ? $data->[0] : $dbh->{Name};
 	$sth->finish;
 
