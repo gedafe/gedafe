@@ -10,6 +10,7 @@ use strict;
 #use Data::Dumper qw(Dumper);
 
 use Gedafe::Global qw(%g);
+use Gedafe::Util qw(SplitCommaQuoted);
 
 use DBI;
 use DBD::Pg 1.20; # 1.20 has constants for data types
@@ -518,7 +519,7 @@ sub DB_ParseWidget($)
 	my ($type, $args_str) = ($1, $3);
 	my %args=();
 	if(defined $args_str) {
-		for my $w (split('\s*,\s*',$args_str)) {
+		for my $w (SplitCommaQuoted($args_str)) {
 			$w =~ s/^\s+//;
 			$w =~ s/\s+$//;
 			$w =~ /^(\w+)\s*=\s*(.*)$/ or die "syntax error in $type-widget argument: $w";

@@ -38,6 +38,7 @@ require Exporter;
 	Gedafe_URL_Decode
 	Gedafe_URL_Encode
 	StripJavascript
+	SplitCommaQuoted
 );
 
 sub DataTree($);
@@ -492,6 +493,84 @@ sub StripJavascript($){
 	$suspicious =~ s/onUnload/on_Unload/gsi;
 	my $mostly_harmless = $suspicious;
 	return $mostly_harmless;
+}
+
+# like split(/\s*,\s*/, $_), but also respect quoting with '', "", and \
+sub SplitCommaQuoted($)
+{
+	my ($str) = @_;
+
+	# quote % since we will use it for internal purproses
+	$str =~ s/%/sprintf("%%%02x", ord('%'))/ge;
+
+	# parse the string as single characters
+	my @str = split(//, $str);
+	my @list;
+	my $element;
+	my @state;
+	my $pos;
+	for my $c (@str) {
+		if(defined $state[0] and $state[0] eq '\\') {
+			$element .= $c;
+			shift @state;
+		}
+		elsif($c eq '\'') {
+			if(defined $state[0] and $state[0] eq '\'') {
+				shift @state;
+			}
+			elsif(defined $state[0]) {
+				$element .= $c;
+			}
+			else {
+				unshift @state, $c;
+			}
+		}
+		elsif($c eq '\\') {
+			unshift @state, $c;
+		}
+		elsif($c eq '"') {
+			if(defined $state[0] and $state[0] eq '"') {
+				shift @state;
+			}
+			elsif(defined $state[0]) {
+				$element .= $c;
+			}
+			else {
+				unshift @state, $c;
+			}
+		}
+		elsif($c eq ',') {
+			if(not defined $state[0]) {
+				defined $element or $element = '';
+				push @list, $element;
+				$element = undef;
+			}
+			else {
+				$element .= $c;
+			}
+		}
+		elsif($c eq ' ' or $c eq "\t") {
+			if(defined $state[0]) {
+				# preserve whitespace, but only if quoted
+				$element .= '%'.sprintf("%02x", ord($c));
+			}
+		}
+		else {
+			$element .= $c;
+		}
+		$pos++;
+	}
+	if(defined $state[0]) {
+		die "ERROR: unterminated string: $_[0] at position $pos\n";
+	}
+	push @list, $element if defined $element;
+
+	# strip space at beginning/end
+	map { s/^\s+//; s/\s+$// } @list;
+	# decode internal quoting (so that we can have spaces in quotes)
+	map { s/(?:%(\d\d))/chr(hex($1))/ge } @list;
+	
+	return @list;
 }
 
 1;
