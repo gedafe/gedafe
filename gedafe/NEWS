@@ -1,0 +1,39 @@
+
+        News and upgrading information for Gedafe
+        =========================================
+
+(arrows indicate actions that you should make when upgrading)
+
+1.0.4
+-----
+
+* The edit view now returns to the "Referer" if it is provided by the browser.
+  This makes it possible to jump internally directly to an edit view (from
+  the list view of another table for example)
+
+1.0.1
+-----
+
+* The old pre-0.9.16 meta_tables and meta_fields structure is not anymore
+  supported.
+
+* New template: error.html used for unexpected internal errors.
+
+  -> put the new error.html in your templates directories
+
+* The escaping characted for encoding data in reedit_data has changed
+  from '%' to '!', so any old pre-built urls with reedit_data set won't work.
+
+* searches are now case insensitive
+
+* gedafed has changed
+
+  -> replace gedafed and restart it
+
+* app_site and app_path are not anymore needed in the startup script
+
+  -> remove app_site and app_path from the startup scripts
+
+* all the templates have a new variable: DATABASE_DESC containing the comment set
+  on the database. You thus can take the original example/template/header.html and
+  use it for your application.
