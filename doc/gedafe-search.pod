@@ -19,6 +19,10 @@ Per field you can enter multiple words. These are
 also joined by an AND operator.
 Individual fields can also contain the OR operator.
 
+To remove a line of search questions just clear the
+textbox next to it.
+ 
+
 Example:
 
 foo bar   <=> foo AND bar
