@@ -450,9 +450,11 @@ sub GUI_List($$$)
 	my $table = $q->url_param('table');
 	my $orderby = $q->url_param('orderby') || '';
 	my $descending = $q->url_param('descending') || '';
-	my $can_add = ($g{db_tables}{$table}{acls}{$user} =~ /a/);
-	my $can_edit = ($g{db_tables}{$table}{acls}{$user} =~ /w/);
-	my $can_delete = ($g{db_tables}{$table}{acls}{$user} =~ /w/);
+	my $acl = defined $g{db_tables}{$table}{acls}{$user} ?
+		$g{db_tables}{$table}{acls}{$user} : '';
+	my $can_add = ($acl =~ /a/);
+	my $can_edit = ($acl =~ /w/);
+	my $can_delete = ($acl =~ /w/);
 
 	my $next_refresh = GUI_NextRefresh($q);
 
@@ -844,6 +846,7 @@ sub GUI_URL_Encode($)
 	my $str = shift;
 	my $enc = '';
 	my $c;
+	defined $str or return '';
 	foreach $c (split //, $str) {
 		if(grep { $c eq $_ } @encode_chars) {
 			$enc .= '%'.sprintf('%2X',ord($c));

@@ -1,3 +1,8 @@
+2000-12-06
+----------
+* released version 0.9.15
+* remove some "Use of uninitialized value"
+
 2000-11-29 Tobi
 ----------
 * added check to /\n/<br>/ to make sure it does not happen on fields with html contents
