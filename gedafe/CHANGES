@@ -7,7 +7,7 @@
 * gedafed: SITE accepts only one argument (url of the site)
 * changed example templates to use DATABASE_DESC to make them not demo-specific
   (as suggested by Brook Milligan <brook@biology.nmsu.edu>)
-* new template variable: DATABASE_DESC
+* new template variable: DATABASE_DESC (COMMENT on database)
 * added usage information to gedafe-ctl (daemon-ctl)
 
 2001-02-13

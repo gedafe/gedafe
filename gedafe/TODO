@@ -20,7 +20,6 @@ Small features
 - TUTORIAL ?
 - meta_fields: combo
 - meta_database, default_hide
-- pass database COMMENT to header templates
 
 Big features
 ------------
