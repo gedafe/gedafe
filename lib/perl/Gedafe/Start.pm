@@ -95,8 +95,7 @@ sub Start(%)
 	}
 
 	# schema
-	my $url_schema = $q->url_param('schema');
-	$s{schema} = defined $url_schema ? $url_schema : $g{conf}{schema};
+        $s{schema} = $q->url_param('schema') || $g{conf}{schema};
 	
 	$s{url} = MyURL($q);
 	$q->url(-absolute=>1) =~ /(.*)\/([^\/]*)/;

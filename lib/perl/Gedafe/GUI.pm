@@ -257,17 +257,15 @@ sub GUI_Header($$)
 
 	my $save_table = $args->{TABLE};
 
-	my $actualschema = $s->{cgi}->url_param('schema');
+	my $actualschema = $s->{cgi}->url_param('schema') || $g{conf}{schema};
 	
-        $actualschema  = $g{conf}{schema} unless defined $actualschema;
-
         my $tablelistref;
         if ( defined $actualschema){
             $tablelistref =  \@{$g{tables_per_schema}{$actualschema}};
         } else {
             $tablelistref    =  \@{$g{db_tables_list}};
         }
-        foreach my $t (@{$tablelistref}) {
+        foreach my $t (sort { $g{db_tables}{$a}{desc} cmp $g{db_tables}{$b}{desc} } @{$tablelistref}) {
 		next if $g{db_tables}{$t}{hide};
 		next if $g{db_tables}{$t}{report};
 		if(defined $g{db_tables}{$t}{acls}{$user} and
@@ -313,18 +311,17 @@ sub GUI_Entry_Header($$)
 
 	my $save_table = $args->{TABLE};
 
-	my $actualschema = $s->{cgi}->url_param('schema');
-	
-        $actualschema  = $g{conf}{schema} unless defined $actualschema;
+	my $actualschema = $s->{cgi}->url_param('schema') ||  $g{conf}{schema};
 
         my @schemalist;
         if ( not defined $actualschema){ # We do not have Schemas
             @schemalist =  (); # Show a empty schema list in the header
         } else {		     # We do have Schemas
             @schemalist    = keys %{$g{tables_per_schema}};
-
+            @schemalist =  () if scalar @schemalist == 1;
         }
-        foreach my $sch ( @schemalist) {
+
+        foreach my $sch ( @schemalist ) {
 		$args->{TABLE_TABLE}=$sch;
 		$args->{TABLE_DESC}= $sch;
 		$args->{TABLE_URL}=MakeURL($args->{REFRESH_ENTRY_URL}, {
@@ -457,12 +454,12 @@ sub GUI_Entry($$$)
 	if ( defined $actualschema ){
 	    $tablelistref =  \@{$g{tables_per_schema}{$actualschema}}; 
 	} else {
-	    $tablelistref    =  \@{$g{db_tables_list}}; 
+	    $tablelistref =  \@{$g{db_tables_list}}; 
 	}
 	$tablelistref    =  \@{$g{db_tables_list}} unless 
 		scalar @{$tablelistref}  > 0;
 
-	foreach my $t (@{$tablelistref}) {
+	foreach my $t (sort {$g{db_tables}{$a}{desc} cmp $g{db_tables}{$b}{desc}}  @{$tablelistref}) {
 		next if $g{db_tables}{$t}{hide};
 		next if $g{db_tables}{$t}{report};
 		if(defined $g{db_tables}{$t}{acls}{$user} and
@@ -487,7 +484,7 @@ sub GUI_Entry($$$)
 	print Template(\%template_args);
 
 	$template_args{ELEMENT}='entrytable';
-	foreach my $t (@{$tablelistref}) {
+	foreach my $t (sort {$g{db_tables}{$a}{desc} cmp $g{db_tables}{$b}{desc}} @{$tablelistref}) {
 		next if     $g{db_tables}{$t}{hide};
 		next unless $g{db_tables}{$t}{report};
 		if(defined $g{db_tables}{$t}{acls}{$user} and
@@ -509,7 +506,9 @@ sub GUI_Entry($$$)
 		print Template(\%template_args);
 
 		$template_args{ELEMENT}='entrytable';
-		foreach my $t (sort {$a cmp $b} keys %{$g{pearls}}) {
+		foreach my $t (sort { (ref $g{pearls}{$a} and ref $g{pearls}{$b} ) ?
+                                      ( ($g{pearls}{$a}->info)[0] cmp ($g{pearls}{$b}->info)[0] ) : 
+                                      ( $a cmp $b) } keys %{$g{pearls}}) {
 			if (ref $g{pearls}{$t}) {
 				@template_args{qw(TABLE_DESC TABLE_INFO)}=($g{pearls}{$t}->info);
 				$template_args{TABLE_URL}= MakeURL($s->{url}, {
@@ -1568,15 +1567,20 @@ sub GUI_Edit($$$)
 			my $safevalue = StripJavascript($value);
 			if (defined $safevalue and defined $value and $safevalue ne $value){
 				die <<end;
-<p>The information you have requested from the database contains<br>
-HTML and/or javascript tags that could compromise your personal information<br>
-Such as, but not limited to, all information that you can access in the database.<br>
-To prevent this, this page has been blocked.<br>
-In order to accept the javascript/html risk, you can tell gedafe
-to ignore this threat for this specific piece of the database in the
-meta_fields table.<br> Please contact your administrator to resolve the issue.<br>
-If you are the administrator, please see the javascript section of the
-gedafe documentation.</p>
+
+<p>The information you have requested from the database contains embeded
+JavaScript or problematic HTML tags. The offending structures were found in
+table $table, field $field.</p>
+
+<p>There is a possibility that this is an attempt of a 3rd party to
+compromise the privacy of your data. To prevent this, the current page has
+been blocked. It may be that all this is intentional. In that case the person
+who setup this installation can tell gedafe to ignore the scripting risk for a
+specific part of the database.</p>
+
+<p> Please check the javascript section of the gedafe
+documentation for further information.</p>
+
 end
 			};
 		}
