@@ -10,7 +10,7 @@
 2002-12-22
 ----------
 * added multiple choice of export data formats, depending on auto-detected
-  perl modules (currently supported: Text::CSV_XS for comma-separated values)
+  perl modules (currently supported: Text::CSV_XS for comma-separated values) (
   Adi Fairbank <adi@adiraj.org>
 
 2002-11-28

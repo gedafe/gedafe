@@ -2,9 +2,9 @@
 .SUFFIXES: .c .o .pl .pm .pod .html .man .wml .1 .txt
 SHELL=/bin/sh
 
-MAJOR  = 1
+MAJOR  = 2
 MINOR  = 0
-MMINOR = 7
+MMINOR = 0-pre1
 VERSION = $(MAJOR).$(MINOR).$(MMINOR)
 
 GNUTAR = gtar
@@ -13,6 +13,7 @@ TARFILE = gedafe-$(VERSION).tar.gz
 release: release-tag tarball
 
 tarball: doc
+	cvs2cl.pl
 	shtool mkdir -p gedafe-$(VERSION)
 	$(GNUTAR) -T MANIFEST -cf - | (cd gedafe-$(VERSION) && $(GNUTAR) xf -)
 	$(GNUTAR) --mode=g-s -czvf pub/$(TARFILE) gedafe-$(VERSION)
