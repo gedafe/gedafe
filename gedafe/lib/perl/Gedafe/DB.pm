@@ -68,6 +68,7 @@ sub DB_Init($$)
 	# read tables
 	$g{db_tables} = DB_ReadTables($dbh, $g{db_database});
 	defined $g{db_tables} or return undef;
+
 	# order tables
 	$g{db_tables_list} = [ sort { $g{db_tables}{$a}{desc} cmp
 		$g{db_tables}{$b}{desc} } keys %{$g{db_tables}} ];
@@ -78,6 +79,7 @@ sub DB_Init($$)
 	# read fields
 	$g{db_fields} = DB_ReadFields($dbh, $g{db_database}, $g{db_tables});
 	defined $g{db_fields} or return undef;
+
 	# order fields
 	for my $table (@{$g{db_tables_list}}) {
 		$g{db_fields_list}{$table} =
@@ -631,29 +633,29 @@ sub DB_GetNumRecords($$)
 }
 
 sub DB_FetchListSelect($$) {
-
 	my $dbh = shift;
 	my $spec = shift;
 	my $v = $spec->{view};
 
 	# does the view/table exist?
-	if(not defined $g{db_fields_list}{$v}) {
-		die "no such table: $v\n";
-	}
+	defined $g{db_fields_list}{$v} or die "no such table: $v\n";
 
+	# go through fields and build field list for SELECT (...)
 	my @fields = @{$g{db_fields_list}{$v}};
-	# update the query to prevent listing binary data
-	my @select_list = @fields;
-	for(@select_list){
-	    if($g{db_fields}{$v}{$_}{type} eq 'bytea'){
-		$_ = "substring($_,1,position(' '::bytea in $_)-1)";
-	    }
+	my @select_fields;
+	for my $f (@fields) {
+		if($g{db_fields}{$v}{$f}{type} eq 'bytea') {
+			push @select_fields, "substring($f,1,position(' '::bytea in $f)-1)";
+		}
+		else {
+			push @select_fields, $f;
+		}
 	}
 
 	my @query_parameters = ();
 
 	my $query = "SELECT ";
-	$query .= $spec->{countrows} ? "COUNT(*)" : join(', ',@select_list);
+	$query .= $spec->{countrows} ? "COUNT(*)" : join(', ',@select_fields);
 	$query .= " FROM $v";
 	my $searching=0;
 	if(defined $spec->{search_field} and defined $spec->{search_value}
@@ -819,8 +821,8 @@ sub DB_GetRecord($$$$)
 
 	my @fields_list = @{$g{db_fields_list}{$table}};
 	#update the query to prevent listing binary data
-	my @select_list = @fields_list;
-	for(@select_list){
+	my @select_fields = @fields_list;
+	for(@select_fields){
 	    if($g{db_fields}{$table}{$_}{type} eq 'bytea'){
 		$_ = "substring($_,1,position(' '::bytea in $_)-1)";
 	    }
@@ -829,7 +831,7 @@ sub DB_GetRecord($$$$)
 	# fetch raw data
 	my $data;
 	my $query = "SELECT ";
-	$query .= join(', ',@select_list); # @{$g{db_fields_list}{$table}});
+	$query .= join(', ',@select_fields); # @{$g{db_fields_list}{$table}});
 	$query .= " FROM $table WHERE ${table}_id = $id";
 	my $sth;
 	$sth = $dbh->prepare_cached($query) or die $dbh->errstr;
@@ -937,7 +939,8 @@ sub DB_Record2DB($$$$)
 	}
 }
 
-sub DB_ExecQuery($$$$$){
+sub DB_ExecQuery($$$$$)
+{
     my $dbh = shift;
     my $table = shift;
     my $query = shift;
@@ -1103,7 +1106,8 @@ sub DB_DeleteRecord($$$)
 	return 1;
 }
 
-sub DB_GetBlobName($$$$){
+sub DB_GetBlobName($$$$)
+{
         my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
@@ -1123,7 +1127,8 @@ sub DB_GetBlobName($$$$){
       	return $data->[0];
 }
 
-sub DB_GetBlobType($$$$){
+sub DB_GetBlobType($$$$)
+{
         my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
@@ -1143,7 +1148,8 @@ sub DB_GetBlobType($$$$){
       	return $data->[0];
 }
 
-sub DB_DumpBlob($$$$){
+sub DB_DumpBlob($$$$)
+{
         my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
@@ -1156,7 +1162,6 @@ sub DB_DumpBlob($$$$){
 	  $idcolumn = $g{db_fields_list}{$table}[0];
 	}
 	
-
 	my $query = "Select position('#'::bytea in $field)+1,octet_length($field) from $table where $idcolumn=$id";
 	my $sth = $dbh->prepare($query);
 	$sth->execute() or return -1;
@@ -1176,9 +1181,8 @@ sub DB_DumpBlob($$$$){
 	return 1;
 }
 
-
-
-sub DB_RawField($$$$){
+sub DB_RawField($$$$)
+{
         my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
@@ -1192,7 +1196,8 @@ sub DB_RawField($$$$){
       	return $data->[0];
 }
 
-sub DB_DumpTable($$$){
+sub DB_DumpTable($$$)
+{
         my $dbh = shift;
 	my $table = shift;
 	my $view = defined $g{db_tables}{"${table}_list"} ?
@@ -1201,16 +1206,15 @@ sub DB_DumpTable($$$){
 
 	my @fields = @{$g{db_fields_list}{$view}};
 	# update the query to prevent listing binary data
-	my @select_list = @fields;
-	for(@select_list){
+	my @select_fields = @fields;
+	for(@select_fields){
 	    if($g{db_fields}{$view}{$_}{type} eq 'bytea'){
 		$_ = "substring($_,1,position(' '::bytea in $_)-1)";
 	    }
 	}
 
-
 	my $query = "SELECT ";
-	$query .= join(', ',@select_list);
+	$query .= join(', ',@select_fields);
 	$query .= " FROM $view";
 	
 	# fix this for placeholders
@@ -1247,7 +1251,7 @@ sub DB_DumpTable($$$){
 	$data=$sth->rows."\n";
 	
 	$first = 1;
-	my $numcolumns = scalar @select_list;
+	my $numcolumns = scalar @select_fields;
 	while(@row = $sth->fetchrow_array()) {
 	  $first = 1;
 	  for (0..$numcolumns-1){
@@ -1274,6 +1278,5 @@ sub DB_DumpTable($$$){
 	}
 	return $data;
 }
-
 
 1;
