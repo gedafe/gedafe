@@ -3,11 +3,11 @@
 use strict;
 use IO::Socket;
 
-# gedafed 1.4, dws@ee.ethz.ch, 2000/10/19
+# gedafed 1.5, dws@ee.ethz.ch, 2001/02/17
 
 # Protocol definition:
 #
-# 0) from client: SITE site path
+# 0) from client: SITE url
 #      to client: OK\n
 #    (mandatory before each of the following requests)
 #
@@ -80,12 +80,12 @@ while(defined (my $conn = $socket->accept)) {
 	if(/^\s*$/) { next; }
 	print "< $_" if $DEBUG;
 	chomp;
-	if(!/^SITE ([^ ]+) (.+)$/) {
+	if(!/^SITE (.+)$/) {
 		myprint $conn, "FAIL\n";
 		$conn->close;
 		next;
 	}
-	my $site = "$1/$2";
+	my $site = "$1";
 	myprint $conn, "OK\n";
 
 	# REQUEST

@@ -105,8 +105,6 @@ as follows:
  use Gedafe::Start;
  
  Start(
- 	app_site       => 'mysite.com:8000',
- 	app_path       => '/cgi-bin/demo',
  	db_datasource  => 'dbi:Pg:dbname=demo',
  	list_rows      => 15,
  	admin_user     => 'admin',
@@ -133,14 +131,6 @@ configuration variables. The following configuration variables are
 defined:
 
 =over 20
-
-=item app_site
-
-Site-part of the URL where the application resides.
-
-=item app_path
-
-Path-part of the URL where the application resides.
 
 =item db_datasource
 

@@ -1,5 +1,5 @@
 # Gedafe, the Generic Database Frontend
-# copyright (c) 2000, ETH Zurich
+# copyright (c) 2000,2001 ETH Zurich
 # see http://isg.ee.ethz.ch/tools/gedafe
 
 # released under the GNU General Public License
@@ -29,7 +29,7 @@ sub Auth_GetTicket($$$$) {
 	my $user = shift;
 	my $pass = shift;
 	my $socket = ConnectToTicketsDaemon($s);
-	print $socket "SITE $g{conf}{app_site} $g{conf}{app_path}\n";
+	print $socket "SITE $s->{url}\n";
 	<$socket>;
 	print $socket "GET $ticket\n";
 	$_ = <$socket>;
@@ -47,7 +47,7 @@ sub Auth_ClearTicket($$) {
 	my $s = shift;
 	my $ticket = shift;
 	my $socket = ConnectToTicketsDaemon($s);
-	print $socket "SITE $g{conf}{app_site} $g{conf}{app_path}\n";
+	print $socket "SITE $s->{url}\n";
 	<$socket>;
 	print $socket "CLEAR $ticket\n";
 	<$socket>;
@@ -59,7 +59,7 @@ sub Auth_SetTicket($$$) {
 	my $user = shift;
 	my $pass = shift;
 	my $socket = ConnectToTicketsDaemon($s);
-	print $socket "SITE $g{conf}{app_site} $g{conf}{app_path}\n";
+	print $socket "SITE $s->{url}\n";
 	<$socket>;
 	print $socket "SET $user $pass\n";
 	my $ticket = <$socket>;
@@ -113,13 +113,13 @@ sub AuthConnect($$$) {
 
 	# logout
 	if($q->url_param('logout')) {
-		my $ticket = $q->cookie(-name=>'Ticket');
+		my $ticket = $q->cookie(-name=>$s->{ticket_name});
 		Auth_ClearTicket($s, $ticket) if $ticket;
 		Auth_Login($s);
 	}
 
 	# check Ticket
-	my $c = $q->cookie(-name=>'Ticket');
+	my $c = $q->cookie(-name=>$s->{ticket_name});
 	if(defined $c and Auth_GetTicket($s, $c, $user, \$pass)) {
 		# ticket authentication successfull
 		return DB_Connect($$user, $pass);
@@ -135,8 +135,9 @@ sub AuthConnect($$$) {
 		if(defined ($dbh = DB_Connect($$user, $pass))) {
 			# user/pass authentication successfull
 			my $ticket=Auth_SetTicket($s, $$user, $pass);
-			my $domain="$g{conf}{app_site}"; $domain =~ s/:.*$//;
-			$$cookie=$q->cookie(-name=>'Ticket', -value=>$ticket);
+			print STDERR "path=$s->{path}\n";
+			$$cookie=$q->cookie(-name=>$s->{ticket_name},
+				-value=>$ticket, -path=>$s->{path});
 			return $dbh;
 		}
 		else {

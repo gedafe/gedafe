@@ -1,3 +1,15 @@
+2001-02-17
+----------
+* improved cookies: path is set and script-name is encoded in cookie name, such
+  that there should be no conflicts with other Gedafe applications
+* app_site and app_path are not anymore used
+  (wrong_url.html template is obsolete)
+* gedafed: SITE accepts only one argument (url of the site)
+* changed example templates to use DATABASE_DESC to make them not demo-specific
+  (as suggested by Brook Milligan <brook@biology.nmsu.edu>)
+* new template variable: DATABASE_DESC
+* added usage information to gedafe-ctl (daemon-ctl)
+
 2001-02-13
 ----------
 * continue minor internal restructuration started on 2001-02-08

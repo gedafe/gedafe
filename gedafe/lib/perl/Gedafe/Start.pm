@@ -1,5 +1,5 @@
 # Gedafe, the Generic Database Frontend
-# copyright (c) 2000, 2001 ETH Zurich
+# copyright (c) 2000,2001 ETH Zurich
 # see http://isg.ee.ethz.ch/tools/gedafe
 
 # released under the GNU General Public License
@@ -56,15 +56,19 @@ sub Start(%)
 		}
 
 		# test mandatory arguments
-		my @mandatory = ('templates', 'app_site','app_path');
+		my @mandatory = ('templates', 'db_datasource');
 		for my $m (@mandatory) {
 			defined $g{conf}{$m} or
 				die "ERROR: '$m' named argument must be defined in Start.\n";
 		}
-
-		# app_url
-		$g{conf}{app_url} = "http://$g{conf}{app_site}$g{conf}{app_path}";
 	}
+
+	
+	$q->url(-absolute=>1) =~ /(.*)\/([^\/]*)/;
+	$s{url} = $q->url();
+	print STDERR "url = $s{url}\n";
+	$s{path} = $1; $s{script} = $2;
+	$s{ticket_name} = "Ticket_$2"; $s{ticket_name} =~ s/\./_/g;
 
 	my $expires = defined $q->url_param('refresh') ? '+5m' : '-1d';
 
@@ -80,10 +84,6 @@ sub Start(%)
 			NEXTURL => MakeURL(MyURL($q), { reload=>'', refresh=>$next_refresh }),
 		});
 		exit;
-	}
-
-	if($q->url() !~ "^$g{conf}{app_url}") {
-		Error(\%s, "You accessed the wrong URL. Go <A href=$g{conf}{app_url}>here</>.");
 	}
 
 	GUI_CheckFormID(\%s, $user);

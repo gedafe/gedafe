@@ -1,5 +1,5 @@
 # Gedafe, the Generic Database Frontend
-# copyright (c) 2000, ETH Zurich
+# copyright (c) 2000,2001 ETH Zurich
 # see http://isg.ee.ethz.ch/tools/gedafe
 
 # released under the GNU General Public License
@@ -28,6 +28,7 @@ require Exporter;
 	DB_HID2ID
 );
 
+sub DB_ReadDatabase($);
 sub DB_ReadTables($);
 sub DB_ReadTableAcls($$);
 sub DB_ReadFields($$);
@@ -40,6 +41,9 @@ sub DB_Init($$)
 	my $sth;
 
 	my ($table, $field);
+
+	# read database
+	$g{db_database} = DB_ReadDatabase($dbh);
 
 	# read tables
 	$g{db_tables} = DB_ReadTables($dbh);
@@ -75,6 +79,32 @@ sub DB_Init($$)
 	}
 
 	return 1;
+}
+
+sub DB_ReadDatabase($)
+{
+	my $dbh = shift;
+	my ($sth, $query, $data);
+	my %database = ();
+
+	# database oid
+	my $oid;
+	$query = "SELECT oid FROM pg_database WHERE datname = '$dbh->{Name}'";
+	$sth = $dbh->prepare($query);
+	$sth->execute() or return undef;
+	$data = $sth->fetchrow_arrayref();
+	$oid = $data->[0];
+	$sth->finish;
+
+	# read table comments as descriptions
+	$query = "SELECT description FROM pg_description WHERE objoid = $oid";
+	$sth = $dbh->prepare($query);
+	$sth->execute() or return undef;
+	$data = $sth->fetchrow_arrayref();
+	$database{desc} = $data->[0];
+	$sth->finish;
+
+	return \%database;
 }
 
 sub DB_ReadTables($)
@@ -135,45 +165,19 @@ END
 		}
 	}
 
-	# determine meta_tables is old-style or new-style:
-	$query = <<'END';
-SELECT 1 FROM pg_class c, pg_attribute a
-WHERE c.relname = 'meta_tables'
-AND a.attrelid = c.oid AND a.attname = 'meta_tables_filterfirst'
-END
-	$sth = $dbh->prepare($query);
-	$sth->execute();
-	my $old_style = ($sth->rows == 1);
-	$sth->finish;
-
 	# meta_tables
-	if($old_style) {
-		$query = 'SELECT meta_tables_table, meta_tables_filterfirst, meta_tables_hide FROM meta_tables';
-		$sth = $dbh->prepare($query) or return undef;
-		$sth->execute() or return undef;
-		while ($data = $sth->fetchrow_arrayref()) {
-			next if not defined $tables{$data->[0]};
-			$tables{$data->[0]}{meta}{filterfirst} = $data->[1];
-			if($data->[2] and defined $tables{$data->[0]}{editable}) {
-				delete $tables{$data->[0]}{editable};
-			}
+	$query = 'SELECT meta_tables_table, meta_tables_attribute, meta_tables_value FROM meta_tables';
+	$sth = $dbh->prepare($query) or return undef;
+	$sth->execute() or return undef;
+	while ($data = $sth->fetchrow_arrayref()) {
+		next if not defined $tables{$data->[0]};
+		my $attr = lc($data->[1]);
+		$tables{$data->[0]}{meta}{$attr}=$data->[2];
+		if($attr eq 'hide' and $data->[2]) {
+			delete $tables{$data->[0]}{editable};
 		}
-		$sth->finish;
 	}
-	else {
-		$query = 'SELECT meta_tables_table, meta_tables_attribute, meta_tables_value FROM meta_tables';
-		$sth = $dbh->prepare($query) or return undef;
-		$sth->execute() or return undef;
-		while ($data = $sth->fetchrow_arrayref()) {
-			next if not defined $tables{$data->[0]};
-			my $attr = lc($data->[1]);
-			$tables{$data->[0]}{meta}{$attr}=$data->[2];
-			if($attr eq 'hide' and $data->[2]) {
-				delete $tables{$data->[0]}{editable};
-			}
-		}
-		$sth->finish;
-	}
+	$sth->finish;
 	
 	# combo
 	$query = "SELECT 1 FROM pg_class c WHERE c.relkind = 'r' AND c.relname = ?";
@@ -365,57 +369,18 @@ END
 		}
 	}
 
-	# determine meta_fields is old-style or new-style:
-	$query = <<'END';
-SELECT 1 FROM pg_class c, pg_attribute a
-WHERE c.relname = 'meta_fields'
-AND a.attrelid = c.oid AND a.attname = 'meta_fields_widget'
-END
-	$sth = $dbh->prepare($query);
-	$sth->execute();
-	my $old_style = ($sth->rows == 1);
-	$sth->finish;
-
 	# meta fields
 	my %meta_fields = ();
-	if($old_style) {
-		$query = 'SELECT * FROM meta_fields';
-		$sth = $dbh->prepare($query) or return undef;
-		$sth->execute() or return undef;
-		while ($data = $sth->fetchrow_hashref()) {
-			my $field = $data->{meta_fields_field};
-			$meta_fields{$field} = {};
-			if(defined $data->{meta_fields_widget}) {
-				my $d = $data->{meta_fields_widget};
-				$d =~ s/^\s+//; $d=~s/\s+$//;
-				$meta_fields{$field}{widget} = $d;
-			}
-			if(defined $data->{meta_fields_copy}) {
-				$meta_fields{$field}{copy} = $data->{meta_fields_copy};
-			}
-			else {
-				$meta_fields{$field}{copy} = 0;
-			}
-			if(defined $data->{meta_fields_sortfunc}) {
-				my $d = $data->{meta_fields_sortfunc};
-				$d =~ s/^\s+//; $d=~s/\s+$//;
-				$meta_fields{$field}{sortfunc} = $d;
-			}
-		}
-		$sth->finish;
-	}
-	else {
-		$query = <<'END';
+	$query = <<'END';
 SELECT meta_fields_table, meta_fields_field, meta_fields_attribute,
 meta_fields_value FROM meta_fields
 END
-		$sth = $dbh->prepare($query) or return undef;
-		$sth->execute() or return undef;
-		while ($data = $sth->fetchrow_arrayref()) {
-			$meta_fields{$data->[0]}{$data->[1]}{lc($data->[2])} = $data->[3];
-		}
-		$sth->finish;
+	$sth = $dbh->prepare($query) or return undef;
+	$sth->execute() or return undef;
+	while ($data = $sth->fetchrow_arrayref()) {
+		$meta_fields{$data->[0]}{$data->[1]}{lc($data->[2])} = $data->[3];
 	}
+	$sth->finish;
 
 	# foreign-key constraints (REFERENCES)
 	$query = <<'END';
@@ -426,12 +391,7 @@ END
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
 		my @d = split(/\\000/,$$data[0]);
-		if($old_style) {
-			$meta_fields{$d[4]}{reference} = $d[2];
-		}
-		else {
-			$meta_fields{$d[1]}{$d[4]}{reference} = $d[2];
-		}
+		$meta_fields{$d[1]}{$d[4]}{reference} = $d[2];
 	}
 	$sth->finish;
 
@@ -442,13 +402,8 @@ END
 		field: for $field (keys %{$fields{$table}}) {
 			my $f = $fields{$table}{$field};
 			my $m = undef;
-			if($old_style) {
-				$m = $meta_fields{$field};
-			}
-			else {
-				if(defined $meta_fields{$table}) {
-					$m = $meta_fields{$table}{$field};
-				}
+			if(defined $meta_fields{$table}) {
+				$m = $meta_fields{$table}{$field};
 			}
 			if(defined $m) {
 				$f->{widget}    = $m->{widget}    if exists $m->{widget};

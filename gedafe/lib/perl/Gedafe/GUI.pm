@@ -76,6 +76,8 @@ sub GUI_InitTemplateArgs($$)
 
 	my $refresh = NextRefresh();
 
+	$args->{DATABASE_DESC}=$g{db_database}{desc};
+
 	$args->{DOCUMENTATION_URL}=$g{conf}{documentation_url};
 	$args->{THEME}=$q->url_param('theme');
 
@@ -312,7 +314,7 @@ sub GUI_FilterFirst($$$$)
 			$template_args->{FILTERFIRST_FIELD_DESC}=$g{db_fields}{$view}{$filterfirst_field}{desc};
 			$template_args->{FILTERFIRST_COMBO}=$filterfirst_combo;
 			$template_args->{FILTERFIRST_HIDDEN}=$filterfirst_hidden;
-			$template_args->{FILTERFIRST_ACTION}=$g{conf}{app_url};
+			$template_args->{FILTERFIRST_ACTION}=$s->{url};
 			print Template($template_args);
 			delete $template_args->{ELEMENT};
 			delete $template_args->{FILTERFIRST_FIELD};
@@ -329,7 +331,8 @@ sub GUI_FilterFirst($$$$)
 
 sub GUI_Search($$$)
 {
-	my $q = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
 	my $view = shift;
 	my $template_args = shift;
 	my $search_field = $q->url_param('search_field') || '';
@@ -357,7 +360,7 @@ sub GUI_Search($$$)
 		$search_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
 	}
 	$template_args->{ELEMENT} = 'search';
-	$template_args->{SEARCH_ACTION} = $g{conf}{app_url};
+	$template_args->{SEARCH_ACTION} = $s->{url};
 	$template_args->{SEARCH_COMBO} = $search_combo;
 	$template_args->{SEARCH_HIDDEN} = $search_hidden;
 	$template_args->{SEARCH_VALUE} = $search_value;
@@ -438,7 +441,7 @@ sub GUI_List($$$)
 	my ($filterfirst_field, $filterfirst_value) =  GUI_FilterFirst($s, $dbh, $table, \%template_args);
 
 	# search
-	my ($search_field, $search_value) = GUI_Search($q, $view, \%template_args);
+	my ($search_field, $search_value) = GUI_Search($s, $view, \%template_args);
 
 	# TABLE
 	$template_args{ELEMENT}='table';
