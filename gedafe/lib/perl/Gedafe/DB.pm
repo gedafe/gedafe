@@ -33,6 +33,7 @@ require Exporter;
 	DB_GetBlobName
 	DB_DumpBlob
 	DB_RawField
+	DB_DumpTable
 );
 
 sub DB_ReadDatabase($);
@@ -1129,6 +1130,80 @@ sub DB_RawField($$$$){
 	$sth->execute() or return undef;
 	my $data = $sth->fetchrow_arrayref() or return undef;
       	return $data->[0];
+}
+
+sub DB_DumpTable($$$){
+        my $dbh = shift;
+	my $table = shift;
+	my $atribs = shift;
+
+	my @fields = @{$g{db_fields_list}{$table}};
+	# update the query to prevent listing binary data
+	my @select_list = @fields;
+	for(@select_list){
+	    if($g{db_fields}{$table}{$_}{type} eq 'bytea'){
+		$_ = "substring($_,1,position(' '::bytea in $_)-1)";
+	    }
+	}
+
+
+	my $query = "SELECT ";
+	$query .= join(', ',@select_list);
+	$query .= " FROM $table";
+	
+
+	my $first = 1;
+	for my $field (keys(%$atribs)){
+	  if($first){
+	    $query .= " where ";
+	  }else{
+	    $query .= " and ";
+	  }
+	  my $value = $atribs->{$field};
+	  my $type = $g{db_fields}{$table}{$field}{type};
+	  if($type eq 'date') {
+	    $query .= " $field = '$value'";
+	  }
+	  elsif($type eq 'bool') {
+	    $query .= " $field = '$value'";
+	  }
+	  else {
+	    $query .= " $field ~* '.*$value.*'";
+	  }
+	  	  
+	}
+
+	print STDERR "$query\n";
+
+	my $sth = $dbh->prepare($query) or return undef;
+	$sth->execute() or return undef;
+
+	my @row;
+	my $data;
+	
+	$data=$sth->rows."\n";
+	
+	$first = 1;
+	
+	while(@row = $sth->fetchrow_array()) {
+	  $first = 1;
+	  for my $field (@row){
+	    if(not $first){
+	      $data.="\t";
+	    }
+	    $first = 0;
+	    $field =~ s/\t/\&\#09\;/gm;
+	    $field =~ s/\n/\&\#10\;/gm;
+
+	    $data.=$field;
+	  }
+	  $data.="\n";
+	}
+	$sth->finish();
+	if(length($data)>20000){
+	  $data= "Resultset exeeds desirable size.\n";
+	}
+	return $data;
 }
 
 

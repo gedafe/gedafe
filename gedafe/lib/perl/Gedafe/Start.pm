@@ -23,6 +23,7 @@ use Gedafe::GUI qw(
 	GUI_PostEdit
 	GUI_Edit
 	GUI_Delete
+	GUI_DumpTable
 );
 use Gedafe::DB qw(
 	DB_GetBlobType
@@ -100,11 +101,15 @@ sub Start(%)
 
 	GUI_CheckFormID(\%s, $user);
 
-	my $dbh = AuthConnect(\%s, \$user, \$cookie) or do {
+	my $ticket_value;
+	my $dbh = AuthConnect(\%s, \$user, \$cookie,\$ticket_value) or do {
 		die "Couldn't connect to database or database error";
 	};
+	
 	$s{dbh}=$dbh;
 	$s{user}=$user;
+	$s{ticket_value}=$ticket_value;
+	# print STDERR "TicketValue: $ticket_value\n";
 
 	my $action = $q->url_param('action') || '';
 	if($action eq 'edit' or $action eq 'add' or $action eq 'delete') {
@@ -117,24 +122,28 @@ sub Start(%)
 		$expires = '-1d';
 	}
 
+	my %headers =(-expires=>$expires);
+
+	if($cookie) {
+	    $headers{-cookie} = $cookie;
+	}
+
 	if($action eq 'dumpblob'){
 	    my $table = $q->param('table');
 	    my $id = $q->param('id');
 	    my $field = $q->param('field');
 	    my $type = DB_GetBlobType($dbh,$table,$field,$id);
 	    my $name = DB_GetBlobName($dbh,$table,$field,$id);
-	    print $q->header(-expires=>$expires,
-			     -type=>$type,
-			     -attachment=>$name);
-	}else{
-	    # header
-	    if(! $cookie) {
-		print $q->header(-expires=>$expires);
-	    } else {
-		print $q->header(-expires=>$expires,-cookie=>$cookie);
-	    }
+	    $headers{-type}=$type;
+	    $headers{-attachment}=$name;
 	}
+	if($action eq 'dumptable') {
+	    $headers{-type}='text/plain';
+	}
+
+	print $q->header(%headers);
 	$s{http_header_sent}=1;
+	
 	GUI_PostEdit(\%s, $user, $dbh);
 
 	if($action eq 'list') {
@@ -145,11 +154,16 @@ sub Start(%)
 	}
 	elsif($action eq 'delete') {
 		GUI_Delete(\%s, $user, $dbh);
-	}elsif($action eq 'dumpblob'){
+	}
+	elsif($action eq 'dumpblob'){
 	    my $table = $q->param('table');
 	    my $id = $q->param('id');
 	    my $field = $q->param('field');
 	    DB_DumpBlob($dbh,$table,$field,$id);
+	}
+	elsif($action eq 'dumptable'){
+	    my $table = $q->url_param('table');
+	    GUI_DumpTable(\%s, $user, $dbh);
 	}
 	else {
 		GUI_Entry(\%s, $user, $dbh);
