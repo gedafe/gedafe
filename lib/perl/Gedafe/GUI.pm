@@ -56,9 +56,6 @@ require Exporter;
 # setup for GUI_Export
 my ($csv, @exp_fmt_choices, %exp_fmt_choices);
 BEGIN {
-    # add default (built-in) export format: tab-separated
-    push(@exp_fmt_choices, 'tsv');
-    $exp_fmt_choices{'tsv'} = "Tab-separated (TSV)";
     eval {
        # load modules necessary for formatting exported data:
        # if they don't load (aren't installed), no biggie- will fallback
@@ -67,6 +64,9 @@ BEGIN {
        push(@exp_fmt_choices, 'csv');
        $exp_fmt_choices{'csv'} = "Comma-separated (CSV)";
     };
+    # add default (built-in) export format: tab-separated
+    push(@exp_fmt_choices, 'tsv');
+    $exp_fmt_choices{'tsv'} = "Tab-separated (TSV)";
 }
 
 sub GUI_HTMLMarkup($)
