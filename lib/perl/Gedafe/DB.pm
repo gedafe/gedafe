@@ -1705,12 +1705,12 @@ sub DB_filenameSql($){
 }
 
 my %DB_Format_functions = (
-	'number_to_char'    => [ 'to_char', 'int' ]
-	'timestamp_to_char' => [ 'to_char', 'timestamp' ]
-	'date_to_char'      => [ 'to_char', 'date' ]
-	'char_to_number'    => [ 'to_number', 'char' ]
-	'char_to_timestamp' => [ 'to_timestamp', 'char' ]
-	'char_to_date'      => [ 'to_date', 'char' ]
+	'number_to_char'    => [ 'to_char', 'int' ],
+	'timestamp_to_char' => [ 'to_char', 'timestamp' ],
+	'date_to_char'      => [ 'to_char', 'date' ],
+	'char_to_number'    => [ 'to_number', 'char' ],
+	'char_to_timestamp' => [ 'to_timestamp', 'char' ],
+	'char_to_date'      => [ 'to_date', 'char' ],
 );
 sub DB_Format($$$$) {
 	my ($dbh,$function,$template,$data) = @_;
