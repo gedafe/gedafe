@@ -106,7 +106,7 @@ sub MakeURL($$)
 
 	# delete empty values
 	foreach(keys %params) {
-		if($params{$_} eq '') { delete $params{$_}; }
+		delete $params{$_} unless defined $params{$_} and $params{$_} ne '';
 	}
 
 	# prepare key=value pairs
