@@ -2,8 +2,8 @@
 .SUFFIXES: .c .o .pl .pm .pod .html .man .wml .1 .txt
 SHELL=/bin/sh
 
-MAJOR  = 2
-MINOR  = 0
+MAJOR  = 1
+MINOR  = 2
 MMINOR = 0pre1
 VERSION = $(MAJOR).$(MINOR).$(MMINOR)
 
