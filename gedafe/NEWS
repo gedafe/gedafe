@@ -4,6 +4,13 @@
 
 (arrows indicate actions that you should make when upgrading)
 
+1.0.6
+-----
+* 'action=export' instead of 'action=list' or 'action=listrep' returns
+  a comma-separated-values listing of all rows of the table. You can use
+  the EXPORT_URL variable in the templates to reference the correct
+  URL.
+
 1.0.5
 -----
 

@@ -24,6 +24,7 @@ use Gedafe::GUI qw(
 	GUI_PostEdit
 	GUI_Edit
 	GUI_Delete
+	GUI_Export
 );
 use Gedafe::Util qw(MakeURL MyURL InitTemplate Template Error NextRefresh);
 
@@ -61,7 +62,6 @@ sub Start(%)
 				die "ERROR: '$m' named argument must be defined in Start.\n";
 		}
 	}
-
 	
 	$q->url(-absolute=>1) =~ /(.*)\/([^\/]*)/;
 	$s{url} = $q->url();
@@ -101,6 +101,15 @@ sub Start(%)
 		$expires = '-1d';
 	}
 
+	if($action eq 'export') {
+		my $table = $q->url_param('table');
+		print $q->header(-type=>'text/comma-separated-values',
+			-attachment=>"$table.csv",
+			-expires=>'-1d');
+		GUI_Export(\%s, $user, $dbh);
+		exit;
+	}
+
 	# header
 	if(! $cookie) {
 		print $q->header(-expires=>$expires);
@@ -126,8 +135,6 @@ sub Start(%)
 	else {
 		GUI_Entry(\%s, $user, $dbh);
 	}
-
-	$dbh->disconnect;
 }
 
 1;

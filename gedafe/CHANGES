@@ -1,3 +1,7 @@
+2002-02-15
+----------
+* Implemented "export" action, EXPORT_URL in templates
+
 2002-01-20
 ----------
 * Return to referer after action=edit
