@@ -919,6 +919,7 @@ sub GUI_WidgetRead($$$)
 		else {
 			if($file) {
 				my $filename = scalar $file;
+				$filename =~ s/ /_/g;
 				$filename =~ /([\w\d\.]+$)/;
 				$filename = $1;
 				my $mimetype = $q->uploadInfo($file)->{'Content-Type'};
