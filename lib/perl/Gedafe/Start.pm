@@ -146,15 +146,28 @@ sub Start(%)
 		$headers{-cookie} = $cookie;
 	}
 
-	if($action eq 'dumpblob'){
+	if($action =~ /((view)|(download)|(dump))blob/){
 		my $table = $q->param('table');
 		my $id = $q->param('id');
 		my $field = $q->param('field');
 		my $type = DB_GetBlobType($dbh,$table,$field,$id);
 		my $name = DB_GetBlobName($dbh,$table,$field,$id);
 		$headers{-type}=$type;
-		$headers{-attachment}=$name;
+		if($action =~ /download/){
+			$headers{-attachment}=$name;
+		}elsif($action =~ /dump/){
+			my @browsertypes = ('text/plain',
+					    'text/html',
+					    'image/jpeg',
+					    'image/png',
+					    'image/gif');
+			$headers{-attachment}=$name
+			    unless(grep $_ eq lc($type), @browsertypes); 
+		}else{
+			#nothing to do for view...
+		}
 	}
+
 	if($action eq 'dumptable') {
 		$headers{-type}='text/plain';
 	}
@@ -201,7 +214,7 @@ sub Start(%)
 	}
 	elsif($action eq 'dumptable'){
 		my $table = $q->url_param('table');
-		GUI_DumpTable(\%s, $user, $dbh);
+		GUI_DumpTable(\%s, $dbh);
 	}
 	elsif($action eq 'jsisearch'){
 		my $table = $q->url_param('table');

@@ -710,7 +710,7 @@ sub DB_FetchListSelect($$)
 		for my $showref(@showrefs){
 			next unless(defined $g{db_tables}{$showref}{acls}{$spec->{user}} 
 				    and $g{db_tables}{$showref}{acls}{$spec->{user}}=~/r/);
-			print STDERR "$showref ".$g{db_tables}{$showref}{acls}{$spec->{user}}."\n";
+			
 			#now find the column that references us.
 			my $refcolumn = undef;
 			for my $refcol (@{$g{db_fields_list}{$showref}}){
