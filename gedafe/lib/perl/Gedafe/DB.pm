@@ -65,6 +65,7 @@ sub DB_PrepareData($$);
 sub DB_RawField($$$$);
 sub DB_ReadDatabase($);
 sub DB_ReadFields($$$);
+sub DB_ReadSchemapath($$$);
 sub DB_ReadTableAcls($$);
 sub DB_ReadTables($$);
 sub DB_Record2DB($$$$);
@@ -96,9 +97,14 @@ sub DB_Init($$)
 	my $dbh = DBI->connect_cached("$g{conf}{db_datasource}", $user, $pass) or
 		return undef;
 
+
 	# read database
 	$g{db_database} = DB_ReadDatabase($dbh);
 	
+	# set and store schema search path
+	$g{conf}{visibleschema} 
+		= DB_ReadSchemapath($dbh,$g{conf},$g{db_database}{version});
+
 	# read tables
 	$g{db_tables} = DB_ReadTables($dbh, $g{db_database});
 	defined $g{db_tables} or return undef;
@@ -125,8 +131,7 @@ sub DB_Init($$)
 
 
 
-	#print STDERR '$',"g after DB_Init(): \n", Dumper(\%g),"\n" ;
-
+#	Here you can use Dumper to inspect parts of $g
 	return 1;
 }
 
@@ -171,6 +176,46 @@ sub DB_ReadDatabase($)
 	return \%database;
 }
 
+sub DB_ReadSchemapath($$$){
+
+	my $dbh  = shift;
+	my $conf = shift;
+	my $dbversion = shift;
+	my %visibleschema=();
+
+	# set schema search path. 
+	if( $dbversion >= 7.2) {
+		my $realpath;
+		if (defined  $conf->{schema}) {
+			if (defined $conf->{schema_search_path})   {
+			 	$realpath = $conf->{schema_search_path};
+				
+			} else { # Schema Search path set to default schema
+				$realpath ="'" . $conf->{schema} . "'" ;
+			}
+		} else {	# No default Schema defined	
+			$conf->{schema}='public';
+			$realpath .=" '\$user', 'public'";
+			if (defined $conf->{schema_search_path})   {
+				print STDERR "Gedafe: Warning: No schema ",
+					"parameter in call of Start()\n";
+				print STDERR "Gedafe: Warning: Schema search",
+					" path dropped\n"; 
+			}
+		}
+		my $query = "SET SEARCH_PATH TO ". $realpath . ";\n"  ;
+		$conf->{schemapathquery}=$query;
+
+		my @REALPATH = split (/,/o , $realpath );
+		for my $p ( @REALPATH ) {
+			$p =~ s/\s//og; # trim whitespace
+			$p =~ s/\'//og; # dequote
+			$visibleschema{$p}=1;
+		}
+	}
+	return \%visibleschema;
+}
+
 sub DB_ReadTables($$)
 {
 	my ($dbh, $database) = @_;
@@ -209,17 +254,20 @@ END
 			$tables{$data->[0]}{hide} = 1;
 		}
 		if($database->{version} >= 7.2 ){
-		    #FIXME:
-		    #if (defined $g{conf}{schema}){
-		    #    # Hide Tables from other schemas
-		    #    if ($data->[1] ne $g{conf}{schema}){
-		    #    	$tables{$data->[0]}{hide} = 1;
-		    #    }
-		    #} else { # undefined Schema defaults to public
-		    #    if ($data->[1] ne 'public'){
-		    #    	$tables{$data->[0]}{hide} = 1;
-		    #    }
-		    #}
+		    # Save time to enumerate schemas . It is not nice
+		    # to write to $g here. But fast.
+		    # Enumerate only tables and schemas that are visible
+		    # per schema search path
+
+		    if (defined $g{conf}{visibleschema}{$data->[1]}) {
+		        if ( not $tables{$data->[0]}{hide} ){
+			    push (@{$g{tables_per_schema}{$data->[1]}}
+				,$data->[0])
+		        }
+		    } else { # inside of invisible schema
+			   $tables{$data->[0]}{hide} = 1;
+		    }
+	
 		} 
 		if($data->[0] =~ /_rep$/) {
 			$tables{$data->[0]}{report} = 1;
@@ -670,27 +718,14 @@ sub DB_Connect($$$)
 	if(not defined $g{db_meta_loaded}) {
 		DB_Init($user, $pass) or return undef;
 		$g{db_meta_loaded} = 1;
+		#print STDERR "DB_Connect -> DB_Init succesful\n";
 	}
 
-	# set schema search path
-	if($g{db_database}{version} >= 7.2) {
-		my $query="SET SEARCH_PATH TO ";
-		if (defined $s->{schema}) {
-			if (defined $g{conf}{schema_search_path})   {
-				$query .=  ($g{conf}{schema_search_path}. ";");
-			} else { # Schema Search path set to default schema
-				$query .= "'". $s->{schema} . "';"  ;
-			}
-		} else {	# No default Schema defined	
-			$s->{schema}='public';
-			$query .=" '\$user', 'public';";
-			if (defined $g{conf}{schema_search_path})   {
-				print STDERR "Gedafe: Warning: No schema parameter in call of Start()\n";
-				print STDERR "Gedafe: Warning: Schema search path dropped\n"; 
-			}
-		}
-		$dbh->do($query);
-	}
+	# Set Schema search path in case database conncetion is new.	
+	# Can we really do that ? DB operator MUST touch all gedafe-cgi
+	# scripts, after adding/changing schemas or evil things will happen. 
+	$dbh->do($g{conf}{schemapathquery}) or 
+		die "could not set search path";
 
 	return $dbh;
 }
