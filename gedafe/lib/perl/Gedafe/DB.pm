@@ -7,13 +7,10 @@
 package Gedafe::DB;
 use strict;
 
-#use Data::Dumper;
 use Gedafe::Global qw(%g);
 
 use DBI;
 use DBD::Pg;
-
-# use DBI;# done in start.pl
 
 use vars qw(@ISA @EXPORT);
 require Exporter;
@@ -220,9 +217,6 @@ END
 	}
 	$sth->finish;
 
-#	print "\n";
-#	print Dumper(\%meta_fields);
-
 	# combo
 	$query = <<'END';
 SELECT 1
@@ -345,11 +339,6 @@ END
 		}
 	}
 	$sth->finish;
-
-#	print "\n";
-#	print Dumper($g{db_tables});
-
-#	$dbh->disconnect;
 }
 
 sub DB_Connect($$) {
@@ -674,7 +663,6 @@ sub DB_AddRecord($$$$)
 			$query .= "NULL";
 		}
 	}
-	#$query   .= join("', '",@dbdata{@fields_list});
 	$query   .= ")";
 
 	print "<!-- Executing: $query -->\n";
