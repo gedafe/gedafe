@@ -9,7 +9,7 @@ that is database-application independent. That means that the (perl) code
 doesn't contain any information about what tables are present in the
 database or how the data is organized.
 
-This is only possible if a fullfeatured SQL dB server like PostgreSQL
+This is only possible if a full-featured SQL dB server like PostgreSQL
 is used as backend. PostgreSQL permits to define not only the format
 of the various tables and fields, but also how tables are related to
 each other. It is even possible to write powerful functions inside the
@@ -82,8 +82,8 @@ The structure of the Gedafe distribution is as follows:
  |       `-- Gedafe/  gedafed main source
  `-- example
      |-- templates/   HTML templates
-     |-- demo.cgi     demo-application  script
-     `-- demo.sql     PostgreSQL script to initialize the
+     |-- demo1.cgi    demo-application  script
+     `-- demo1.sql    PostgreSQL script to initialize the
                       demo-application database
 
 In order to start using gedafe you must ensure that F<lib/perl> of the
@@ -329,7 +329,7 @@ F<gedafe-sql.pod>, F<gedafe-templates.txt>, F<Text::CPPTemplate>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2000,2001 ETH Zurich, All rights reserved.
+Copyright (c) 2000-2003 ETH Zurich, All rights reserved.
 
 =head1 LICENSE
 
@@ -349,8 +349,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 =head1 AUTHOR
 
-David Schweikert E<lt>dws@ee.ethz.chE<gt>
-
-Tobias Oetiker E<lt>oetiker@ee.ethz.chE<gt>
-
-Fritz Zaucker E<lt>zaucker@ee.ethz.chE<gt>
+S<Tobias Oetiker E<lt>oetiker@ee.ethz.chE<gt>>,
+S<David Schweikert E<lt>dws@ee.ethz.chE<gt>>,
+S<Fritz Zaucker E<lt>zaucker@ee.ethz.chE<gt>>,
+S<Adi Fairbank E<lt>adi@adirak.orgE<gt>>,
+S<Freek Zindel E<lt>freek@zindel.nlE<gt>>
