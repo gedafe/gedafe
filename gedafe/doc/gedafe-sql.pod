@@ -8,16 +8,21 @@ Gedafe is a generic web front-end to PostgreSQL. Generic means in this
 context that Gedafe does not know anything about the structure or
 contents of the database it is presenting.
 
-The idea is that Gedafe looks at a database and presents it on the web.
-Because Gedafe is no AI it expects the database structure and naming to
-follow certain rules.
+The idea is that Gedafe looks at a database and presents it on the
+web.  Because Gedafe is no AI it relies on certain rules for the
+database structure and naming rules.
 
-It is also important to note that Gedafe does not impose any
-restrictions on to what a user can do with a database (this is what
-all front-ends should do but alas ...). All consistency and permission
-rules must be checked on the back-end side of the database. PostgreSQL
-offers excellent support for this kind of checks through referential
-integrity constraints, rules, triggers and stored procedures.
+It is also important to note that Gedafe itself does not impose any
+restrictions on to what a user can do with a database. All consistency
+and permission rules must be checked on the back-end side of the
+database. PostgreSQL offers excellent support for this kind of checks
+through referential integrity constraints, rules, triggers and stored
+procedures. The advantage of this approach is that data integrity does
+not depend on the usage of a certain front-end, but is enforced for
+all possible interactions with the database short of manipulation of
+the database structure and rules themselves. The disadvantage of this
+approach is that it imposes a large load on the database server,
+especially on insert and update queries.
 
 =head1 NAMING RULES
 
@@ -25,8 +30,8 @@ integrity constraints, rules, triggers and stored procedures.
 
 Each field in the user defined tables must have a unique name. This
 simplifies writing queries because there is no need for fully
-qualified field naming.  The unique names have to be built by
-appending the field name to the table name with an underscore.
+qualified field naming. The unique names must be built by appending
+the field name to the table name with an underscore in between.
 
 Example:
 
@@ -38,11 +43,17 @@ Example:
 =head2 Non Speaking Unique ID
 
 Each table defines a B<unique>, B<non speaking>, B<numeric>
-I<table>B<_id> field.  It is best to use an auto-increment counter
-for this field.
+I<table>B<_id> field.  It is best to use an auto-increment counter for
+this field. The field I<table>B<_id> can be used when a table is
+referenced from another table.
 
 If a unique ID for human consumption is required, it must be
 called I<table>B<_hid>.
+
+Often the I<table>B<_hid> will be presented to the user of the
+database, while internally the I<table>B<_id> is used as
+reference. Therefore for each such I<table>B<_hid> and I<table>B<_id>
+pair two translation functions must be defined.
 
 Example:
 
@@ -52,6 +63,14 @@ Example:
    customer_name TEXT, 
    customer_age INT,
    customer_address TEXT);
+
+ CREATE FUNCTION "customer_hid2id" (bpchar ) RETURNS int4 AS 
+	'SELECT customer_id FROM customer WHERE customer_hid = $1 ' 
+	LANGUAGE 'SQL';
+ CREATE FUNCTION "customer_id2hid" (int4 ) RETURNS bpchar AS 
+	'SELECT customer_hid FROM customer WHERE customer_id = $1' 
+	LANGUAGE 'SQL';
+
 
 =head2 Table and Field Naming
 
@@ -81,7 +100,9 @@ user.
 The first column of a B<*_list> view must always be the B<*_id> field
 from original table. This column does not get displayed if there is a
 B<*_hid> column as well. The other column names should match their
-original counter part unless they contain calculated data.
+original counter part unless they contain calculated data (this is not
+enforced; however, no new comments for the fields of the view must be
+given if this convention is followed as described below).
 
 Example:
 
@@ -99,22 +120,23 @@ B<*_id> column. 'Editing' the data of such a row from the front-end
 causes a row to be inserted into the database. Defaults for the new
 row are taken from the edited NULL-row.
 
-You may want to pre-sort the contents of a view. Unfortunately
-PostgreSQL does not allow to ORDER views. However, you can create a column
-in your view called B<meta_sort> which the front-end will use to sort
-the contents of the view as long as there are no other sorting
-instructions present.
+You may want to pre-sort the contents of a view. Unfortunately,
+PostgreSQL does not allow to ORDER views. As a work-around, you can
+create a column in your view called B<meta_sort> which the front-end
+will use to sort the contents of the view as long as there are no
+other sorting instructions present.
 
-You can set a COMMENT for each field of a B<*_list> view, this comment will
-then be taken as column head. If you do not define a special comment, but
-the name of the list field equivalent to its parent table, then the COMMENT
-from the parent table field will be used. The same is true if the list field
-name matches the name of any other commented table field in the database.
+You can set a COMMENT for each field of a B<*_list> view, this comment
+will then be taken as column head. If you do not define a special
+comment, but the name of the list field is identical to the field in
+its parent table, then the COMMENT from the parent table field will be
+used. The same is true if the list field name matches the name of any
+other commented table field in the database.
 
-=head2 The B<meta_tables> table
+=head2 The B<meta_tables> Table
 
 For some tables you may want to provide additional information to
-optimize their use in the Front-end.
+optimize their presentation in the front-end.
 
  CREATE TABLE meta_tables (
     -- Table Name
@@ -125,34 +147,36 @@ optimize their use in the Front-end.
     meta_tables_value       TEXT
  );
 
-The additional information is specified in attribute/value pairs for that
-table. This table must exist, even if you don't use it. The following
-attributes are at the moment defined:
+This additional information is specified for a given table in
+attribute/value pairs. The B<meta_tables> table must be created in
+your database, even if you don't use it. The following attributes are
+currently defined:
 
 =over 2
 
 =item filterfirst
 
-If a table tends to be big, it is possible to suggest a field to filter on
-before an table is displayed. This is done by specifying an appropriate
+If a table tends to be big, it is possible to suggest a field to
+filter on before a table is displayed. This is done by specifying the
 field name as value for this attribute.
 
-Note that the specified field must be part of the table or the corresponding
-B<*_list> view.
+Note, that the specified field must, of course, be part of the table
+or the corresponding B<*_list> view.
 
 =item hide
 
-If the value is set to '1', the table won't be shown in the frontend.
+If the value of this attribute is set to '1', the table won't be shown
+by the front-end.
 
 =back
 
 =head2 The B<meta_fields> table
 
-For most fields is is possible to determine a presentation mode
-from the data type of the field. For some fields this is not
-possible and additional information must be provided. This is done through the
+For most fields is is possible to determine a presentation mode from
+the data type of the field. For some fields this is not possible and
+additional information must be provided. This is done through the
 B<meta_fields> table. Every database must have a B<meta_fields> table.
-It may be empty if no special information has to be provided.
+It may be empty if no special information must be provided.
 
  CREATE TABLE meta_fields (
     -- Table Name
@@ -165,8 +189,9 @@ It may be empty if no special information has to be provided.
     meta_fields_value       TEXT
  );
 
-As for meta_tables, the additional information is specified in attribute/value pairs for that
-field. The following attributes are defined:
+As for meta_tables, the additional information is specified in
+attribute/value pairs for the field in question. The following
+attributes are defined:
 
 =over 2
 
@@ -178,34 +203,38 @@ entered and I<readonly> specifies a read-only widget.
 
 =item copy
 
-If set to '1', the data will be copied while adding entries from one form to
-the next.
+If set to '1', while adding entries to a table, the data for this
+field will be copied from one form to the next.
 
 =item sortfunc
 
-If you have a column which contains names like 'von Burg' or 'di Alfredi'
-and you want the column sorted by the second word, you can create a function
-which converts the name into a string suitable for sorting. The name of this
-function must be given as value for this attribute.
+If you have a column which contains names like 'von Burg' or 'di
+Alfredi' and you want the column sorted by the second word, you can
+create a function which converts the name into a string suitable for
+sorting. The name of this function must be given as value for this
+attribute. Note, however, that there is a heavy performance penalty,
+as this function must be called for each row of the table. A less
+costly approach during selects is the use of a meta_sort field as
+described above (the penalty there is again in inserts and updates).
 
 =back
 
 =head2 The Combo-box
 
-When editing fields that are a reference to a row in another table it is
-useful to have some help in filling out the field. Best is to provide
-a list of possible values. The widget used to present this information
-to the user is called combo-box. In order to make this possible, each
-table which gets referenced by another table must be accompanied by a
-special view called I<table>B<*_combo>. This view must have two
-columns one called B<id> and one called B<text>. The B<id> column
-contains the value a user might want to enter in the field containing
-the reference. If the table has an I<table>B<_hid> column then
-B<id> values must be taken from there instead of the standard
-I<table>B<_id> column. The reasoning behind this is that even if
-there is no combo-box, the user should be able to enter references
-using I<table>B<_hid> values whenever possible. In order not to
-create an incongruence the combo-box must then also provide the
+When editing fields that are a reference to a row in another table it
+is useful to have some help in filling out the field. Best is to
+provide a list of all possible values. The widget used to present this
+information to the user is called combo-box. In order to make this
+possible, each table which gets referenced by another table must be
+accompanied by a special view called I<table>B<*_combo>. This view
+must have two columns one called B<id> and one called B<text>. The
+B<id> column contains the value a user might want to enter in the
+field containing the reference. If the table has an I<table>B<_hid>
+column then B<id> values must be taken from there instead of the
+standard I<table>B<_id> column. The reasoning behind this is that even
+if there is no combo-box, the user should be able to enter references
+using I<table>B<_hid> values whenever possible. In order not to create
+an incongruence the combo-box must then also provide the
 I<table>B<_hid>.
 
 If you want to order the contents of the combo-box, then this can be
@@ -227,9 +256,10 @@ Example:
     FROM proj, pers 
     WHERE proj_pers=pers_id and proj_active=true;
 
-The last example uses a custom function proj_popularity() which calculates
-a project popularity value which is then used as sort key in order to get
-the most popular projects first in the combo box.
+The last example uses a custom function proj_popularity() which
+calculates a project popularity value which is then used as sort key
+in order to get the most popular projects first in the combo
+box. Again, this is not computationally cheap.
 
 =head1 REPORTS
 
