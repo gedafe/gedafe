@@ -20,12 +20,12 @@ require Exporter;
 	MakeURL
 	MyURL
 	InitTemplate
-        InitPearls
+	InitPearls
 	Template
 	Die
 	DropUnique
 	FormStart
-        UniqueFormStart
+	UniqueFormStart
 	FormEnd
 	UniqueFormEnd
 	NextRefresh
@@ -36,8 +36,8 @@ sub Die($) {
 	my $error_text = shift;
 	my $s = $g{s};
 
-        # no recursion here please
-        $SIG{__DIE__} = 'DEFAULT';
+	# no recursion here please
+	$SIG{__DIE__} = 'DEFAULT';
 
 	my %t = (
 		PAGE => 'error',
@@ -214,7 +214,7 @@ sub UniqueFormEnd($$;$)
 	print "\n<INPUT TYPE=\"hidden\" NAME=\"form_url\" VALUE=\"$form_url\">\n";
 	print "<INPUT TYPE=\"hidden\" NAME=\"next_url\" VALUE=\"$next_url\">\n";
 	print "<INPUT TYPE=\"hidden\" NAME=\"form_id\" VALUE=\"$form_id\">\n";
-        FormEnd $s;
+	FormEnd $s;
 }
 
 
@@ -248,11 +248,11 @@ sub InitPearls($){
 	foreach my $module (@modules) {
 		$module =~ s/\.pm$//;
 		$pearls{$module} = eval "local \$SIG{__DIE__} = 'IGNORE';
-                                         require $module;
-                                         $module->new()";
+		                         require $module;
+		                         $module->new()";
 		if ($@) {
 			$pearls{$module} =
-			    "<pre>Unable to load Pearl $module.pm from $path<br><br>$@</pre>"
+				"<pre>Unable to load Pearl $module.pm from $path<br><br>$@</pre>"
 		}
 	}
 	$g{pearls} = \%pearls;
