@@ -16,6 +16,7 @@ use Gedafe::DB qw(
 	DB_AddRecord
 	DB_UpdateRecord
 	DB_GetCombo
+	DB_GetMNCombo
 	DB_DeleteRecord
 	DB_GetDefault
 	DB_ParseWidget
@@ -96,6 +97,7 @@ sub GUI_List($$$);
 sub GUI_ListButtons($$$$);
 sub GUI_ListTable($$$);
 sub GUI_MakeCombo($$$$);
+sub GUI_MakeMNCombo($$$$$);
 sub GUI_MakeISearch($$$$$$);
 sub GUI_PostEdit($$$);
 sub GUI_Search($$$);
@@ -1337,6 +1339,7 @@ sub GUI_Edit($$$)
 	my $q = $s->{cgi};
 	my $action = $q->url_param('action');
 	my $table = $q->url_param('table');
+	my @mntable = _GUI_GetMNref($table);
 	my $id = $q->url_param('id');
 	our %template_form_args;
 
@@ -1398,6 +1401,9 @@ sub GUI_Edit($$$)
 	# Initialise values
 	my $fields = $g{db_fields}{$table};
 	my @fields_list = @{$g{db_fields_list}{$table}};
+	my ($fields_listref, $fields_vlistref) = _GUI_GetAllFields($table);
+	my @fields_vlist = @$fields_vlistref;
+	
 	my %values = ();
 	if($reedit) {
 		%values = %{DataTree($q->param('reedit_data'))};
@@ -1506,7 +1512,17 @@ end
 	# Fields
 	$template_args{ELEMENT} = 'editform_footer';
 	print Template(\%template_args);
-
+    
+    #addition to mncombo representaion
+    my $str = "<script>\n<!--\n\n";
+    $str .= "function selectInALLCombos(){\n";
+    foreach my $vfield (@fields_vlist) {
+       $str .= "selectALL(document.editform.field_$vfield);\n";
+    }
+    $str .= "}\n";
+    $str .= "\n-->\n</script>\n";
+	print $str;
+	
 	# Buttons
 	$template_args{ELEMENT} = 'buttons';
 	$template_args{CANCEL_URL} = $cancel_url;
@@ -2091,6 +2107,10 @@ sub GUI_WidgetWrite($$$$)
 	}
 	elsif($w eq 'date') {
 		return GUI_WidgetWrite_Date($input_name, $warg, $value);
+	}elsif($w eq 'mncombo') {
+		my $combo;
+		$combo = GUI_MakeMNCombo($s, $dbh, $warg->{'mncombo'}, $input_name, $value);
+        return $combo;
 	}
 
 	return "Unknown widget: $w";
@@ -2454,6 +2474,120 @@ sub GUI_Oyster($)
 	GUI_Footer(\%template_args);
 }
 
+sub GUI_MakeMNCombo($$$$$)
+{
+	
+	my ($s, $dbh, $combo_view, $input_name, $value) = @_;
+    my $name = "${input_name}_mncombo";
+    my $virtual_field = $input_name;
+    $virtual_field =~ s/^field_//;
+    
+    my $q = $s->{cgi};
+    my $MNCOMBO = $s->{mncombo};
+	$s->{mncombo} = $MNCOMBO + 1;
+		
+	$value =~ s/^\s+//;
+	$value =~ s/\s+$//;
+
+	my $str;
+
+	my @acombo;
+	my @bcombo;
+    
+    if(not defined DB_GetMNCombo($s,$combo_view,\@acombo,$virtual_field,' not in '))  {
+		return undef;
+	}
+	if(not defined DB_GetMNCombo($s,$combo_view,\@bcombo,$virtual_field,' in ')) {
+		return undef;
+	}
+	
+    $str .= "<table id=\"mncombo\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n";
+    $str .= "<tr><td>";
+    $str .= "<table><tr><td>";
+	$str .= "<INPUT TYPE=button NAME=\"direction\" VALUE=\"Up\" onClick=\"moveUp(document.editform.$input_name);\"/>";
+	$str .= "</td></tr><tr><td>";
+	$str .= "<INPUT TYPE=button NAME=\"direction\" VALUE=\"Dn\" onClick=\"moveDown(document.editform.$input_name);\"/>";
+	$str .= "</td></tr></table>";
+    $str .= "</td><td valign=\"top\" style=\"width: 300;\">\n";
+	
+    $str .= "Already Selected:<br>\n";
+	$str .= "<select name=\"$input_name\" size=\"5\" style=\"width: 300;\" ";
+	$str .= "onDblClick=\"move(document.editform.$input_name,document.editform.$input_name$MNCOMBO);";
+	$str .= "sortSelect(document.editform.$input_name$MNCOMBO,compareText);\" ";
+	$str .= "multiple>\n";
+	
+	foreach(@bcombo) {
+		my $id = $_->[0];
+		$id=~s/^\s+//; $id=~s/\s+$//;
+		my $text = $_->[1];
+		if($value eq $id) {
+			$str .= "<OPTION SELECTED VALUE=\"$id\">$text</OPTION>\n";
+		}else {
+			$str .= "<OPTION  VALUE=\"$id\" >$text</OPTION>\n";
+		}
+	}
+	$str .= "</select>\n";
+	
+	$str .= "</td><td valign=\"middle\" align=\"center\" style=\"width:  50;\">\n";
+	$str .= "<INPUT TYPE=\"button\" VALUE=\"-->\" ";
+	$str .= "onClick=\"move(document.editform.$input_name,document.editform.$input_name$MNCOMBO);";
+	$str .= "sortSelect(document.editform.$input_name$MNCOMBO,compareText);\" />";
+    $str .= "<INPUT TYPE=\"button\" VALUE=\"<--\" onClick=\"move(document.editform.$input_name$MNCOMBO,document.editform.$input_name);\"/>";
+	$str .= "</td><td  valign=\"top\" style=\"width: 300;\">\n";
+
+	$str .= "New to Choose:<br>\n";
+	$str .= "<select name=\"$input_name$MNCOMBO\" size=\"5\" style=\"width: 300;\" ";
+	$str .= "onDblClick=\"move(document.editform.$input_name$MNCOMBO,document.editform.$input_name);\"";
+	$str .= ">\n";
+	
+	foreach(@acombo) {
+		my $id = $_->[0];
+		$id=~s/^\s+//; $id=~s/\s+$//;
+		my $text = $_->[1];
+		if($value eq $id) {
+			$str .= "<OPTION SELECTED VALUE=\"$id\">$text</OPTION>\n";
+		}else {
+			$str .= "<OPTION VALUE=\"$id\">$text</OPTION>\n";
+		}
+	}
+	$str .= "</SELECT><br>\n";
+	$str .= "<INPUT TYPE=\"text\" VALUE=\"\" NAME=\"filtercombobox\" ";
+	$str .= "onKeyUp=\"selectMe(document.editform.$input_name$MNCOMBO,value);\">";	
+	$str .= "</td></tr>\n";
+	$str .= "</tr>\n";
+	$str .= "</table>\n";
+	return $str;
+}
+
+sub _GUI_GetAllFields($){
+    my $table = shift;
+    my @fields_list;
+    my @vfields_list;
+    
+    my @wvfields = @{$g{db_fields_list}{$table}};
+    foreach my $nvf (@wvfields){
+        if (not $g{db_fields}{$table}{$nvf}{virtual} eq 'true'){
+            push @fields_list, $nvf;
+        }
+        else{
+            push @vfields_list, $nvf; 
+        }
+    } 
+    return (\@fields_list, \@vfields_list);
+};
+
+sub _GUI_GetMNref($){
+    my $table = shift;
+    my ($fields_listref, $vfields_listref) = _GUI_GetAllFields($table);
+	my @mntables;
+    my @vfields_list =  @$vfields_listref;
+    
+    for my $item (@vfields_list){
+        push @mntables, $g{db_fields}{$table}{$item}{reference};
+    }
+
+    return @mntables;
+};
 
 1;
 # Emacs Configuration

@@ -136,7 +136,10 @@ sub Start(%)
 	$s{user}=$user;
 	$s{ticket_value}=$ticket_value;
 	# print STDERR "TicketValue: $ticket_value\n";
-
+    
+    #Global sesion level counter for creating unique MNCOMBO name
+    $s{mncombo} = 0;
+    
 	my $action = $q->url_param('action') || '';
 	if($action eq 'edit' or $action eq 'add' or $action eq 'delete') {
 		# cache forms...

@@ -6,9 +6,7 @@
 
 package Gedafe::DB;
 use strict;
-
-#use Data::Dumper qw(Dumper);
-
+use Data::Dumper;
 use Gedafe::Global qw(%g);
 
 use DBI;
@@ -25,6 +23,7 @@ require Exporter;
 	DB_AddRecord
 	DB_UpdateRecord
 	DB_GetCombo
+	DB_GetMNCombo
 	DB_DeleteRecord
 	DB_GetDefault
 	DB_ParseWidget
@@ -53,6 +52,7 @@ sub DB_FetchListSelect($$);
 sub DB_GetBlobName($$$$);
 sub DB_GetBlobType($$$$);
 sub DB_GetCombo($$$);
+sub DB_GetMNCombo($$$$$);
 sub DB_GetDefault($$$);
 sub DB_GetNumRecords($$);
 sub DB_GetRecord($$$$);
@@ -116,8 +116,8 @@ sub DB_Init($$)
 	# read table acls
 	DB_ReadTableAcls($dbh, $g{db_tables}) or return undef;
 
-	# read fields
-	$g{db_fields} = DB_ReadFields($dbh, $g{db_database}, $g{db_tables});
+	# read fields adding information about virtual fields into $g{db_vfields}
+	($g{db_fields},$g{db_vfields}) = DB_ReadFields($dbh, $g{db_database}, $g{db_tables});
 	defined $g{db_fields} or return undef;
 
 	# order fields
@@ -535,7 +535,11 @@ sub DB_ParseWidget($)
 		defined $g{db_fields}{$r}{"${r}_hid"} or
 			die "widget $widget: table $r has no HID";
 	}
-
+    if($type eq 'mncombo') {
+		defined $args{'combo'} or
+			die "widget $widget: mandatory argument 'combo' not defined";
+	}
+	
 	return ($type, \%args);
 }
 
@@ -544,6 +548,7 @@ sub DB_ReadFields($$$)
 	my ($dbh, $database, $tables) = @_;
 	my ($query, $sth, $data);
 	my %fields = ();
+	my %vfields = ();
 
 	# fields
 	$query = <<'END';
@@ -641,7 +646,49 @@ END
 		}
 	}
 
-	# meta fields
+	# meta virtual fields
+	my %meta_vfields = ();
+	$query = <<'END';
+
+SELECT meta_mncombo_atable, meta_mncombo_vfield, 
+meta_mncombo_reference, meta_mncombo_widget, a.attname
+FROM meta_mncombo m, pg_class c, pg_attribute a
+WHERE c.relname = meta_mncombo_reference AND a.attnum = 2 
+AND a.attrelid = c.oid 
+AND a.attname != ('........pg.dropped.' || a.attnum || '........')
+END
+	
+	$sth = $dbh->prepare($query) or die $dbh->errstr;
+	$sth->execute() or die $sth->errstr;
+	while ($data = $sth->fetchrow_arrayref()) {
+
+		$meta_vfields{lc($data->[0])}{lc($data->[1])}{atable} = lc($data->[0]);
+		$meta_vfields{lc($data->[0])}{lc($data->[1])}{name}   = lc($data->[1]);
+		$meta_vfields{lc($data->[0])}{lc($data->[1])}{reference} = lc($data->[2]);
+		$meta_vfields{lc($data->[0])}{lc($data->[1])}{widget} = lc($data->[3]);
+        #hide tables from web page
+        $g{db_tables}{lc($data->[3])}{hide} = "1";	   
+	}
+	$sth->finish;
+
+    for my $mntable (keys %meta_vfields) {
+        for my $virtual_field (keys %{$meta_vfields{$mntable}}){
+            my $atable = $meta_vfields{$mntable}{$virtual_field}{atable};
+            my $reference = $meta_vfields{$mntable}{$virtual_field}{reference};
+            my $btable = _DB_GetMNComboSecondFieldReference($dbh,$reference,$atable);
+            my $first = _DB_GetMNComboFieldReference($dbh,$reference,2);
+            $meta_vfields{$mntable}{$virtual_field}{btable} = $btable;
+            $meta_vfields{$mntable}{$virtual_field}{first} = $first;
+            if ($atable eq $first) {
+                $meta_vfields{$mntable}{$virtual_field}{atablereal} = _DB_GetMNComboField($dbh,$reference,2);
+                $meta_vfields{$mntable}{$virtual_field}{btablereal} = _DB_GetMNComboField($dbh,$reference,3);
+            }else{
+                $meta_vfields{$mntable}{$virtual_field}{atablereal} = _DB_GetMNComboField($dbh,$reference,3);
+                $meta_vfields{$mntable}{$virtual_field}{btablereal} = _DB_GetMNComboField($dbh,$reference,2);
+            }
+        }
+    }
+    # meta fields
 	my %meta_fields = ();
 	$query = <<'END';
 SELECT meta_fields_table, meta_fields_field, meta_fields_attribute,
@@ -682,6 +729,7 @@ END
 	# - table information in reference fields
 	# - meta information from meta_fields
 	# - widget from type (if not specified)
+	# - virtual field from meta_mncombo
 	table: for my $table (keys %$tables) {
 		field: for my $field (keys %{$fields{$table}}) {
 			my $f = $fields{$table}{$field};
@@ -703,9 +751,44 @@ END
 			$f->{widget} = DB_Widget(\%fields, $f);
 			#}
 		}
-	}
-
-	return \%fields;
+        
+		my $v = undef;
+		 
+		if (defined $meta_vfields{$table}){
+            for my $virtual_field (keys %{$meta_vfields{$table}}){
+                my $vf = undef;
+                my $vfname = undef;
+                
+                $vf = $meta_vfields{$table}{$virtual_field};
+                $vfname = $vf->{name};
+                my $mntable = $vf->{reference};
+                
+                my $vm = undef;
+			    if(defined $meta_fields{$table}) {
+				    $vm = $meta_fields{$table}{$virtual_field};
+			     }
+               
+                if(defined $vf and defined $vfname){
+                    $fields{$table}{$vfname} = ();
+                    $fields{$table}{$vfname}{widget} = $vf->{widget};
+                    $fields{$table}{$vfname}{reference} = $vf->{reference};
+                    $fields{$table}{$vfname}{virtual} = "true";
+                    
+                    if(defined $vm) {
+                        $fields{$table}{$vfname}{order}     = $vm->{order};
+                        $fields{$table}{$vfname}{desc}      = $vm->{desc};
+                        $fields{$table}{$vfname}{copy}      = $vm->{copy};
+                        $fields{$table}{$vfname}{sortfunc}  = $vm->{sortfunc};
+                        $fields{$table}{$vfname}{markup}    = $vm->{markup};
+                        $fields{$table}{$vfname}{align}     = $vm->{align};
+                        $fields{$table}{$vfname}{hide_list} = $vm->{hidelist};
+                    }   
+                }
+            }
+        }
+    }
+ 
+	return \%fields, \%meta_vfields;
 }
 
 sub DB_Connect($$$)
@@ -798,7 +881,13 @@ sub DB_FetchListSelect($$)
 	print STDERR "View $v\n seems to be defined\n";
 	print STDERR "First el in fieldlist : $g{db_fields_list}{$v}[0]\n";
 	# go through fields and build field list for SELECT (...)
-	my @fields = @{$g{db_fields_list}{$v}};
+	my @wvfields = @{$g{db_fields_list}{$v}};
+    my @fields;
+    foreach my $nvf (@wvfields){
+        push @fields, $nvf if (not $g{db_fields}{$v}{$nvf}{virtual} eq 'true');
+    } 
+    
+    
 	my @select_fields;
 	for my $f (@fields) {
 		if($g{db_fields}{$v}{$f}{type} eq 'bytea') {
@@ -1051,7 +1140,11 @@ sub DB_GetRecord($$$$)
 	my $id = shift;
 	my $record = shift;
 
-	my @fields_list = @{$g{db_fields_list}{$table}};
+	#my @fields_list = @{$g{db_fields_list}{$table}};
+	my ($fields_listref, $vfields_listref) = _DB_GetFields($table);
+	my @fields_list =  @$fields_listref;
+	my @vfields_list =  @$vfields_listref;
+    
 	#update the query to prevent listing binary data
 	my @select_fields = @fields_list;
 	for(@select_fields){
@@ -1243,9 +1336,12 @@ sub DB_AddRecord($$$)
 	my $dbh = shift;
 	my $table = shift;
 	my $record = shift;
-
-	my $fields = $g{db_fields}{$table};
-	my @fields_list = grep !/${table}_id/, @{$g{db_fields_list}{$table}};
+	
+    my $fields = $g{db_fields}{$table};
+	my ($fields_listref, $vfields_listref) = _DB_GetFields($table);
+	my @fields_list =  @$fields_listref;
+	my @vfields_list =  @$vfields_listref;
+    @fields_list = grep !/${table}_id/, @fields_list;
 	
 	# filter-out readonly fields
 	@fields_list = grep { not defined $g{db_fields}{$table}{$_}{widget} or $g{db_fields}{$table}{$_}{widget} ne 'readonly' } @fields_list;
@@ -1253,21 +1349,44 @@ sub DB_AddRecord($$$)
 	my %dbdata = ();
 	DB_Record2DB($dbh, $table, $record, \%dbdata);
 
-	my $query = "INSERT INTO $table (";
-	$query   .= join(', ',@fields_list);
-	$query   .= ") VALUES (";
-	my $first = 1;
-	for(@fields_list) {
-		if($first) {
-			$first = 0;
-		}
-		else {
-			$query .= ', ';
-		}
-		$query .= '?'
-	}
-	$query   .= ")";
-	return DB_ExecQuery($dbh,$table,$query,\%dbdata,\@fields_list);
+	my $query = _DB_Insert($table, \@fields_list);
+                
+    my ($result,$oid) = DB_ExecQueryOID($dbh,$table,$query,\%dbdata,\@fields_list);
+    my $ID = _DB_GetID($dbh,$table,$oid);
+    if (defined $ID){
+        if (@vfields_list and $result){
+            for my $vfield (@vfields_list){       
+                my $mntable = $g{db_fields}{$table}{$vfield}{reference};
+                #first field in mntable
+                my $mntable_first = $g{db_vfields}{$table}{$vfield}{first};
+                
+                @fields_list = @{$g{db_fields_list}{$mntable}};
+                @fields_list = grep !/${mntable}_id/, @fields_list;
+                my $fname = "field_".$vfield;
+              
+                my @mntable_fields = @{$g{s}{cgi}{$fname}};
+                
+                if (@mntable_fields){
+                for my $val (@mntable_fields){
+                    my @mntable_row;
+                   
+                    if ( $mntable_first eq $table ){
+                        push @mntable_row, $ID;
+                        push @mntable_row, $val;
+                    }
+                    else {
+                        push @mntable_row, $val;
+                        push @mntable_row, $ID;
+                    }
+                    
+                    $query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
+                    DB_ExecQueryMN($dbh,$mntable,$query,\@fields_list);
+                }
+                }
+            }
+        }
+    }
+    return $result;
 }
 
 sub DB_UpdateRecord($$$)
@@ -1277,8 +1396,10 @@ sub DB_UpdateRecord($$$)
 	my $record = shift;
 
 	my $fields = $g{db_fields}{$table};
-	my @fields_list = @{$g{db_fields_list}{$table}};
-
+    my ($fields_listref, $vfields_listref) = _DB_GetFields($table);
+	my @fields_list =  @$fields_listref;
+	my @vfields_list =  @$vfields_listref;
+	
 	# filter-out readonly fields
 	@fields_list = grep { $g{db_fields}{$table}{$_}{widget} ne 'readonly' } @fields_list;
 
@@ -1301,8 +1422,76 @@ sub DB_UpdateRecord($$$)
 	}
 	$query .= join(', ',@updates);
 	$query .= " WHERE ${table}_id = $record->{id}";
+    
+	my $result = DB_ExecQuery($dbh,$table,$query,\%dbdata,\@updatefields);
+	my $ID =  $record->{id};
+    
+    if (@vfields_list and $result){
+        for my $vfield (@vfields_list){ 
+              
+            my $mntable = $g{db_fields}{$table}{$vfield}{reference};
+            my $mntable_first = $g{db_vfields}{$table}{$vfield}{first};
+            
+            @fields_list = @{$g{db_fields_list}{$mntable}};
+            @fields_list = grep !/${mntable}_id/, @fields_list;
+            my $fname = "field_".$vfield;
+            
+            #new list         
+            my @mntable_fields = ();
+            if (defined @{$g{s}{cgi}{$fname}}){@mntable_fields = @{$g{s}{cgi}{$fname}}};
+            
+            if (@mntable_fields){
+            #old list
+            my $mncombo_firstfield = $g{db_vfields}{$table}{$vfield}{atablereal};
+            my $mncombo_secondfield = $g{db_vfields}{$table}{$vfield}{btablereal};
+            my $mntable_fields_old = _DB_GetIDMN($dbh, $mntable, $ID, $mncombo_firstfield, $mncombo_secondfield );
+            
+            #delete list
+            my $mntable_fields_delete = _DB_Difference($mntable_fields_old, \@mntable_fields);
+            
+            #add list
+            my $mntable_fields_add = _DB_Difference(\@mntable_fields, $mntable_fields_old);
+            
+            if (@$mntable_fields_add){
+            for my $val (@$mntable_fields_add){
+                my @mntable_row = ();
+   
+                if ( $mntable_first eq $table ){
+                    push @mntable_row, $ID;
+                    push @mntable_row, $val;
+                }
+                else {
+                    push @mntable_row, $val;
+                    push @mntable_row, $ID;
+                }
+                
+                $query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
+                DB_ExecQueryMN($dbh,$mntable,$query,\@fields_list);
+            }
+            }
+            
+            if (@$mntable_fields_delete){
+            for my $val (@$mntable_fields_delete){
+                my @mntable_row = ();
+                
+                if ( $mntable_first eq $table ){
+                    push @mntable_row, $ID;
+                    push @mntable_row, $val;
+                }
+                else {
+                    push @mntable_row, $val;
+                    push @mntable_row, $ID;
+                }
+                
+                $query = _DB_DeleteMN($mntable, \@fields_list,\@mntable_row);
+                DB_ExecQueryMN($dbh,$mntable,$query,\@fields_list);
+            }
+            }
+        }
+        }
+    }
 
-	return DB_ExecQuery($dbh,$table,$query,\%dbdata,\@updatefields);
+    return $result;
 }
 
 sub DB_GetCombo($$$)
@@ -1643,6 +1832,349 @@ sub DB_DumpJSITable($$$)
 sub DB_filenameSql($){
   my $column = shift;
   return "decode(replace(replace(encode(substring($column,1,position(' '::bytea in $column)-1),'escape'), 'gedafe_PROTECTED_sPace'::text, ' '::text), 'gedafe_PROTECTED_hAsh'::text, '#'::text),'escape')";
+}
+
+sub DB_GetMNCombo($$$$$)
+{
+	my $s = shift;
+	my $combo_view = shift;
+	my $combo_data = shift;
+    my $vfield = shift;
+    my $op = shift;
+
+    my $q = $s->{cgi};
+   
+    my $dbh = $s->{dbh};
+    my $table = $q->url_param('table');
+    my $mncombo_filter = undef;
+    $mncombo_filter = $q->url_param('id');
+   
+    my $mncombo_atable = $table;
+    my $mncombo_reference = $g{db_vfields}{$table}{$vfield}{reference};
+    my $mncombo_btable = $g{db_vfields}{$table}{$vfield}{btable};
+    my $mncombo_aid = $g{db_vfields}{$table}{$vfield}{atablereal};
+    my $mncombo_bid = $g{db_vfields}{$table}{$vfield}{btablereal};
+
+    my $aid = $mncombo_atable."_id";
+    my $bid = $mncombo_btable."_id";
+    my $rid = $mncombo_reference."_id";
+    
+    my $mncombo_view = $g{db_vfields}{$table}{$vfield}{widget};
+       
+    if ($mncombo_view eq ''){
+        $mncombo_view = $mncombo_btable."_combo ";
+    }else{
+        $mncombo_view =~ s/^(\s)*mncombo\((\s)*combo(\s)*=(\s)*//;
+        $mncombo_view =~ s/(\s)*\)(\s)*$//;
+    };
+    
+    my  $query = "";
+    if ((not defined  $mncombo_filter and $op eq ' not in ') or (defined  $mncombo_filter)){
+        $query .= "SELECT * from ".$mncombo_view." ";
+        if (defined  $mncombo_filter){
+            $query .= "WHERE  id $op ";
+            $query .= "(SELECT  $bid ";
+            if ($mncombo_atable eq $mncombo_btable) {
+                $query .= "FROM    $mncombo_reference, $mncombo_atable ";
+            }
+            else{
+                $query .= "FROM    $mncombo_reference, $mncombo_atable, $mncombo_btable ";
+            };
+            $query .= "WHERE   $aid = $mncombo_filter AND ";
+            $query .= "        $mncombo_aid = $aid AND ";
+            $query .= "        $bid = $mncombo_bid)";
+        }
+        if(defined $g{db_tables}{$combo_view}{meta_sort}) {
+            $query .= " ORDER BY meta_sort";
+        }elsif ($op eq ' not in ') {
+            $query .= " ORDER BY text";
+        }
+        my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
+        
+        $sth->execute() or die $sth->errstr;
+        my $data;
+        while($data = $sth->fetchrow_arrayref()) {
+            $data->[0]='' unless defined $data->[0];
+            $data->[1]='' unless defined $data->[1];
+            push @$combo_data, [$data->[0], $data->[1]];
+        }
+        die $sth->errstr if $sth->err;
+    }
+     
+	return 1;
+};
+
+sub DB_ExecQueryMN($$$$)
+{
+	my $dbh = shift;
+	my $table = shift;
+	my $query = shift;
+	my $fields = shift;
+	
+	my $sth = $dbh->prepare($query) or die $dbh->errstr;
+	my $res = $sth->execute() or do {
+		# report nicely the error
+		$g{db_error}=$sth->errstr; return undef;
+	};
+	if($res ne 1 and $res ne '0E0') {
+		die "Number of rows affected is not 1! ($res)";
+	}
+	return 1;
+};
+
+
+sub _DB_GetID($$$){
+    my $dbh = shift;
+    my $table = shift;
+    my $oid = shift;
+    my $id = undef;
+    my $table_id = $table."_id";
+    
+    # ID from the last insert into table
+	
+	
+	my $query = "SELECT $table_id FROM $table WHERE oid = $oid";
+	my $sth = $dbh->prepare($query);
+	$sth->execute() or return undef;
+	my $data = $sth->fetchrow_arrayref() or die $sth->errstr;
+	$id = $data->[0];
+	$sth->finish;
+	
+	return $id;
+
+};
+
+sub _DB_Difference($$){
+    my $A = shift; 
+    my $B = shift;
+    my %seen = ();
+    my @result = ();
+    
+    foreach my $item (@$B) {$seen{$item} = 1};
+    foreach my $item (@$A){
+        unless ($seen{$item}) {
+            push @result, $item;
+        }
+    }
+    return \@result;
+};
+
+
+sub _DB_GetIDMN($$$$$){
+    my $dbh = shift;
+    my $table = shift;
+    my $oid = shift;
+    my $field = shift;
+    my $mntable_second = shift;
+    my @result = ();
+    my $table_id = $table."_id";
+    
+    # ID from the last insert into table
+	
+	my $query = "SELECT $mntable_second FROM $table WHERE $field = $oid";
+	print STDERR ("\nquery $query\n");
+	my $sth = $dbh->prepare($query);
+	$sth->execute() or return undef;
+    while (my $data = $sth->fetchrow_arrayref()) {
+	   push @result, $data->[0];
+	}
+	$sth->finish;
+    
+    return \@result;
+};
+
+sub _DB_InsertMN($$$){
+    my $table = shift;
+    my $fields_list = shift;
+    my $values = shift;
+  
+    my $query = "INSERT INTO $table (";
+	$query   .= join(', ',@$fields_list);
+	$query   .= ") VALUES (";
+	$query   .= join(', ',@$values);
+	$query   .= ")";
+    return $query;
+};
+
+sub _DB_DeleteMN($$$){
+    my $table = shift;
+    my $fields_list = shift;
+    my $values = shift;
+    my $query = "DELETE FROM $table WHERE ";
+    
+    for (my $i = @$fields_list - 1; $i > 0; $i--){
+        $query.= "@$fields_list[$i] = @$values[$i] AND "; 
+    }
+    
+    $query.= "@$fields_list[0] = @$values[0]";
+	return $query;
+};
+
+
+sub _DB_Insert($$){
+    my $table = shift;
+    my $fields_list = shift;
+    my $query = "INSERT INTO $table (";
+	$query   .= join(', ',@$fields_list);
+	$query   .= ") VALUES (";
+	my $first = 1;
+	for(@$fields_list) {
+		if($first) {
+			$first = 0;
+		}
+		else {
+			$query .= ', ';
+		}
+		$query .= '?'
+	}
+	$query   .= ")";
+    return $query;
+};
+
+
+sub _DB_GetFields($){
+    my $table = shift;
+    my @fields_list;
+    my @vfields_list;
+    
+    my @wvfields = @{$g{db_fields_list}{$table}};
+    foreach my $nvf (@wvfields){
+        if (not $g{db_fields}{$table}{$nvf}{virtual} eq 'true'){
+            push @fields_list, $nvf;
+        }else{
+            push @vfields_list, $nvf; 
+        }
+    } 
+    return (\@fields_list, \@vfields_list);
+};
+
+
+sub DB_ExecQueryOID($$$$$)
+{
+	my $dbh = shift;
+	my $table = shift;
+	my $query = shift;
+	my $data = shift;
+	my $fields = shift;
+	
+	my @stringtypes = qw(
+		date
+		time
+		timestamp
+		int4
+		int8
+		numeric
+		float8
+		bpchar
+		text
+		name
+		bool
+	);
+	my @binarytypes = ('bytea');
+	       
+	my %datatypes = ();
+	for(@$fields){
+		$datatypes{$_} = $g{db_fields}{$table}{$_}{type};
+	}
+	
+	my $sth = $dbh->prepare($query) or die $dbh->errstr;
+	
+	my $paramnumber = 1;
+	for(@$fields){
+		my $type = $datatypes{$_};
+		my $data = $data->{$_};
+		if(grep (/^$type$/,@stringtypes)){
+			$sth->bind_param($paramnumber,$data);
+		}
+		if(grep (/^$type$/,@binarytypes)){
+			#note the reference to the large blob
+			$sth->bind_param($paramnumber,$$data,{ pg_type => DBD::Pg::PG_BYTEA });
+		}
+		$paramnumber++;
+	}
+	my $res = $sth->execute() or do {
+		# report nicely the error
+		$g{db_error}=$sth->errstr; return undef;
+	};
+	my $oid = $sth->{'pg_oid_status'};
+	if($res ne 1 and $res ne '0E0') {
+		die "Number of rows affected is not 1! ($res)";
+	}
+	return 1, $oid;
+};
+
+sub _DB_GetMNComboField($$$){
+    my $dbh = shift;
+    my $mntable = shift;
+    my $mntable_position = shift;
+    
+    my $query = "SELECT attname FROM pg_class c, pg_attribute a WHERE ";
+    $query.="c.relname ='$mntable' AND ";
+    $query.= "a.attrelid = c.oid AND attnum=$mntable_position";
+     
+	my $sth = $dbh->prepare($query);
+	$sth->execute() or return undef;
+	my $data = $sth->fetchrow_arrayref() or die $sth->errstr;
+	my $table_attr = $data->[0];
+	$sth->finish;
+	
+	return $table_attr;
+};
+
+
+sub _DB_GetMNComboFieldReference($$$){
+    my $dbh = shift;
+    my $mntable = shift;
+    my $mntable_position = shift;
+    
+    my $query = "SELECT attname FROM pg_class c, pg_attribute a WHERE ";
+    $query.="c.relname ='$mntable' AND ";
+    $query.= "a.attrelid = c.oid AND attnum=$mntable_position";
+     
+	my $sth = $dbh->prepare($query);
+	$sth->execute() or die $dbh->errstr;
+	my $data = $sth->fetchrow_arrayref() or die $sth->errstr;
+	my $table_attr = $data->[0];
+	$sth->finish;
+	
+	my $reftable = _DB_GetFieldReference($dbh, $mntable, $table_attr);
+	return $reftable;
+};
+
+
+sub _DB_GetMNComboSecondFieldReference($$$){
+    my $dbh = shift;
+    my $mntable = shift;
+    my $mncombo_first = shift;
+    my $mncombo_second = undef;
+    
+    my $mn_first =  _DB_GetMNComboFieldReference($dbh,$mntable,2);
+    my $mn_second = _DB_GetMNComboFieldReference($dbh,$mntable,3);
+    
+    if ($mncombo_first eq $mn_first){
+        $mncombo_second = $mn_second;
+    }else{
+        $mncombo_second = $mn_first;
+    }
+    return $mncombo_second;
+};
+
+sub _DB_GetFieldReference($$$){
+    my $dbh = shift;
+    my $table = shift;
+    my $table_attr = shift;
+    
+    my $query="SELECT DISTINCT tgargs FROM pg_class,pg_trigger WHERE relfilenode=tgconstrrelid AND ";
+    $query.=" relname='$table' AND tgargs LIKE '%$table_attr%'";
+    my $sth = $dbh->prepare($query);
+	$sth->execute() or die $dbh->errstr;
+	my $data = $sth->fetchrow_arrayref() or die "TABLE $table does have defined CONSTRAINT on column $table_attr\n $sth->errstr";
+	
+	#"$1\000publauthor\000publication\000UNSPECIFIED\000publauthor_publication\000publication_id\000";
+	my @reflist = split('\000',$data->[0]);
+	$sth->finish;
+	
+	return $reflist[2];
 }
 
 
