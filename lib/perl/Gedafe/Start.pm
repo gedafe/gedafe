@@ -23,6 +23,7 @@ use Gedafe::GUI qw(
 	GUI_PostEdit
 	GUI_Edit
 	GUI_Delete
+	GUI_Export
 	GUI_DumpTable
 );
 use Gedafe::DB qw(
@@ -120,6 +121,15 @@ sub Start(%)
 		# do not cache POST requests, so that for "Duplicate Form" is
 		# shown if needed...
 		$expires = '-1d';
+	}
+
+	if($action eq 'export') {
+		my $table = $q->url_param('table');
+		print $q->header(-type=>'text/tab-separated-values',
+			-attachment=>"$table.tsv",
+			-expires=>'-1d');
+		GUI_Export(\%s, $user, $dbh);
+		exit;
 	}
 
 	my %headers =(-expires=>$expires);
