@@ -3,6 +3,14 @@
         =========================================
 
 (arrows indicate actions that you should make when upgrading)
+------------------------------------------------------------------
+HEAD    (2004-02-09
+  * New Button to toggle "Print format" and "screen format". Print format
+    means to print all records in one browser window. This is handy to
+    print out data or Reports. Also it is nice for the use of Excel Weblinks
+    Changes to example/templates/header.html and lib/perl/Gedafe/GUI.pm
+	(Johannes)
+------------------------------------------------------------------
 HEAD    (2004-02-04)
   * Change DB.pm, so that numeric fields accept separator or grouping
     characters in numbers and decimal comma instead of the decimal 
