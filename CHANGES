@@ -1,5 +1,6 @@
 2002-02-18
 ----------
+* released 1.0.5
 * Implemented "export" action, EXPORT_URL in templates
 * Fix product_combo view in demo1.sql
 
