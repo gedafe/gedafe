@@ -2,6 +2,7 @@ ANNOUNCE
 CHANGES
 COPYING
 README
+TODO
 bin/daemon-ctl
 bin/gedafed
 bin/gedafed-ctl
