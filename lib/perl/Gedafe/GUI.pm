@@ -259,27 +259,6 @@ sub GUI_xForm($;$)
 	print "</FORM>\n";
 }
 
-#$sub GUI_CheckUniqueID($$)
-#{
-#	my $user = shift;
-#	my $q = shift;
-#
-#	my %template_args = (
-#		PAGE => 'doubleurl',
-#		USER => $user,
-#		TITLE => "Duplicate Action URL",
-#	);
-#
-#	if(!GUI_DropUnique($q->url_param('unique_id'))) {
-#		print $q->header;
-#		GUI_Header($q, \%template_args);
-#		$template_args{ELEMENT}='doubleurl';
-#		print Template(\%template_args);
-#		GUI_Footer("doubleurl");
-#		exit;
-#	}
-#}
-
 sub GUI_CheckFormID($$)
 {
 	my $user = shift;
@@ -906,9 +885,6 @@ sub GUI_Str2Hash($$)
 		if(/^(.*?):(.*)$/) {
 			$hash->{$1} = GUI_URL_Decode($2);
 		}
-#		else {
-#			print "<P>ERROR: $_\n";
-#		}
 	}
 }
 
@@ -1128,7 +1104,7 @@ sub GUI_MakeCombo($$$$$)
 			return undef;
 		}
 		$str = "<SELECT SIZE=\"1\" name=\"$name\">\n";
-                # the emptz option must not be empty! else the MORE ... disapears off screen
+                # the empty option must not be empty! else the MORE ... disapears off screen
 		$str .= "<OPTION VALUE=\"\">Make your Choice ...</OPTION>\n";
 		foreach(@combo) {
 			my $id = $_->[0];

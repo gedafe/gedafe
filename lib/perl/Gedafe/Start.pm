@@ -113,7 +113,6 @@ sub Start(%)
 	} else {
 		print $q->header(-expires=>$expires,-cookie=>$cookie);
 	}
-#	print "<p><FONT SIZE=2>DEBUG: user=$user</FONT>\n";
 
 	GUI_PostEdit($q, $user, $dbh);
 
