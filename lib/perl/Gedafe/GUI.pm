@@ -1007,7 +1007,7 @@ sub GUI_ListTable($$$)
 			
 			if($c->{refcount}){
 				my $refurl = MakeURL($s->{url}, {
-						table => $c->{desc},
+						table => $c->{table},
 						action => 'list',
 						search_field1 => 'meta_rc_'.$c->{tar_field},
 						search_value1 => '='.$row->[0]},['search_value','search_field','offset','orderby']);
