@@ -15,8 +15,8 @@ Small features
 - improve README (put what additional software is needed)
 - TUTORIAL ?
 - meta_fields: combo
-- use CGI in Auth.pm?
-- use versions when importing external modules (e.g. use CGI 1.5)
+- add troobleshooting section to gedafe-user.pod
+- meta_database, default_hide
 
 Big features
 ------------

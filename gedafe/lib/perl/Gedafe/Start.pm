@@ -12,9 +12,7 @@ require Exporter;
 @ISA       = qw(Exporter);
 @EXPORT    = qw(Start);
 
-use CGI;
-#CGI->compile(':all');
-#use CGI::Carp; 
+use CGI 2.00 qw(-compile :cgi);
 
 use Gedafe::Auth;
 use Gedafe::Global qw(%g %s *u Global_InitSession Global_InitUser);

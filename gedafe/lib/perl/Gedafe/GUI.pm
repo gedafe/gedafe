@@ -10,7 +10,6 @@ use Gedafe::Global qw(%g);
 use Gedafe::DB;
 use Gedafe::Util;
 
-use CGI;
 use POSIX;
 
 use vars qw(@ISA @EXPORT);

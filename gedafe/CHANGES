@@ -1,6 +1,7 @@
 2001-01-27
 ----------
 * searches match now substrings and are case insensitive
+* Start.pm: use CGI 2.00 qw(-compile :cgi);
 
 2001-01-24
 ----------
