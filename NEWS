@@ -60,6 +60,11 @@
     of a coulumn. The default is right-aligned for numeric fields and
     left-aligned otherwise.
 
+  * The buttons in the list view (with the arrows for navigation and 'ADD' to
+    add a new record) can now also appear at the top before the list. Use the
+    'list_buttons' option in the Start function to select where to display the
+    buttons. The value can be one of: top, bottom, both or none.
+
 1.0.6 (2002-03-17)
 ------------------------------------------------------------------------------
   * 'action=export' instead of 'action=list' or 'action=listrep' returns

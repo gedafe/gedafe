@@ -72,6 +72,9 @@ Release Notes
   * The meta_fields attribute 'align' can be used to change the alignment
     of a coulumn.
 
+  * The buttons in the list view (with the arrows for navigation and 'ADD' to
+    add a new record) can now also appear at the top before the list.
+
 Availability
 ------------
 
