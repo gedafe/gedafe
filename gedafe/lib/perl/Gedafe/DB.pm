@@ -817,23 +817,36 @@ sub DB_FetchListSelect($$)
 				     $g{db_tables}{$spec->{table}}{meta}{showref});
 	    
 	    
-		for my $showref(@showrefs){
+		for my $showref(@showrefs){	
+				
+  			my $showrefindex = 0;
+			my ($sr,$explicittarget)= 
+				( $showref=~ m/^\s*(.*)\((.*)\)\s*/o);
+			$showref = $sr if (defined  $sr );
+
 			next unless(defined $g{db_tables}{$showref}{acls}{$spec->{user}} 
 				    and $g{db_tables}{$showref}{acls}{$spec->{user}}=~/r/);
 			
 			#now find the column that references us.
 			my $refcolumn = undef;
-			for my $refcol (@{$g{db_fields_list}{$showref}}){
+			if (defined  $explicittarget ){
+				$refcolumn = $explicittarget;
+			} else { 
+			    for my $refcol (@{$g{db_fields_list}{$showref}}){
 				my $refcolref = $g{db_fields}{$showref}{$refcol}{reference};
 				next if(!defined $refcolref);
 				if( $refcolref eq 
 				    $spec->{table}){
 					$refcolumn = $refcol;
+					last; # End loop to make sure we
+					# find the first referencing col
 				}
+			    }
 			}
 			die($spec->{table}." not referenced from $showref in meta_tables showref") if(!defined $refcolumn);
 			
-			push @select_fields,"(select count(*) from $showref where $refcolumn = $select_fields[0]) as meta_rc_$showref";
+			push @select_fields,"(select count(*) from $showref as meta_rcsr where meta_rcsr.$refcolumn = $spec->{view}.$select_fields[0]) as meta_rc_${showref}";
+
 			push @fields,"meta_rc_$showref#$refcolumn";
 		}
 	    

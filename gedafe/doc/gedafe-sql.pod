@@ -299,8 +299,14 @@ you how many orders reference that product.
 The "2 items" value is also a link that will take you to the order table 
 with searchfields set such that only the orders that reference this 
 product will be shown. The creation of this table
-will ofcource be subject to your privileges regarding reading from the
+will of cource be subject to your privileges regarding reading from the
 other table.
+In case the reference is directed to the same table, or two columns of
+the second table reference the first table, you need to explicitly tell
+gedafe, which is the referencing column.
+
+In the above example you would insert this line in meta_tables: 
+  'products','showref','orders(orders_product)'
 
 =item twocols
 

@@ -4,6 +4,13 @@
 
 (arrows indicate actions that you should make when upgrading)
 ------------------------------------------------------------------
+HEAD    (2004-04-13)
+
+   *    Enhance the refcol feature: Make the referencing column
+	configurable. Needed for circular or multiple references.
+   *    Added forgotten schema1.sql from enhanced schema support
+		Johannes     
+------------------------------------------------------------------
 HEAD    (2004-04-08)
 	
    *	enhanced schema support
