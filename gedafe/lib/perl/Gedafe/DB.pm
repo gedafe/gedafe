@@ -726,82 +726,69 @@ END
 		}
 	}
 
-
-	# meta mncombo fields
+	######## MN Relations #########
+		
 	my %meta_mnfields = ();
 	$query = <<'END';
-
-
-SELECT meta_mncombo_atable, meta_mncombo_vfield, 
-meta_mncombo_reference, a.attname
-FROM meta_mncombo m, pg_class c, pg_attribute a
-WHERE c.relname = meta_mncombo_reference AND a.attnum = 2 
-AND a.attrelid = c.oid 
-AND a.attname != ('........pg.dropped.' || a.attnum || '........')
+SELECT meta_mncombo_atable, meta_mncombo_vfield, meta_mncombo_reference
+FROM meta_mncombo
 END
 
-	
-	# to insert/update/delete data in M:N table we need to know real order of the table fields
-	# 
-	# {mnfirstfield_name} is the name of the first (real) field of the M:N table
-	# {mnfirstref_name} is the name of the table referenced by the first field of the M:N table
-	# {mnsecondfield_name} is the name of the second (real) field of the M:N table
-		
 	$sth = $dbh->prepare($query) or die $dbh->errstr;
 	$sth->execute() or die $sth->errstr;
 	while ($data = $sth->fetchrow_arrayref()) {
-		
-		my $mnfirstfield_dict = _DB_GetMNComboFieldDef($dbh,lc($data->[2]),2);
-		my $mnsecondfield_dict = _DB_GetMNComboFieldDef($dbh,lc($data->[2]),3);
-		
-		$meta_mnfields{lc($data->[0])}{lc($data->[1])}{atable} = lc($data->[0]);
-		$meta_mnfields{lc($data->[0])}{lc($data->[1])}{reference} = lc($data->[2]);
-		
-		$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnfirstref_name} = $mnfirstfield_dict->{reference};
-		$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnsecondref_name} = $mnsecondfield_dict->{reference};
-			
-		if (lc($data->[0]) eq $meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnfirstref_name}) {
-			$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnfirstfield_name} =  lc($data->[3]);
-			$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnsecondfield_name} = $mnsecondfield_dict->{field};
-			$meta_mnfields{lc($data->[0])}{lc($data->[1])}{btable} = $mnsecondfield_dict->{reference};
-		}else{
-			$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnfirstfield_name} =  $mnsecondfield_dict->{field};
-			$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnsecondfield_name} = lc($data->[3]);
-			$meta_mnfields{lc($data->[0])}{lc($data->[1])}{btable} = $mnfirstfield_dict->{reference};
+		my ($atable, $vfield, $helper) = @$data;
+
+		# let's look at the 'helper' table: it has two references:
+		# one is the 'atable', which contains the virtual field and the
+		# other is the 'btable', which contains the entries for the
+		# mncombo, and which we are trying to determine
+		my ($btable, $helper_atable_field, $helper_btable_field);
+		my $HACK_atable_count=0;
+		my $HACK_atable_other_field;
+		for my $f (sort keys %{$meta_fields{$helper}}) {
+			my $r = $meta_fields{$helper}{$f}{reference};
+			if(defined $r) {
+				if($r eq $atable) {
+					$HACK_atable_other_field = $helper_atable_field if $HACK_atable_count;
+					$HACK_atable_count++;
+					$helper_atable_field = $f;
+				}
+				else {
+					$btable = $r;
+					$helper_btable_field = $f;
+				}
+			}
+		}
+
+		# FIXME: TEMPORARY HACK: the algorithm above doesn't work with m:n with the same table
+		if(!defined $helper_btable_field and $HACK_atable_count>1) {
+			$btable = $atable;
+			$helper_btable_field = $HACK_atable_other_field;
 		}
 		
-		defined $meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnfirstref_name} or
-		die "ERROR: mnfield lc($data->[0])/lc($data->[3]) doesn't reference any table";
-		
-		defined $meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnsecondref_name} or
-		die "ERROR: mnfield lc($data->[0])/ $meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnsecondref_name} doesn't reference any table";
-		my $table = lc($data->[0]);
-		my $meta_mnfield = lc($data->[1]);
-		my $mnf = $meta_mnfields{$table}{$meta_mnfield};
-		
-		$fields{$table}{$meta_mnfield} = ();
-		$fields{$table}{$meta_mnfield}{widget} = $mnf->{widget};
-		$fields{$table}{$meta_mnfield}{reference} = lc($data->[2]);
-		$fields{$table}{$meta_mnfield}{virtual} = 1;
-		
-		my $vm = $meta_fields{$table}{$meta_mnfield};
-		if(defined $vm) {
-			$fields{$table}{$meta_mnfield}{order} = $vm->{order};
-			$fields{$table}{$meta_mnfield}{desc} = $vm->{desc};
-			$fields{$table}{$meta_mnfield}{copy} = $vm->{copy};
-			$fields{$table}{$meta_mnfield}{sortfunc} = $vm->{sortfunc};
-			$fields{$table}{$meta_mnfield}{markup} = $vm->{markup};
-			$fields{$table}{$meta_mnfield}{align} = $vm->{align};
-			$fields{$table}{$meta_mnfield}{widget} = $vm->{widget};
-			$fields{$table}{$meta_mnfield}{hide_list} = $vm->{hidelist};
-			$fields{$table}{$meta_mnfield}{ordered} = $vm->{ordered};
-		}   
-		
-		defined $fields{$table}{$meta_mnfield}{widget} or  
-		$fields{$table}{$meta_mnfield}{widget} = "mncombo(combo=".$meta_mnfields{lc($data->[0])}{lc($data->[1])}{btable}."_combo)";
+		defined $helper_atable_field or
+			die "ERROR: mnfield $atable/$vfield: atable is not referenced by helper table\n";
+		defined $helper_btable_field or
+			die "ERROR: mnfield $atable/$vfield: btable is not referenced by helper table\n";
 
-		#hide tables from web page
-		#$g{db_tables}{lc($data->[3])}{hide} = "true";
+		# FIXME: this should be in %fields
+		$meta_mnfields{$atable}{$vfield} = {
+			helper => $helper,
+			btable => $btable,
+			helper_atable_field => $helper_atable_field,
+			helper_btable_field => $helper_btable_field,
+		};
+
+		# create the field in the %fields structure
+                $fields{$atable}{$vfield} = {
+			widget => "mncombo(combo=${btable}_combo)",
+			virtual => 1
+		};
+		for my $m (keys %{$meta_fields{$atable}{$vfield}}) {
+			$fields{$atable}{$vfield}{$m} = $meta_fields{$atable}{$vfield}{$m};
+		}
+
 	}
 	$sth->finish;
 	return \%fields, \%meta_mnfields;
@@ -1406,8 +1393,8 @@ sub DB_UpdateRecord($$$)
 	my $result = DB_ExecQuery_Fields($dbh,$table,$query,\%dbdata,\@updatefields);
 	my $ID =  $record->{id};
         
-	if (defined $result and scalar(@mnfields_list) ne 0) {
-		$result = _DB_UpdateMN($dbh,$table,\@fields_list,\@mnfields_list,$ID)
+	if (defined $result and scalar(@mnfields_list) > 0) {
+		$result = _DB_UpdateMN($dbh,$table,\@mnfields_list,$ID)
 	};
 	return $result;
 }
@@ -1755,73 +1742,6 @@ sub DB_filenameSql($){
 
 #################### MN-Combo ####################
 
-sub _DB_OID2ID($$$){
-	my ($dbh, $table, $oid) = @_;
-	my $id = undef;
-	my $table_id = $table."_id";
-
-	# ID from the last insert into table
-	my $query = "SELECT $table_id FROM $table WHERE oid = $oid";
-	my $sth = $dbh->prepare($query);
-	$sth->execute() or return undef;
-	my $data = $sth->fetchrow_arrayref() or die $sth->errstr;
-	$id = $data->[0];
-	$sth->finish;
-	
-	return $id;
-};
-
-# additional steps for MN-combo entries
-sub _DB_AddRecordMN($$$$)
-{
-	my ($dbh, $table, $record, $oid) = @_;
-
-	my ($fields_listref, $mnfields_listref) = _DB_GetFields($table);
-	my @fields_list   =  @$fields_listref;
-	my @mnfields_list =  @$mnfields_listref;
-
-	scalar @mnfields_list > 0 or return;
-	my $id = _DB_OID2ID($dbh,$table,$oid);
-	defined $id or return;
-
-	for my $vfield (@mnfields_list){       
-		my $mntable = $g{db_fields}{$table}{$vfield}{reference};
-		my $mntable_first = $g{db_mnfields}{$table}{$vfield}{mnfirstref_name};
-		@fields_list = @{$g{db_fields_list}{$mntable}};
-		@fields_list = grep !/${mntable}_id/, @fields_list;
-		
-		if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
-			@fields_list = grep !/${mntable}_order/, @fields_list;
-			push @fields_list, "${mntable}_order";
-		}
-
-		my $fname = "field_".$vfield;
-
-		my @mntable_fields = $g{s}{cgi}->param($fname);
-		if (scalar(@mntable_fields) ne 0){
-			my $order = scalar(@mntable_fields);
-				
-			for my $val (@mntable_fields){
-				my @mntable_row;
-				if ( $mntable_first eq $table ){
-					push @mntable_row, $id;
-					push @mntable_row, $val;
-				}else {
-					push @mntable_row, $val;
-					push @mntable_row, $id;
-				}
-				if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
-					push @mntable_row, $order--;
-				}
-				
-				my $query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
-				DB_ExecQuery_OID($dbh,$query);
-			}
-		}
-	}
-}
-
-
 sub DB_GetMNCombo($$$$$)
 {
 	my $s = shift;
@@ -1833,20 +1753,15 @@ sub DB_GetMNCombo($$$$$)
 	my $q = $s->{cgi};
 	
 	my $dbh = $s->{dbh};
-	my $table = $q->url_param('table');
+	my $table = $q->url_param('table'); # FIXME: BAD BAD BAD!
 	my $mncombo_filter = undef;
 	$mncombo_filter = $q->url_param('id');
 	
-	my $mncombo_atable = $table;
-	my $mncombo_reference = $g{db_mnfields}{$table}{$vfield}{reference};
-	my $mncombo_btable = $g{db_mnfields}{$table}{$vfield}{btable};
-	my $mncombo_aid = $g{db_mnfields}{$table}{$vfield}{mnfirstfield_name};
-	my $mncombo_bid = $g{db_mnfields}{$table}{$vfield}{mnsecondfield_name};
+	my $mn = $g{db_mnfields}{$table}{$vfield};
+	my $aid = $table."_id";
+	my $bid = $mn->{btable}."_id";
 
-	my $aid = $mncombo_atable."_id";
-	my $bid = $mncombo_btable."_id";
-	my $rid = $mncombo_reference."_id";
-
+	# FIXME: this really should go to the widget code in GUI! argh...
 	my $mncombo_view = $g{db_fields}{$table}{$vfield}{widget};
 	$mncombo_view =~ s/^(\s)*mncombo\((\s)*combo(\s)*=(\s)*//;
 	$mncombo_view =~ s/(\s)*\)(\s)*$//;
@@ -1857,26 +1772,24 @@ sub DB_GetMNCombo($$$$$)
 		if (defined  $mncombo_filter){
 			$query .= "WHERE  id $op ";
 			$query .= "(SELECT  $bid ";
-			if ($mncombo_atable eq $mncombo_btable) {
-				$query .= "FROM	$mncombo_reference, $mncombo_atable ";
+			if ($table eq $mn->{btable}) {
+				$query .= "FROM	$mn->{helper}, $table ";
 			}
 			else{
-				$query .= "FROM	$mncombo_reference, $mncombo_atable, $mncombo_btable ";
+				$query .= "FROM	$mn->{helper}, $table, $mn->{btable} ";
 			};
 			$query .= "WHERE   $aid = $mncombo_filter AND ";
-			$query .= "		$mncombo_aid = $aid AND ";
-			$query .= "		$bid = $mncombo_bid ";
+			$query .= "		$mn->{helper_atable_field} = $aid AND ";
+			$query .= "		$mn->{helper_btable_field} = $bid ";
 			$query .= ")";
 			
-			
 			# preserve order for 'already selected' combo if 'ordered M:N'
-			# 
-			if (($g{db_fields}{$table}{$vfield}{ordered} eq '1') and ($op eq ' in ')){
+			if (($g{db_fields}{$table}{$vfield}{ordered}) and ($op eq ' in ')){
 				$query = "SELECT id, text ";
-				$query .= "FROM  $mncombo_view, $mncombo_reference ";
-				$query .= "WHERE $mncombo_aid = $mncombo_filter ";
-				$query .= "AND id = $mncombo_bid ";
-				$query .= "ORDER BY ".$mncombo_reference."_order ASC";
+				$query .= "FROM  $mncombo_view, $mn->{helper} ";
+				$query .= "WHERE $mn->{helper_atable_field} = $mncombo_filter ";
+				$query .= "AND id = $mn->{helper_btable_field} ";
+				$query .= "ORDER BY $mn->{helper}_order ASC";
 			}		
 		};
 		
@@ -1895,20 +1808,64 @@ sub DB_GetMNCombo($$$$$)
 	return 1;
 };
 
-sub _DB_GetIDMN($$$$$){
-	my $dbh = shift;
-	my $table = shift;
-	my $oid = shift;
-	my $field = shift;
-	my $mntable_second = shift;
-	my @result = ();
+sub _DB_OID2ID($$$){
+	my ($dbh, $table, $oid) = @_;
+	my $id = undef;
 	my $table_id = $table."_id";
-	
+
 	# ID from the last insert into table
-	my $query = "SELECT $mntable_second FROM $table WHERE $field = $oid";
+	my $query = "SELECT $table_id FROM $table WHERE oid = $oid";
+	my $sth = $dbh->prepare($query);
+	$sth->execute() or return undef;
+	my $data = $sth->fetchrow_arrayref() or die $sth->errstr;
+	$id = $data->[0];
+	$sth->finish;
+	
+	return $id;
+};
+
+sub _DB_AddRecordMN($$$$)
+{
+	my ($dbh, $table, $record, $oid) = @_;
+
+	my ($fields_listref, $mnfields_listref) = _DB_GetFields($table);
+
+	scalar @$mnfields_listref > 0 or return;
+	my $id = _DB_OID2ID($dbh,$table,$oid);
+	defined $id or die "ERROR: can't translate OID $oid ($table) to id\n";
+
+	for my $vfield (@$mnfields_listref) {
+		my $mn = $g{db_mnfields}{$table}{$vfield};
+
+		
+		# FIXME: DB.pm should NOT access CGI parameters!
+		my @mntable_fields = $g{s}{cgi}->param("field_$vfield");
+		if (scalar(@mntable_fields) > 0){
+			my $order = $g{db_fields}{$table}{$vfield}{ordered} ?
+				scalar(@mntable_fields) : undef;
+				
+			for my $val (@mntable_fields){
+				$order-- if defined $order;
+				my $query = _DB_InsertMN($table, $vfield, $id, $val, $order);
+				DB_ExecQuery_OID($dbh,$query); # FIXME: what about errors?
+			}
+		}
+	}
+}
+
+
+
+# get entries from the btable that are referenced by a record in the atable
+sub _DB_MN_GetEntries($$$$){
+	my ($dbh, $table, $vfield, $atable_id) = @_;
+	my $mn = $g{db_mnfields}{$table}{$vfield};
+	
+	my $query = "SELECT $mn->{helper_btable_field} FROM $mn->{helper} ";
+	$query   .= "WHERE  $mn->{helper_atable_field} = $atable_id";
 	my $sth = $dbh->prepare($query);
 	$sth->execute() or return undef;
 	
+	my @result = ();
 	while (my $data = $sth->fetchrow_arrayref()) {
 		push @result, $data->[0];
 	}
@@ -1933,103 +1890,56 @@ sub _DB_Difference($$){
 };
 
 
-sub _DB_UpdateMN($$$){
+sub _DB_UpdateMN($$$$){
 	my $dbh = shift;
 	my $table = shift;
-	my $fields_listref =  shift;
 	my $mnfields_listref = shift;
 	my $ID = shift;
-	
-	my @fields_list =  @$fields_listref;
-	my @mnfields_list =  @$mnfields_listref;
 	
 	my $query;
 	my $result = 1;
 	
-	for my $vfield (@mnfields_list){ 
+	for my $vfield (@$mnfields_listref){ 
 		my $oid = undef;
-		my $mntable = $g{db_fields}{$table}{$vfield}{reference};
-		my $mntable_first = $g{db_mnfields}{$table}{$vfield}{mnfirstref_name};
+		my $mn = $g{db_mnfields}{$table}{$vfield};
 		
-		@fields_list = @{$g{db_fields_list}{$mntable}};
-		@fields_list = grep !/${mntable}_id/, @fields_list;
-		@fields_list = grep !/${mntable}_order/, @fields_list;
-		
-		my $fname = "field_".$vfield;
-		
-		#get the new list from the mncombo widget         
-		my @mntable_fields = $g{s}{cgi}->param($fname);
-		
-		my $mncombo_firstfield = $g{db_mnfields}{$table}{$vfield}{mnfirstfield_name};
-		my $mncombo_secondfield = $g{db_mnfields}{$table}{$vfield}{mnsecondfield_name};
+		# FIXME: DB.pm should NOT access CGI parameters!
+		my @mntable_fields = $g{s}{cgi}->param("field_$vfield");
 			
 		#get the old list
-		my $mntable_fields_old = _DB_GetIDMN($dbh, $mntable, $ID, $mncombo_firstfield, $mncombo_secondfield );
+		my $mntable_fields_old = _DB_MN_GetEntries($dbh, $table, $vfield, $ID);
 		#find rows to delete => delete list
 		my $mntable_fields_delete = _DB_Difference($mntable_fields_old, \@mntable_fields);
 		#find rows to add => add list
 		my $mntable_fields_add = _DB_Difference(\@mntable_fields, $mntable_fields_old);
 			
 		#delete query
-		if (scalar(@$mntable_fields_delete) ne 0){
+		if(scalar(@$mntable_fields_delete) > 0){
 			for my $val (@$mntable_fields_delete){
-				my @mntable_row = ();
-				if ( $mntable_first eq $table ){
-					push @mntable_row, $ID;
-					push @mntable_row, $val;
-				}else {
-					push @mntable_row, $val;
-					push @mntable_row, $ID;
-				}
-				$query = _DB_DeleteMN($mntable, \@fields_list,\@mntable_row);
+				$query = _DB_DeleteMN($table, $vfield, $ID, $val);
 				($result,$oid) = DB_ExecQuery_OID($dbh,$query);
 			}
 		}
 			
 		#add query
-		if ( scalar(@$mntable_fields_add) ne 0){
-			if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
-				push @fields_list, "${mntable}_order";
-			};
-			my $order = scalar(@mntable_fields);
-			
+		if(scalar(@$mntable_fields_add) > 0){
+			my $order = $g{db_fields}{$table}{$vfield}{ordered} ?
+				scalar(@mntable_fields) : undef;
+
 			for my $val (@$mntable_fields_add){
-				my @mntable_row = ();
-				if ( $mntable_first eq $table ){
-					push @mntable_row, $ID;
-					push @mntable_row, $val;
-				}else {
-					push @mntable_row, $val;
-					push @mntable_row, $ID;
-				}
-				if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
-							push @mntable_row, $order--;
-				}
-				
-				$query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
+				$order-- if defined $order;
+
+				$query = _DB_InsertMN($table, $vfield, $ID, $val, $order);
 				($result,$oid) = DB_ExecQuery_OID($dbh,$query);
 			}
 		}
 			
 		#update query
-		if ( scalar(@mntable_fields) ne 0 and $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
-			@fields_list = grep !/${mntable}_order/, @fields_list;
-			push @fields_list, "${mntable}_order";
-			
-			my $order = 1;#scalar(@mntable_fields);
-			
+		if(scalar(@mntable_fields) > 0 and $g{db_fields}{$table}{$vfield}{ordered}){
+			my $order = 1;
 			for my $val (@mntable_fields){
-				my @mntable_row = ();
-				if ( $mntable_first eq $table ){
-					push @mntable_row, $ID;
-					push @mntable_row, $val;
-				}else {
-					push @mntable_row, $val;
-					push @mntable_row, $ID;
-				}
-				push @mntable_row, $order++;
-				
-				$query = _DB_UpdateOrderMN($mntable, \@fields_list,\@mntable_row);
+				$order++;
+				$query = _DB_UpdateOrderMN($table, $vfield, $ID, $val, $order);
 				($result,$oid) = DB_ExecQuery_OID($dbh,$query);
 			}
 		}
@@ -2038,45 +1948,38 @@ sub _DB_UpdateMN($$$){
 	return $result;
 };
 
-sub _DB_InsertMN($$$){
-	my $table = shift;
-	my $fields_list = shift;
-	my $values = shift;
+sub _DB_DeleteMN($$$$){
+	my ($table, $vfield, $atable_id, $btable_id) = @_;
+	my $mn = $g{db_mnfields}{$table}{$vfield};
 
-	my $query = "INSERT INTO $table (";
-	$query   .= join(', ',@$fields_list);
-	$query   .= ") VALUES (";
-	$query   .= join(', ',@$values);
+	my $query = "DELETE FROM $mn->{helper} WHERE ";
+	$query   .= "$mn->{helper_atable_field} = $atable_id AND ";
+	$query   .= "$mn->{helper_btable_field} = $btable_id";
+
+	return $query;
+};
+
+sub _DB_InsertMN($$$$){
+	my ($table, $vfield, $atable_id, $btable_id, $order) = @_;
+	my $mn = $g{db_mnfields}{$table}{$vfield};
+
+	my $query = "INSERT INTO $mn->{helper} ($mn->{helper_atable_field}, $mn->{helper_btable_field}";
+	$query   .= ", $mn->{helper}_order" if defined $order;
+	$query   .= ") VALUES ($atable_id, $btable_id";
+	$query   .= ", $order" if defined $order;
 	$query   .= ");";
 	
 	return $query;
 };
 
-sub _DB_DeleteMN($$$){
-	my $table = shift;
-	my $fields_list = shift;
-	my $values = shift;
-	my $query = "DELETE FROM $table WHERE ";
-	
-	for (my $i = @$fields_list - 1; $i > 0; $i--){
-		$query.= "@$fields_list[$i] = @$values[$i] AND "; 
-	}
-	
-	$query.= "@$fields_list[0] = @$values[0]";
-	return $query;
-};
-
 sub _DB_UpdateOrderMN($$$){
-	my $table = shift;
-	my $fields_list = shift;
-	my $values = shift;
-	my $query = "UPDATE $table SET @$fields_list[2] = @$values[2] WHERE ";
-	
-	for (my $i = 1; $i > 0; $i--){
-		$query.= "@$fields_list[$i] = @$values[$i] AND "; 
-	}
-	
-	$query.= "@$fields_list[0] = @$values[0]";
+	my ($table, $vfield, $atable_id, $btable_id, $order) = @_;
+	my $mn = $g{db_mnfields}{$table}{$vfield};
+
+	my $query = "UPDATE $mn->{helper} SET $mn->{helper}_order = $order WHERE ";
+	$query   .= "$mn->{helper_atable_field} = $atable_id AND ";
+	$query   .= "$mn->{helper_btable_field} = $btable_id";
+
 	return $query;
 };
 

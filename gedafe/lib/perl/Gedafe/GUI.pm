@@ -249,7 +249,7 @@ sub GUI_Header($$)
 	
 	$args->{ELEMENT}='header';
 	
-	if(defined $g{db_mnfields}{$table}) {
+	if($table and defined $g{db_mnfields}{$table}) {
 		# load javascript_mncombo.html in ##HEAD_SCRIPT##
 		$args->{HEAD_SCRIPT} = Template({PAGE => 'mncombo', ELEMENT=>'javascript_mncombo'});
 	}
@@ -288,8 +288,10 @@ sub GUI_Header($$)
 	delete $args->{TABLE_TOOLTIP};
 	delete $args->{TABLE_URL};
 
-        my $longcomment= $g{db_tables}{$table}{meta}{longcomment};
-        $args->{TABLE_LONGCOMMENT} = $longcomment;
+	if(defined $table) {
+		my $longcomment= $g{db_tables}{$table}{meta}{longcomment};
+		$args->{TABLE_LONGCOMMENT} = $longcomment;
+	}
 
 	$args->{ELEMENT}='header2';
 	print Template($args);
