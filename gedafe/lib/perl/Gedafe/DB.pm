@@ -186,11 +186,12 @@ END
 	$sth = $dbh->prepare($query) or return undef;
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
-		next if not defined $tables{$data->[0]};
+		my $table = $data->[0];
+		next if not defined $tables{$table};
 		my $attr = lc($data->[1]);
-		$tables{$data->[0]}{meta}{$attr}=$data->[2];
+		$tables{$table}{meta}{$attr}=$data->[2];
 		if($attr eq 'hide' and $data->[2]) {
-			delete $tables{$data->[0]}{editable};
+			delete $tables{$table}{editable};
 		}
 	}
 	$sth->finish;
@@ -393,7 +394,8 @@ END
 	$sth = $dbh->prepare($query) or return undef;
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
-		$meta_fields{$data->[0]}{$data->[1]}{lc($data->[2])} = $data->[3];
+		$meta_fields{lc($data->[0])}{lc($data->[1])}{lc($data->[2])} =
+			$data->[3];
 	}
 	$sth->finish;
 

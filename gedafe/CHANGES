@@ -1,7 +1,12 @@
+2002-02-27
+----------
+* table and field names in meta tables are now case insensitive (SQL semantics)
+
 2002-02-18
 ----------
 * released 1.0.5
-* Implemented "export" action, EXPORT_URL in templates
+* Implemented "export" functionality (export to tab-separated-values). Just
+  replace 'action=list' with 'action=export'.
 * Fix product_combo view in demo1.sql
 
 2002-01-20
