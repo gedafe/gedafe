@@ -237,15 +237,15 @@ by the front-end.
 
 =item showref
 
-Show references from another table to this table. The value is just 
-the name of the referencing table.
+Show references from another table to this table. The value is just the name
+of the referencing table (or a comma separated list of referencing tables. 
+no spaces allowed).
 
 The list view is given a new column containing a link to the refencing table,
 filtered to the records that reference to the Record in the referenced table.
 The link is labeled with the number of referencing records.
 
 Nice hack that should be documented. 
-May there be more the one reference ?
 
 =back
 
