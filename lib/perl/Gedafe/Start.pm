@@ -184,9 +184,7 @@ sub Start(%)
 		die "Sorry. The Pearl '$pearl' did not return any data.".
 		    "<br>You can use the BACK button!\n"
 		    if  $b =~ /^\s*$/;
-		$headers{-type}=$h;
-		$headers{-length} = length $b;
-		print $q->header(%headers);
+		print $q->header(-type=>$h,-Content_Length=>(length $b));
 		print $b;
 		$dbh->disconnect;
 		return;
