@@ -190,7 +190,7 @@ sub GUI_InitTemplateArgs($$)
 	$list_rows_print_flag = 0 unless ($list_rows_print_flag == 1);
 
 	#print STDERR 
-	"#$list_rows_urlval#, #$list_rows_def#,#$list_rows_print_flag# \n";
+	#"#$list_rows_urlval#, #$list_rows_def#,#$list_rows_print_flag# \n";
 
 	if ( $list_rows_print_flag ){
 		$args->{PRINT_TOGGLE_URL}=MakeURL($s->{url}, {
@@ -251,7 +251,7 @@ sub GUI_Header($$)
 	
 	if(defined $g{db_mnfields}{$table}) {
 		# load javascript_mncombo.html in ##HEAD_SCRIPT##
-		$args->{HEAD_SCRIPT} = Template({ELEMENT=>'javascript_mncombo'});
+		$args->{HEAD_SCRIPT} = Template({PAGE => 'mncombo', ELEMENT=>'javascript_mncombo'});
 	}
 	print Template($args);
 
@@ -758,7 +758,7 @@ sub GUI_ListTable($$$)
 	$template_args{ELEMENT}='tr';
 	print Template(\%template_args);
 
-	if  (  $g{conf}{edit_buttons_left} == 1 ){
+	if($g{conf}{edit_buttons_left}) {
 		if($can_edit) {
 			$template_args{ELEMENT}='th_edit';
 			print Template(\%template_args);
@@ -795,7 +795,7 @@ sub GUI_ListTable($$$)
 	delete $template_args{FIELD};
 	delete $template_args{SORT_URL};
 
-	unless (  $g{conf}{edit_buttons_left} == 1 ){
+	unless ($g{conf}{edit_buttons_left}) {
 		if($can_edit) {
 			$template_args{ELEMENT}='th_edit';
 			print Template(\%template_args);
@@ -828,13 +828,13 @@ sub GUI_ListTable($$$)
 		$template_args{ELEMENT}='tr';
 		print Template(\%template_args);
 
-	if  (  $g{conf}{edit_buttons_left} == 1 ){
-		$template_args{ID} = $row->[0];
-		GUI_EditLink($s, \%template_args, $list, $row) if $can_edit;
-		GUI_AddFromLink($s, \%template_args, $list, $row) if $can_add;
-		GUI_DeleteLink($s, \%template_args, $list, $row) if $can_delete;
-		delete $template_args{ID};
-	}
+		if($g{conf}{edit_buttons_left}) {
+			$template_args{ID} = $row->[0];
+			GUI_EditLink($s, \%template_args, $list, $row) if $can_edit;
+			GUI_AddFromLink($s, \%template_args, $list, $row) if $can_add;
+			GUI_DeleteLink($s, \%template_args, $list, $row) if $can_delete;
+			delete $template_args{ID};
+		}
 
 		my $column_number = 0;
 		for my $d (@{$row->[1]}) {
@@ -911,7 +911,7 @@ sub GUI_ListTable($$$)
 		delete $template_args{DATA};
 		delete $template_args{ALIGN};
 
-		unless (  $g{conf}{edit_buttons_left} == 1 ){
+		unless ($g{conf}{edit_buttons_left}){
 			$template_args{ID} = $row->[0];
 			GUI_EditLink($s, \%template_args, $list, $row) 
 				if $can_edit;
@@ -1200,11 +1200,30 @@ sub GUI_WidgetRead($$$)
 	if(grep {/^$w$/} keys %{$g{widgets}}){
 		return $g{widgets}{$w}->WidgetRead($s,$input_name,$value,$warg);
 	}
-	if($w eq 'localdate'){
-	  $value = GUI_DecodeDate($value,lc($warg->{'format'})); 
-
+	elsif($w eq 'hid' or $w eq 'hidcombo' or $w eq 'hidisearch' or $w eq 'hjsisearch') {
+		if(defined $value and $value !~ /^\s*$/) {
+			$value=DB_HID2ID($dbh,$warg->{'ref'},$value);
+		}
 	}
-	if($w eq 'file'){
+	# if it's a combo and no value was specified in the text field...
+	elsif($w eq 'idcombo' or $w eq 'hidcombo' or $w eq 'combo') {
+		if(not defined $value or $value =~ /^\s*$/) {
+			$value = $q->param("${input_name}_combo");
+			if($w eq 'hidcombo' and $g{conf}{gedafe_compat} eq '1.0')
+			{
+				# hidcombos in 1.0 had to put the HID as key...
+				$value = DB_HID2ID($dbh,$warg->{'ref'},$value);
+			}
+		}
+	}
+	elsif($w eq 'mncombo') {
+		# FIXME: the code for mncombo should be here!
+		$value = undef;
+	}
+	elsif($w eq 'localdate'){
+		$value = GUI_DecodeDate($value,lc($warg->{'format'})); 
+	}
+	elsif($w eq 'file'){
 		my $file = $value;
 		my $deletefile = $q->param("file_delete_$input_name");
 		if($deletefile) {
@@ -1233,7 +1252,7 @@ sub GUI_WidgetRead($$$)
 			}
 		}
 	}
-	if($w eq 'pluginfile'){
+	elsif($w eq 'pluginfile'){
 		my $file = $value;
 		if($file) {
 			my $filename = scalar $file;
@@ -1255,8 +1274,7 @@ sub GUI_WidgetRead($$$)
 			}
 		}
 	}
-	
-	if($w eq 'file2fs'){
+	elsif($w eq 'file2fs'){
 		my $file = $value;
 		my $deletefile = $q->param("file_delete_$input_name");
 		my $localpath = $q->param("file_update_$input_name");
@@ -1280,23 +1298,6 @@ sub GUI_WidgetRead($$$)
 						
 		}
 		if ($value eq ''){$value=undef;}
-	}
-
-	if($w eq 'hid' or $w eq 'hidcombo' or $w eq 'hidisearch' or $w eq 'hjsisearch') {
-		if(defined $value and $value !~ /^\s*$/) {
-			$value=DB_HID2ID($dbh,$warg->{'ref'},$value);
-		}
-	}
-	# if it's a combo and no value was specified in the text field...
-	if($w eq 'idcombo' or $w eq 'hidcombo' or $w eq 'combo') {
-		if(not defined $value or $value =~ /^\s*$/) {
-			$value = $q->param("${input_name}_combo");
-			if($w eq 'hidcombo' and $g{conf}{gedafe_compat} eq '1.0')
-			{
-				# hidcombos in 1.0 had to put the HID as key...
-				$value = DB_HID2ID($dbh,$warg->{'ref'},$value);
-			}
-		}
 	}
 
 	return $value;
@@ -1482,23 +1483,23 @@ sub GUI_Edit($$$)
 		}
 
 
-		#protect users from malicious javascripts
-		if(!$g{db_fields}{$table}{$field}{javascript}){
-			my $safevalue = StripJavascript($value);
-			if ($safevalue ne $value){
-				die <<end;
-<p>The information you have requested from the database contains<br>
-HTML and/or javascript tags that could compromise your personal information<br>
-Such as, but not limited to, all information that you can access in the database.<br>
-To prevent this, this page has been blocked.<br>
-In order to accept the javascript/html risk, you can tell gedafe
-to ignore this threat for this specific piece of the database in the
-meta_fields table.<br> Please contact your administrator to resolve the issue.<br>
-If you are the administrator, please see the javascript section of the
-gedafe documentation.</p>
-end
-			};
-		}
+#		#protect users from malicious javascripts
+#		if(!$g{db_fields}{$table}{$field}{javascript}){
+#			my $safevalue = StripJavascript($value);
+#			if ($safevalue ne $value){
+#				die <<end;
+#<p>The information you have requested from the database contains<br>
+#HTML and/or javascript tags that could compromise your personal information<br>
+#Such as, but not limited to, all information that you can access in the database.<br>
+#To prevent this, this page has been blocked.<br>
+#In order to accept the javascript/html risk, you can tell gedafe
+#to ignore this threat for this specific piece of the database in the
+#meta_fields table.<br> Please contact your administrator to resolve the issue.<br>
+#If you are the administrator, please see the javascript section of the
+#gedafe documentation.</p>
+#end
+#			};
+#		}
 		my $inputelem = GUI_WidgetWrite($s, "field_$field", $fields->{$field}{widget},$value);
 
                if (defined $edit_mask){
@@ -2523,12 +2524,12 @@ sub GUI_MakeMNCombo($$$$$)
 	$value =~ s/^\s+//;
 	$value =~ s/\s+$//;
 
-	my @available_list = undef;		
+	my @available_list = ();		
 	if(not defined DB_GetMNCombo($s,$combo_view,\@available_list,$virtual_field,' not in '))  {
 		return undef;
 	}
 
-	my @selected_list = undef;
+	my @selected_list = ();
 	if(not defined DB_GetMNCombo($s,$combo_view,\@selected_list,$virtual_field,' in ')) {
 		return undef;
 	}
@@ -2554,7 +2555,8 @@ sub GUI_MakeMNCombo($$$$$)
 	}
 	
 	my %template_args = (
-                PAGE => 'mncombo_widget',
+                PAGE => 'mncombo',
+                ELEMENT => 'mncombo_widget',
                 ALREADY_SELECTED => "$mnfield_name",
                 NEW_TO_CHOOSE => "$mnfield_name$s->{mncombo}",
 		COMBO_COUNT => $s->{mncombo},
@@ -2562,10 +2564,13 @@ sub GUI_MakeMNCombo($$$$$)
 		ALREADY_SELECTED_LIST => $selected_html
 	);
    
-	Template({ELEMENT=>'mncombo_widget'});
         return Template(\%template_args);
 }
 
+# FIXME: 2004-07-26, dws: This is totally ugly, it should be replaced with
+#                         setting once db_real_fields_list/db_virtual_fields_list and
+#                         accessing those directly. It is also exactly the same like
+#                         _DB_GetFields!
 sub _GUI_GetAllFields($){
 	my $table = shift;
     	my @fields_list;
@@ -2573,7 +2578,7 @@ sub _GUI_GetAllFields($){
     
     my @wmnfields = @{$g{db_fields_list}{$table}};
     foreach my $nvf (@wmnfields){
-        if (not $g{db_fields}{$table}{$nvf}{virtual} eq 'true'){
+        if (! $g{db_fields}{$table}{$nvf}{virtual}){
             push @fields_list, $nvf;
         }
         else{

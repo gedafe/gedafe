@@ -46,7 +46,8 @@ sub DB_DB2HTML($$);
 sub DB_DeleteRecord($$$);
 sub DB_DumpBlob($$$$);
 sub DB_DumpTable($$$);
-sub DB_ExecQuery($$$$$$);
+sub DB_ExecQuery_OID($$);
+sub DB_ExecQuery_Fields($$$$$);
 sub DB_FetchList($$);
 sub DB_FetchListSelect($$);
 sub DB_GetBlobName($$$$);
@@ -72,6 +73,8 @@ sub DB_Record2DB($$$$);
 sub DB_UpdateRecord($$$);
 sub DB_Widget($$);
 sub DB_filenameSql($);
+
+sub _DB_AddRecordMN($$$$);
 
 my %type_widget_map = (
 	'date'      => 'text(size=12)',
@@ -779,7 +782,7 @@ END
 		$fields{$table}{$meta_mnfield} = ();
 		$fields{$table}{$meta_mnfield}{widget} = $mnf->{widget};
 		$fields{$table}{$meta_mnfield}{reference} = lc($data->[2]);
-		$fields{$table}{$meta_mnfield}{virtual} = "true";
+		$fields{$table}{$meta_mnfield}{virtual} = 1;
 		
 		my $vm = $meta_fields{$table}{$meta_mnfield};
 		if(defined $vm) {
@@ -894,7 +897,7 @@ sub DB_FetchListSelect($$)
 	#print STDERR "View $v\n seems to be defined\n";
 	#print STDERR "First el in fieldlist : $g{db_fields_list}{$v}[0]\n";
 	# go through fields and build field list for SELECT (...)
-	my @fields = grep {$g{db_fields}{$v}{$_}{virtual} ne 'true'} @{$g{db_fields_list}{$v}};
+	my @fields = grep {!$g{db_fields}{$v}{$_}{virtual}} @{$g{db_fields_list}{$v}};
 	
 	my @select_fields;
 	for my $f (@fields) {
@@ -1216,48 +1219,39 @@ sub DB_HID2ID($$$)
 
 sub DB_PrepareData($$)
 {
-	$_ = shift;
-	$_ = '' unless defined $_;
-	my $type = shift;
-	s/^\s+//;
-	s/\s+$//;
-
-	# quoting for the SQL statements
-	# obsolete since migration to placeholder querys
-	# insert ... values(?,?) etc.
-	
-	
-	#s/\\/\\\\/g;
-	#s/'/\\'/g;
+	my ($data, $type) = @_;
+	$data = '' unless defined $data;
+	$data =~ s/^\s+//; $data =~ s/\s+$//;
 
 	if($type eq 'bool') {
-		$_ = ($_ ? '1' : '0');
+		$data = ($data ? '1' : '0');
 	}
 
 	# this is a hack. It should be implemented in GUI.pm or
 	# (better) with a widget-type
 	if($type eq 'numeric') {
-		if(/^(\d*):(\d+)$/) {
+		if($data =~ /^(\d*):(\d+)$/) {
 			my $hours = $1 or 0;
 			my $mins = $2;
-			$_ = $hours+$mins/60;
+			$data = $hours+$mins/60;
 		}
 	}
 
-	if($_ eq '') {
-		$_ = undef;
+	if($data eq '') {
+		$data = undef;
 	}
-	   # correct decimal commas to decimal points. This is a hack 
-	   # that should be made configurable. Also 
-	   # remove blanks and other non-numeric characters 			
-	   if ($type eq 'numeric' ){
-			 s/[.,]([\d\s]+)$/p$1/;
-			 s/[,.]//g ;
-			 s/p/./;
-		 s/[-;_#\/\\|\s]//g
-	   }
 
-	return $_;
+	# correct decimal commas to decimal points. This is a hack 
+	# that should be made configurable. Also 
+	# remove blanks and other non-numeric characters 			
+	if ($type eq 'numeric' ){
+		s/[.,]([\d\s]+)$/p$1/;
+		s/[,.]//g ;
+		s/p/./;
+		s/[-;_#\/\\|\s]//g
+	}
+
+	return $data;
 }
 
 sub DB_Record2DB($$$$)
@@ -1275,26 +1269,35 @@ sub DB_Record2DB($$$$)
 		my $type = $fields->{$f}{type};
 		my $data = $record->{$f};
 
-		$data = DB_PrepareData($data, $type);
+		$data = DB_PrepareData($data, $type) if defined $type;
 
 		$dbdata->{$f} = $data;
 	}
 }
 
-sub DB_ExecQuery($$$$$$)
+# Query that returns the OID (we need it for MN-combos for example)
+sub DB_ExecQuery_OID($$)
 {
-	my $dbh = shift;
-	my $table = shift;
-	my $query = shift;
-	my $data = shift;
-	my $fields = shift;
-	my $mninsert = shift;
+	my ($dbh, $query) = @_;
 
-	#For subsequential inserts into M:N table it is needed the ID of 
-	#a newly inserted row. We can get it through the OID of the insert 
-	#command itself. 
-	my $oid = undef;
-	
+	my $sth = $dbh->prepare($query) or die $dbh->errstr;
+	my $res = $sth->execute() or do {
+		# report nicely the error
+		$g{db_error}=$sth->errstr; return undef;
+	};
+	if($res ne 1 and $res ne '0E0') {
+		die "Number of rows affected is not 1! ($res)";
+	}
+
+	return (1, $sth->{'pg_oid_status'});
+}
+
+# Query with placeholders ('?') filled with fields
+# Note that we also need the OID sometimes, so we give it back as second element
+sub DB_ExecQuery_Fields($$$$$)
+{
+	my ($dbh, $table, $query, $data, $fields) = @_;
+
 	my %datatypes = ();
 	for(@$fields){
 		$datatypes{$_} = $g{db_fields}{$table}{$_}{type};
@@ -1302,20 +1305,18 @@ sub DB_ExecQuery($$$$$$)
 	
 	my $sth = $dbh->prepare($query) or die $dbh->errstr;
 	
-	if ((not defined $mninsert) or ($mninsert ne "MN")) { 
-		my $paramnumber = 1;
-		for(@$fields){
-			my $type = $datatypes{$_};
-			my $data = $data->{$_};
-			if($type eq "bytea") {
-				#note the reference to the large blob
-				$sth->bind_param($paramnumber,$$data,{ pg_type => DBD::Pg::PG_BYTEA });
-			}
-			else {
-				$sth->bind_param($paramnumber,$data);
-			}
-			$paramnumber++;
+	my $paramnumber = 1;
+	for(@$fields){
+		my $type = $datatypes{$_};
+		my $data = $data->{$_};
+		if($type eq "bytea") {
+			#note the reference to the large blob
+			$sth->bind_param($paramnumber,$$data,{ pg_type => DBD::Pg::PG_BYTEA });
 		}
+		else {
+			$sth->bind_param($paramnumber,$data);
+		}
+		$paramnumber++;
 	}
 	
 	my $res = $sth->execute() or do {
@@ -1325,12 +1326,8 @@ sub DB_ExecQuery($$$$$$)
 	if($res ne 1 and $res ne '0E0') {
 		die "Number of rows affected is not 1! ($res)";
 	}
-	#getting aan OID of the INSERT command
-	if($res eq 1){
-		$oid = $sth->{'pg_oid_status'};
-	}
-	
-	return 1, $oid;
+
+	return (1, $sth->{'pg_oid_status'});
 }
 
 sub DB_AddRecord($$$)
@@ -1339,10 +1336,8 @@ sub DB_AddRecord($$$)
 	my $table = shift;
 	my $record = shift;
 	
-	my $fields = $g{db_fields}{$table};
 	my ($fields_listref, $mnfields_listref) = _DB_GetFields($table);
 	my @fields_list =  @$fields_listref;
-	my @mnfields_list =  @$mnfields_listref;
 	@fields_list = grep !/${table}_id/, @fields_list;
 	
 	# filter-out readonly fields
@@ -1367,49 +1362,10 @@ sub DB_AddRecord($$$)
 	$query   .= ");";
 
 	#parameter undef is for normal insert, 'MN' is for insert into M:N
-	my ($result,$oid) = DB_ExecQuery($dbh,$table,$query,\%dbdata,\@fields_list,undef);
-	
-	my $ID = _DB_GetID($dbh,$table,$oid);
-	if (defined $ID){
-		if (scalar(@mnfields_list) ne 0 and $result){
-			for my $vfield (@mnfields_list){       
-        			my $mntable = $g{db_fields}{$table}{$vfield}{reference};
-				#first field in mntable
-				my $mntable_first = $g{db_mnfields}{$table}{$vfield}{mnfirstref_name};
-                		@fields_list = @{$g{db_fields_list}{$mntable}};
-				@fields_list = grep !/${mntable}_id/, @fields_list;
-				
-				if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
-					@fields_list = grep !/${mntable}_order/, @fields_list;
-					push @fields_list, "${mntable}_order";
-				}
+	my ($result, $oid) = DB_ExecQuery_Fields($dbh,$table,$query,\%dbdata,\@fields_list);
 
-				my $fname = "field_".$vfield;
-              
-				my @mntable_fields = $g{s}{cgi}->param($fname);
-                		if (scalar(@mntable_fields) ne 0){
-					my $order = scalar(@mntable_fields);
-						
-					for my $val (@mntable_fields){
-						my @mntable_row;
-						if ( $mntable_first eq $table ){
-							push @mntable_row, $ID;
-							push @mntable_row, $val;
-						}else {
-							push @mntable_row, $val;
-							push @mntable_row, $ID;
-						}
-						if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
-							push @mntable_row, $order--;
-						}
-						
-						$query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
-						($result,$oid)=DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
-					}
-				}
-			}
-		}
-	}
+	_DB_AddRecordMN($dbh, $table, $record, $oid) if $result;
+	
 	return $result;
 }
 
@@ -1447,7 +1403,7 @@ sub DB_UpdateRecord($$$)
 	$query .= join(', ',@updates);
 	$query .= " WHERE ${table}_id = $record->{id}";
     
-	my ($result,$oid) = DB_ExecQuery($dbh,$table,$query,\%dbdata,\@updatefields,undef);
+	my $result = DB_ExecQuery($dbh,$table,$query,\%dbdata,\@updatefields);
 	my $ID =  $record->{id};
         
 	if (defined $result and scalar(@mnfields_list) ne 0) {
@@ -1797,6 +1753,75 @@ sub DB_filenameSql($){
 	return "decode(replace(replace(encode(substring($column,1,position(' '::bytea in $column)-1),'escape'), 'gedafe_PROTECTED_sPace'::text, ' '::text), 'gedafe_PROTECTED_hAsh'::text, '#'::text),'escape')";
 }
 
+#################### MN-Combo ####################
+
+sub _DB_OID2ID($$$){
+	my ($dbh, $table, $oid) = @_;
+	my $id = undef;
+	my $table_id = $table."_id";
+
+	# ID from the last insert into table
+	my $query = "SELECT $table_id FROM $table WHERE oid = $oid";
+	my $sth = $dbh->prepare($query);
+	$sth->execute() or return undef;
+	my $data = $sth->fetchrow_arrayref() or die $sth->errstr;
+	$id = $data->[0];
+	$sth->finish;
+	
+	return $id;
+};
+
+# additional steps for MN-combo entries
+sub _DB_AddRecordMN($$$$)
+{
+	my ($dbh, $table, $record, $oid) = @_;
+
+	my ($fields_listref, $mnfields_listref) = _DB_GetFields($table);
+	my @fields_list   =  @$fields_listref;
+	my @mnfields_list =  @$mnfields_listref;
+
+	scalar @mnfields_list > 0 or return;
+	my $id = _DB_OID2ID($dbh,$table,$oid);
+	defined $id or return;
+
+	for my $vfield (@mnfields_list){       
+		my $mntable = $g{db_fields}{$table}{$vfield}{reference};
+		my $mntable_first = $g{db_mnfields}{$table}{$vfield}{mnfirstref_name};
+		@fields_list = @{$g{db_fields_list}{$mntable}};
+		@fields_list = grep !/${mntable}_id/, @fields_list;
+		
+		if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
+			@fields_list = grep !/${mntable}_order/, @fields_list;
+			push @fields_list, "${mntable}_order";
+		}
+
+		my $fname = "field_".$vfield;
+
+		my @mntable_fields = $g{s}{cgi}->param($fname);
+		if (scalar(@mntable_fields) ne 0){
+			my $order = scalar(@mntable_fields);
+				
+			for my $val (@mntable_fields){
+				my @mntable_row;
+				if ( $mntable_first eq $table ){
+					push @mntable_row, $id;
+					push @mntable_row, $val;
+				}else {
+					push @mntable_row, $val;
+					push @mntable_row, $id;
+				}
+				if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
+					push @mntable_row, $order--;
+				}
+				
+				my $query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
+				DB_ExecQuery_OID($dbh,$query);
+			}
+		}
+	}
+}
+
+
 sub DB_GetMNCombo($$$$$)
 {
 	my $s = shift;
@@ -1868,24 +1893,6 @@ sub DB_GetMNCombo($$$$$)
 	}
 
 	return 1;
-};
-
-sub _DB_GetID($$$){
-	my $dbh = shift;
-	my $table = shift;
-	my $oid = shift;
-	my $id = undef;
-	my $table_id = $table."_id";
-	
-	# ID from the last insert into table
-	my $query = "SELECT $table_id FROM $table WHERE oid = $oid";
-	my $sth = $dbh->prepare($query);
-	$sth->execute() or return undef;
-	my $data = $sth->fetchrow_arrayref() or die $sth->errstr;
-	$id = $data->[0];
-	$sth->finish;
-	
-	return $id;
 };
 
 sub _DB_GetIDMN($$$$$){
@@ -1975,7 +1982,7 @@ sub _DB_UpdateMN($$$){
 					push @mntable_row, $ID;
 				}
 				$query = _DB_DeleteMN($mntable, \@fields_list,\@mntable_row);
-				($result,$oid) = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
+				($result,$oid) = DB_ExecQuery_OID($dbh,$query);
 			}
 		}
 			
@@ -2000,7 +2007,7 @@ sub _DB_UpdateMN($$$){
 				}
 				
 				$query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
-				($result,$oid) = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
+				($result,$oid) = DB_ExecQuery_OID($dbh,$query);
 			}
 		}
 			
@@ -2023,7 +2030,7 @@ sub _DB_UpdateMN($$$){
 				push @mntable_row, $order++;
 				
 				$query = _DB_UpdateOrderMN($mntable, \@fields_list,\@mntable_row);
-				($result,$oid) = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
+				($result,$oid) = DB_ExecQuery_OID($dbh,$query);
 			}
 		}
 				
@@ -2035,7 +2042,7 @@ sub _DB_InsertMN($$$){
 	my $table = shift;
 	my $fields_list = shift;
 	my $values = shift;
-  
+
 	my $query = "INSERT INTO $table (";
 	$query   .= join(', ',@$fields_list);
 	$query   .= ") VALUES (";
@@ -2074,6 +2081,9 @@ sub _DB_UpdateOrderMN($$$){
 };
 
 
+# FIXME: 2004-07-26, dws: This is totally ugly, it should be replaced with
+#                         setting once db_real_fields_list/db_virtual_fields_list and
+#                         accessing those directly.
 sub _DB_GetFields($){
 	# helper function - separates real and virtual fields
 	
@@ -2083,7 +2093,7 @@ sub _DB_GetFields($){
 	
 	my @wmnfields = @{$g{db_fields_list}{$table}};
 	foreach my $nvf (@wmnfields){
-		if (not $g{db_fields}{$table}{$nvf}{virtual} eq 'true'){
+		if (! $g{db_fields}{$table}{$nvf}{virtual}) {
 			push @fields_list, $nvf;
 		}else{
 			push @mnfields_list, $nvf; 
