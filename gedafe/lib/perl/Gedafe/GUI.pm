@@ -859,7 +859,7 @@ sub GUI_PostEdit($$$)
 			);
 			GUI_InitTemplateArgs($q, \%template_args);
 			GUI_Header($s, \%template_args);
-			GUI_DB_Error($dbh->errstr, MyURL($q));
+			Error($s, $dbh->errstr);
 			
 			$template_args{ELEMENT}='db_error';
 			$template_args{ERROR}=$dbh->errstr;

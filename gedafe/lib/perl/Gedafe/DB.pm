@@ -33,6 +33,13 @@ sub DB_ReadTables($);
 sub DB_ReadTableAcls($$);
 sub DB_ReadFields($$);
 
+sub _debug_dump($)
+{
+	my $str = shift;
+	$str =~ s/-->/-- >/;
+	print "<!-- DEBUG: $str -->\n";
+}
+
 sub DB_Init($$)
 {
 	my $user = shift;
@@ -465,7 +472,7 @@ sub DB_GetDefault($$$)
 
 	$query = "SELECT ".$query;
 	my $sth = $dbh->prepare_cached($query) or return undef;
-	print "<!-- Executing: $query -->\n";
+	_debug_dump $query;
 	$sth->execute() or return undef;
 	my $d = $sth->fetchrow_arrayref();
 	my $default = $d->[0];
@@ -560,7 +567,7 @@ sub DB_FetchList($$$$;%)
 			$query .= " OFFSET $offset";
 		}
 		$$sth = $dbh->prepare_cached($query) or goto ERROR;
-		print "<!-- Executing: $query -->\n";
+		_debug_dump $query;
 		$$sth->execute() or goto ERROR;
 	}
 
@@ -774,7 +781,7 @@ sub DB_AddRecord($$$$)
 	}
 	$query   .= ")";
 
-	print "<!-- Executing: $query -->\n";
+	_debug_dump $query;
 	my $sth = $dbh->prepare($query) or do {
 		$$err=$dbh->errstr;
 		return undef;
@@ -830,7 +837,7 @@ sub DB_UpdateRecord($$$$)
 	$query .= join(', ',@updates);
 	$query .= " WHERE ${table}_id = $record->{id}";
 
-	print "<!-- Executing: $query -->\n";
+	_debug_dump $query;
 	my $sth = $dbh->prepare($query) or do {
 		$$err = $dbh->errstr;
 		return undef;
@@ -884,7 +891,7 @@ sub DB_DeleteRecord($$$)
 
 	my $query = "DELETE FROM $table WHERE ${table}_id = $id";
 
-	print "<!-- Executing: $query -->\n";
+	_debug_dump $query;
 	my $sth = $dbh->prepare($query) or return undef;
 	$sth->execute() or return undef;
 	#$sth->finish or return undef;
