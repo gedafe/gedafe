@@ -1154,13 +1154,13 @@ sub GUI_EditField($$$$)
 			$value."</TEXTAREA>";
 	}
 	if($type eq 'date') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=".$value.">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
 	}
 	if($type eq 'time') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=".$value.">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
 	}
 	if($type eq 'timestamp') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=15 VALUE=".$value.">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"15\" VALUE=\"".$value."\">";
 	}
 	if($type eq 'int4') {
 		my $out;
@@ -1174,20 +1174,20 @@ sub GUI_EditField($$$$)
 		return $out;
 	}
 	if($type eq 'numeric' or $type eq 'float8') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"$value\">";
 	}
 	if($type eq 'bpchar') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=30 VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"30\" VALUE=\"$value\">";
 	}
 	if($type eq 'text') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=40 VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"40\" VALUE=\"$value\">";
 	}
         if($type eq 'varchar') {                                                                                            
-                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=20 MAXLENGTH=\"$length\" VALUE=\"$value\">";        
+                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" MAXLENGTH=\"$length\" VALUE=\"$value\">";        
         }                                                                                                                   
 
 	if($type eq 'name') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=20 VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" VALUE=\"$value\">";
 	}
 	if($type eq 'bool') {
 		if($value) {
