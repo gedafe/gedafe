@@ -10,15 +10,22 @@ bgcolor="#ffffff"
 \ BORDER="0" CELLPADDING="0" CELLSPAN="0"><TR><TD NOWRAP>
 <FORM ACTION=##SEARCH_ACTION## METHOD="GET">
 Search:<br>
-##SEARCH_COMBO##
-<INPUT TYPE="submit" NAME="search_button" VALUE="Search">
+<table>
+  <tr>
+    <td valign="top">
+      ##SEARCH_COMBO##<br>
+      <INPUT TYPE="submit" NAME="search_button" VALUE="Search">
+      <A href="##SEARCH_SHOWALL##">Show All</A>
+    </td>
+    <td valign="top">##SEARCH_CLEAR##</td>
+  </tr>
+</table>
 ##SEARCH_HIDDEN##
-<A href="##SEARCH_SHOWALL##">Show All</A>
 </FORM>
 </TD>
 #ifdef EXPORT_AS_CHOICE
 <TD ALIGN="RIGHT" NOWRAP><FORM ACTION="##EXPORT_URL##" METHOD="POST">
-  <INPUT TYPE="submit" NAME="export" VALUE="Export as">
+<INPUT TYPE="submit" NAME="export" VALUE="Export as">
 ##EXPORT_CHOICES##
 </FORM></TD>
 #else
