@@ -271,6 +271,7 @@ sub GUI_EditLink($$$)
 
 sub GUI_DeleteLink($$$)
 {
+	my ($s, $list, $row) = @_;
 	my $delete_url;
 	$delete_url =  MakeURL($s->{url}, {
 		action=>'delete',
@@ -350,8 +351,8 @@ sub GUI_ListTable($$$)
 			print Template(\%template_args);
 		}
 
-		print GUI_EditLink($s, $list, $row) if can_edit;
-		print GUI_DeleteLink($s, $list, $row) if can_delete;
+		print GUI_EditLink($s, $list, $row) if $can_edit;
+		print GUI_DeleteLink($s, $list, $row) if $can_delete;
 
 		$template_args{ELEMENT}='xtr';
 		delete $template_args{DATA};
@@ -374,7 +375,7 @@ sub GUI_ListButtons($$$$)
 	my $prevoffset = $list->{offset}-$list->{limit};
 	$prevoffset >= 0 or $prevoffset = 0;
 
-	my $add_url  = $can_add ? $s->{url}, {
+	my $add_url  = $can_add ? MakeURL($s->{url}, {
 			action => 'add',
 			refresh => $next_refresh,
 		}) : undef;

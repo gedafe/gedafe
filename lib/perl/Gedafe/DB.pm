@@ -205,7 +205,7 @@ END
 	while ($data = $sth->fetchrow_arrayref()) {
 		next unless defined $tables{$data->[0]};
 		my $attr = lc($data->[1]);
-		$tables{$table}{meta}{$attr}=$data->[2];
+		$tables{$data->[0]}{meta}{$attr}=$data->[2];
 		if($attr eq 'hide' and $data->[2]) {
 			$tables{$data->[0]}{hide}=1;
 		}
