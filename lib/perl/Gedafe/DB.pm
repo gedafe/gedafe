@@ -834,6 +834,7 @@ sub DB_FetchListSelect($$)
 	
 	if(!$g{db_tables}{$spec->{table}}{report} 
 	   and !$spec->{export}
+	   and !$spec->{rowcount}
 	   and $g{db_tables}{$spec->{table}}{meta}{showref}){
 		#the list of tables that we want to find reference counts for
 		my @showrefs = split(/,/,
@@ -895,11 +896,14 @@ sub DB_FetchListSelect($$)
 			foreach(@{$g{db_fields_list}{$spec->{view}}}) {
 			    next if($g{db_fields}{$spec->{view}}{$_}{type} eq 'bytea');
 			    if($g{db_fields}{$spec->{view}}{$_}{type} eq 'bool'){
-				push @fieldlist,"(CASE WHEN $_ THEN ' true ' ELSE ' false ' END)";
+				push @fieldlist,"(CASE WHEN $_ THEN ' true 1 yes ' ELSE ' false 0 no ' END)";
 			    }else{
 				push @fieldlist,$_;
 }
 
+			}
+			for(@fieldlist){
+			    $_ = "COALESCE(".$_."::text,'')";
 			}
 			$field = join("||' '||",@fieldlist);
 		    }

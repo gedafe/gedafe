@@ -635,18 +635,18 @@ sub GUI_ReadSearchSpec($$){
 		$value = "" if($q->url_param('search_clear'.$fieldcount));
 		$value =~ s/^\s*//; $value =~ s/\s*$//;
 		if($value){
-			if($name ne '#ALL#' && 
-			   $g{db_fields}{$view}{$name}{type} &&
-			   $g{db_fields}{$view}{$name}{type} eq 'date') {
-				if($value =~ /today/i) {
-					$value =~ s/today/POSIX::strftime("%Y-%m-%d", localtime)/;
-				}
-				if($value =~ /yesterday/i) {
-					my $time = time;
-					$time -= 3600 * 24;
-					$value =~ s/today/POSIX::strftime("%Y-%m-%d", localtime($time))/;
-				}
-			}
+			#if($name ne '#ALL#' && 
+			#   $g{db_fields}{$view}{$name}{type} &&
+			#   $g{db_fields}{$view}{$name}{type} eq 'date') {
+			#	if($value =~ /today/i) {
+			#		$value =~ s/today/POSIX::strftime("%Y-%m-%d", localtime)/;
+			#	}
+			#	if($value =~ /yesterday/i) {
+			#		my $time = time;
+			#		$time -= 3600 * 24;
+			#		$value =~ s/today/POSIX::strftime("%Y-%m-%d", localtime($time))/;
+			#	}
+			#}
 
 			# print STDERR "Value read: $value\n";
 			# op  is the operator, like is default
@@ -673,15 +673,18 @@ sub GUI_ReadSearchSpec($$){
 			}elsif($value =~ /^>/){
 				$operand = substr $value,1;
 				$op = '>';
+			}elsif($value =~ /^like /){
+				$operand = substr $value,5;
+				$op = 'like';
 			}elsif($value =~ /^not /){
 				$operand = substr $value,4;
 				$op = 'not ilike';
 			}elsif($value =~ /^=\~/){
 				$operand = substr $value,2;
-				$op = '=~';
+				$op = '~*';
 			}elsif($value =~ /^\~\*/){
 				$operand = substr $value,2;
-				$op = '=~';
+				$op = '~*';
 			}elsif($value =~ /^=/){
 				$operand = substr $value,1;
 				$op = '=';
@@ -997,7 +1000,7 @@ sub GUI_ListTable($$$)
 				my $refurl = MakeURL($s->{url}, {
 						table => $ref_table,
 						action => 'edit',
-						id => $ref_id});
+						id => $ref_id},['search_field','search_value','orderby','offset']);
 				$align = '"LEFT"';
 				$d = qq{<A HREF="$refurl">$d</A>};
 			}
@@ -1007,7 +1010,7 @@ sub GUI_ListTable($$$)
 						table => $c->{desc},
 						action => 'list',
 						search_field1 => 'meta_rc_'.$c->{tar_field},
-						search_value1 => '='.$row->[0]});
+						search_value1 => '='.$row->[0]},['search_value','search_field','offset','orderby']);
 				$d = qq {<A HREF="$refurl">$d items</a>};
 			}
 			if($c->{type} eq 'date' && 
@@ -2425,6 +2428,7 @@ sub GUI_Oyster($)
 	my $state = $q->param('state');
 	my $nextstate = $state+1;
 	my $previousstate = $q->param('previousstate');
+	my $external = $q->param('external');
 	my $validate;        # hash of errors made by user
 	my @formerrors = (); # list of $validates errors
 
@@ -2490,6 +2494,15 @@ sub GUI_Oyster($)
 		$validate = $p->validate($previousstate);
 		die("validate for plugin $oyster does not return a hash reference for state $previousstate.\n") unless ref($validate) eq 'HASH';
 		@formerrors = keys %{$validate};
+	}elsif(defined $external){
+		#to ease linking oysters to external programs or other bits of gedafe,
+		#every parameter that looks like field_ is imported into {param} if external is set to 1
+		my @allparams = $q->param;
+		my @fieldparams = grep(/field_/,@allparams);
+		for(@fieldparams){
+			s/field_//;
+			$p->{param}{$_} = $q->param("field_$_");
+		}
 	}
 
 
