@@ -388,7 +388,7 @@ sub GUI_Edit_Error($$$$$$)
 		REEDIT_URL => MakeURL($form_url, {
 				action => 'reedit',
 				reedit_action => $action,
-				reedit_data => $data,
+				reedit_data => DataUnTree($data),
 			}),
 	);
 
@@ -1370,6 +1370,9 @@ sub GUI_Export($$$)
 }
 
 
+# GUI_WidgetRead: parse from CGI input what is needed for this specific field/widget
+# return the normalized value of the widget.
+# in case of error, undef is returned and $g{widget_error} is set to the error
 sub GUI_WidgetRead($$$)
 {
 	my ($s, $input_name, $widget) = @_;
@@ -1380,6 +1383,7 @@ sub GUI_WidgetRead($$$)
 
 	my $value = $q->param($input_name);
 	
+	$g{widget_error}=undef;
 	if(grep {/^$w$/} keys %{$g{widgets}}){
 		return $g{widgets}{$w}->WidgetRead($s,$input_name,$value,$warg);
 	}
@@ -1443,8 +1447,15 @@ sub GUI_WidgetRead($$$)
 			$value=DB_HID2ID($dbh,$warg->{'ref'},$value);
 		}
 	}
-	elsif($w eq 'format_number') {
-		$value = DB_Format($dbh, 'char_to_number', $warg->{template}, $value);
+	elsif($w eq 'format_number' or $w eq 'format_date' or $w eq 'format_timestamp') {
+		my %f = ( format_number    => 'char_to_number',
+		          format_date      => 'char_to_date',
+			  format_timestamp => 'char_to_timestamp' );
+		$value = DB_Format($dbh, $f{$w}, $warg->{template}, $value);
+		if(not defined $value) {
+			$g{widget_error}=$g{db_error};
+			return undef;
+		}
 	}
 	elsif($w eq 'format_date') {
 		$value = DB_Format($dbh, 'char_to_date', $warg->{template}, $value);
@@ -1501,28 +1512,27 @@ sub GUI_PostEdit($$$)
 
 	## add or edit:
 	my %record;
+	my $error=0;
 	if($action eq 'add' || $action eq 'edit'){
 		for my $field (@{$g{db_fields_list}{$table}}) {
 			my $value = GUI_WidgetRead($s, "field_$field", $g{db_fields}{$table}{$field}{widget});
 			if(defined $value) {
 				$record{$field} = $value;
 			}
+			elsif(defined $g{widget_error}) {
+				$error=1;
+			}
 		}
 	}
-	if($action eq 'add') {
-		if(!DB_AddRecord($dbh,$table,\%record)) {
-			my $data = DataUnTree(\%record);
-			GUI_Edit_Error($s, $user, $g{db_error},
-				$q->param('form_url'), $data, $action);
-		}
+	if(!$error and $action eq 'add') {
+		$error=!DB_AddRecord($dbh,$table,\%record);
 	}
-	elsif($action eq 'edit') {
+	elsif(!$error and $action eq 'edit') {
 		$record{id} = $q->param('id');
-		if(!DB_UpdateRecord($dbh,$table,\%record)) {
-			my $data = DataUnTree(\%record);
-			GUI_Edit_Error($s, $user, $g{db_error},
-			$q->param('form_url'), $data, $action);
-		}
+		$error=!DB_UpdateRecord($dbh,$table,\%record);
+	}
+	if($error) {
+		GUI_Edit_Error($s, $user, $g{db_error},$q->param('form_url'), \%record, $action);
 	}
 }
 	
