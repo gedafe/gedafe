@@ -544,6 +544,7 @@ END
 				$f->{copy}      = $m->{copy};
 				$f->{sortfunc}  = $m->{sortfunc};
 				$f->{markup}    = $m->{markup};
+				$f->{align}     = $m->{align};
 			}
 			#if(! defined $f->{widget}) {
 			$f->{widget} = DB_Widget(\%fields, $f);
