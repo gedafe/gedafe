@@ -101,7 +101,12 @@ sub DB_ReadDatabase($)
 	$sth = $dbh->prepare($query);
 	$sth->execute() or return undef;
 	$data = $sth->fetchrow_arrayref();
-	$database{desc} = $data->[0];
+	if($data) {
+		$database{desc} = $data->[0];
+	}
+	else {
+		$database{desc} = $dbh->{Name};
+	}
 	$sth->finish;
 
 	return \%database;
