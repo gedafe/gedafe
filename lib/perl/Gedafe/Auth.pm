@@ -102,11 +102,12 @@ sub Auth_Login($)
 	exit;
 }
 
-sub AuthConnect($$$) {
+sub AuthConnect($$$$) {
 	my $s = shift;
 	my $q = $s->{cgi};
 	my $user = shift;
 	my $cookie = shift;
+	my $ticket_value = shift;
 
 	my $pass;
 	my $dbh;
@@ -120,6 +121,13 @@ sub AuthConnect($$$) {
 
 	# check Ticket
 	my $c = $q->cookie(-name=>$s->{ticket_name});
+	
+	# if ticket from cookie fails try ticket from param
+	unless($c){
+	    $c = $q->param("ticket");
+	}
+	
+	$$ticket_value=$c;
 	if(defined $c and Auth_GetTicket($s, $c, $user, \$pass)) {
 		# ticket authentication successfull
 		return DB_Connect($$user, $pass);

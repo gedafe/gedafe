@@ -21,8 +21,11 @@ use Gedafe::DB qw(
 	DB_GetDefault
 	DB_ParseWidget
 	DB_ID2HID
+	DB_HID2ID
 	DB_RawField
+	DB_DumpTable
 );
+
 use Gedafe::Util qw(
 	ConnectToTicketsDaemon
 	MakeURL
@@ -46,6 +49,7 @@ require Exporter;
 	GUI_PostEdit
 	GUI_Edit
 	GUI_Delete
+	GUI_DumpTable
 );
 
 sub GUI_InitTemplateArgs($$)
@@ -780,7 +784,7 @@ sub GUI_Edit($$$)
 		if($field eq "${table}_id") { next; }
 
 		my $value = exists $values{$field} ? $values{$field} : '';
-		my $inputelem = GUI_WidgetWrite($dbh,$table,$field,$value);
+		my $inputelem = GUI_WidgetWrite($dbh,$table,$field,$value,$s);
 
 		$template_args{ELEMENT} = 'editfield';
 		$template_args{FIELD} = $field;
@@ -840,12 +844,55 @@ sub GUI_MakeCombo($$$$$)
 	return $str;
 }
 
+sub GUI_MakeISearch($$$$$)
+{
+	my $table = shift;
+	my $field = shift;
+	my $ticket = shift;
+	my $myurl = shift;
+	my $value = shift;
+	
+	$value =~ s/^\s+//;
+	$value =~ s/\s+$//;
+
+
+	my $meta = $g{db_fields}{$table}{$field};
+
+
+	my $target = $meta->{reference};
+
+	my $targeturl = MakeURL($myurl,{action=>'dumptable',table=>$target,ticket=>$ticket});
+
+	my $html;
+	$html .= "<input type=\"button\" onclick=\"";
+	$html .= "document.editform.field_$field.value=document.isearch_$field.getID('$value')";
+	$html .= ";\" value=\"I-Search\">&nbsp;";
+	$html .= "<applet id=\"isearch_$field\" name=\"isearch_$field\"";
+	$html .= ' code="ISearch.class" width="70" height="20" archive="java/isearch.jar">'."\n";
+	$html .= GUI_AppletParam("url",$targeturl);
+	$html .= "</applet>\n";
+	
+	return $html
+}
+
+sub GUI_AppletParam($$){
+  my $name=shift;
+  my $value=shift;
+  return "<param name=\"$name\" value=\"$value\">\n";
+}
+
+
+
 sub GUI_WidgetWrite($$$$)
 {
 	my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
 	my $value = shift;
+	my $s = shift;
+	my $q = $s->{cgi};
+	my $myurl = MyURL($q);
+
 
 	my $f = $g{db_fields}{$table}{$field};
 
@@ -884,6 +931,18 @@ sub GUI_WidgetWrite($$$$)
 	if($w eq 'hid') {
 		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$escval."\">";
 	}
+	if($w eq 'isearch') {
+		my $out;
+
+		my $combo = GUI_MakeISearch($table,$field,$s->{ticket_value},$myurl,$value);
+
+		$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10";
+		$out .= " VALUE=\"$value\"";
+		$out .= ">\n$combo";
+		return $out;
+	}
+
+
 	if($w eq 'idcombo' or $w eq 'hidcombo') {
 		my $out;
 		my $combo = GUI_MakeCombo($dbh, $table, $field, "combo_$field", $value);
@@ -1056,6 +1115,39 @@ sub GUI_Delete($$$)
 	UniqueFormEnd($s, $next_url, $next_url);
 	GUI_Footer(\%template_args);
 }
+
+sub GUI_DumpTable($$$){
+	my $s = shift;
+	my $q = $s->{cgi};
+	my $user = shift;
+	my $dbh = shift;
+	my $myurl = MyURL($q);
+	my $table = $q->url_param('table');
+	
+	my %atribs;
+	foreach($q->param) {
+	  if(/^field_(.*)/) {
+	    $atribs{$1} = $q->param($_);
+	  }
+	}
+	my $data;
+	my $first = 1;
+
+	my @fields_list = @{$g{db_fields_list}{$table}};
+	for (@fields_list){
+	  if(not $first){
+	    $data.="\t";
+	  }
+	  $first = 0;
+	  $data.=$_;
+	}
+	$data.="\n";
+	        
+
+	$data .= DB_DumpTable($dbh,$table,\%atribs);
+	print $data;
+}
+
 
 1;
 
