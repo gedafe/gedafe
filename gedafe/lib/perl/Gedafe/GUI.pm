@@ -53,6 +53,15 @@ require Exporter;
 	GUI_DumpTable
 );
 
+my %numeric_types = (
+	time      => 1,
+	timestamp => 1,
+	int4      => 1,
+	int8      => 1,
+	numeric   => 1,
+	float8    => 1,
+);
+
 # setup for GUI_Export
 my ($csv, @exp_fmt_choices, %exp_fmt_choices);
 BEGIN {
@@ -507,9 +516,7 @@ sub GUI_ListTable($$$)
 	$template_args{ELEMENT}='xtr';
 	print Template(\%template_args);
 	
-
-
-	my @typelist = map { $list->{type}->{$_} } @{$list->{fields}};
+	my @typelist = map { $list->{type}{$_} } @{$list->{fields}};
 
 	# data
 	$list->{displayed_recs} = 0;
@@ -523,7 +530,7 @@ sub GUI_ListTable($$$)
 		my $column_number = 0;
 		for my $d (@{$row->[1]}) {
 			my $type = $typelist[$column_number];
-			my $name = $list->{fields}->[$column_number];
+			my $name = $list->{fields}[$column_number];
 			if($type eq 'bytea' && $d ne '&nbsp;'){
 			    my $bloburl = MakeURL($s->{url}, {
 						table => $list->{spec}{view},
@@ -533,25 +540,13 @@ sub GUI_ListTable($$$)
 							     });
 			    $d = qq{<A HREF="$bloburl" TARGET="_blank">$d</A>};
 			}
-			my $align = $g{db_fields}{$list->{spec}->{table}}{$name}{align};
-			if(!$align){
-			  my @numerictypes = qw(date
-					       time
-					       timestamp
-					       int4
-					       int8
-					       numeric
-					       float8);
-			  if(grep (/^$type$/,@numerictypes)){
-			    $align='"RIGHT" NOWRAP';
-			  }else{
-			    $align='"LEFT"';
-			  }
-			}
+			my $align = $g{db_fields}{$list->{spec}{table}}{$name}{align};
+			defined $align or $align = $numeric_types{$type} ?
+				'"RIGHT" NOWRAP' : '"LEFT"' unless defined $align;
 			$template_args{ALIGN}=$align;
 			$template_args{ELEMENT}='td';
 			$template_args{DATA}=$d;
-			$template_args{MARKUP}=GUI_HTMLMarkup($d) if $d and $g{db_fields}{$list->{spec}->{table}}{$name}{markup};
+			$template_args{MARKUP}=GUI_HTMLMarkup($d) if $d and $g{db_fields}{$list->{spec}{table}}{$name}{markup};
 			print Template(\%template_args);
 			delete $template_args{DATA};
 			delete $template_args{ALIGN};
