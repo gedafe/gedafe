@@ -53,6 +53,9 @@ sub GUI_DB2HTML($$)
 	$str =~ s/^\s+//;
 	$str =~ s/\s+$//;
 
+	if($type eq 'bool') {
+		$str = ($str ? 'yes' : 'no');
+	}
 	if($type eq 'text') {
 		$str =~ s/\n/<BR>/g;
 	}

@@ -1,4 +1,6 @@
 2000-11-16
+----------
+* reimplement (0,1) -> (no,yes) conversion for boolean types
 * released version 0.9.11
 * convert multiple '\n' to <BR>
 * removed old commmented-out code
