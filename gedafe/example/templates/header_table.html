@@ -1,1 +1,7 @@
-<small> <A href=##TABLE_URL##>##TABLE_DESC##</A></small>&nbsp;&nbsp;
+<small>
+#ifdef TABLE_TOOLTIP
+<A title="##TABLE_TOOLTIP##" href="##TABLE_URL##">##TABLE_DESC##</A>
+#else
+<A href=##TABLE_URL##>##TABLE_DESC##</A>
+#endif
+</small>&nbsp;&nbsp;

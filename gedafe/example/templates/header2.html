@@ -1,5 +1,9 @@
 <BR><HR size=1 noshade>
 
 #ifdef TITLE
-<H1 ALIGN="CENTER">##TITLE##</H1>
+#ifdef TABLE_LONGCOMMENT
+<H2 ALIGN="CENTER"><b>##TITLE##</b> - <i> ##TABLE_LONGCOMMENT##</i></H2>
+#else
+<H1 ALIGN="CENTER">##TITLE##</h1>
+#endif
 #endif

@@ -5,5 +5,9 @@
 <tr><td></td></tr>
 </table>
 #else
+#ifdef TABLE_LONGCOMMENT
+<DIV><A href="##TABLE_URL##">##TABLE_DESC##</A>&nbsp; ##TABLE_LONGCOMMENT##</DIV>
+#else
 <DIV><A href="##TABLE_URL##">##TABLE_DESC##</A></DIV>
+#endif
 #endif
