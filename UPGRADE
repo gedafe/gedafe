@@ -1,0 +1,20 @@
+
+        Upgrading Gedafe to a new version
+        =================================
+
+(arrows indicate actions that you should make when upgrading)
+
+1.0.1
+-----
+
+* The old pre-0.9.16 meta_tables and meta_fields structure is not anymore
+  supported.
+
+* New template: error.html used for unexpected internal errors.
+
+  -> put the new error.html in your templates directories
+
+* The escaping characted for encoding data in reedit_data has changed
+  from '%' to '!', so any old pre-built urls with reedit_data set won't work.
+
+* searches are now case insensitive

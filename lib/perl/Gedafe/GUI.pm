@@ -776,16 +776,20 @@ sub GUI_ListRep($$$)
 	GUI_Footer(\%template_args);
 }
 
+# CGI.pm already encodes/decodes parameters, but we want to do it ourselves
+# since we need to differentiate for example in reedit_data between a comma
+# as value and a comma as separator. Therefore we use the escape '!' instead
+# of '%'.
 sub GUI_URL_Encode($)
 {
-	my @encode_chars = ('&', '+', '>', '<', ' ', '%', '/', '?', ';', "\n", "\r", ':', ',');
+	my @encode_chars = ('&', '+', '>', '<', ' ', '%', '!', '/', '?', ';', "\n", "\r", ':', ',');
 	my $str = shift;
 	my $enc = '';
 	my $c;
 	defined $str or return '';
 	foreach $c (split //, $str) {
 		if(grep { $c eq $_ } @encode_chars) {
-			$enc .= '%'.sprintf('%2X',ord($c));
+			$enc .= '!'.sprintf('%2X',ord($c));
 		}
 		else {
 			$enc .= $c;
@@ -797,7 +801,7 @@ sub GUI_URL_Encode($)
 sub GUI_URL_Decode($)
 {
 	$_ = shift;
-	s/%(\d\d)/chr(hex($1))/ge;
+	s/!([0-9a-fA-F]{2})/pack("c",hex($1))/ge;
 	return $_;
 }
 
@@ -818,8 +822,8 @@ sub GUI_Str2Hash($$)
 	my $str = shift;
 	my $hash = shift;
 
-	foreach(split(/,/, $str)) {
-		if(/^(.*?):(.*)$/) {
+	foreach my $s (split(/,/, $str)) {
+		if($s =~ /^(.*?):(.*)$/) {
 			$hash->{$1} = GUI_URL_Decode($2);
 		}
 	}
