@@ -1,3 +1,4 @@
+#!/usr/bin/perl -w
 #!/usr/bin/speedy -w
 
 use lib "/usr/local/gedafe/lib/perl";
