@@ -1573,7 +1573,15 @@ sub GUI_Edit($$$)
 	my $field;
 	my $n=0;
 	foreach $field (@fields_list) {
-		if($field eq "${table}_id") { next; }
+		if($field eq "${table}_id" ){
+
+		     my $show_id = $g{db_tables}{$table}{meta}{edit_show_id};
+
+		     unless ( $show_id=~ /edit/
+		              and  
+			     ( $action eq 'edit' or $show_id  =~ /edit+add/ )
+		     ) { next; }   # Supress id column in Edit Screen
+		}
 
 		my $value = exists $values{$field} ? $values{$field} : '';
 		# get default from DB
@@ -1604,7 +1612,13 @@ documentation for further information.</p>
 end
 			};
 		}
-		my $inputelem = GUI_WidgetWrite($s, "field_$field", $fields->{$field}{widget},$value);
+		my $inputelem;
+		if($field eq "${table}_id"){
+		   $inputelem = $value || '&nbsp'; ## Force ID to Read only
+		} else {
+		   $inputelem = GUI_WidgetWrite($s, "field_$field", 
+				   $fields->{$field}{widget},$value);
+		};
 
                if (defined $edit_mask){
                     $template_form_args{ELEMENT} = $edit_mask;

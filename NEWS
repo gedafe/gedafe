@@ -4,6 +4,12 @@
 
 (arrows indicate actions that you should make when upgrading)
 -----------------------------------------------------------------
+HEAD    (2004-08-12)
+	new meta tables attribute "edit_show_id"      
+        Make the id column visible in EDIT (and NEW) screens for a table
+	(read only). Not perfect.
+	(Johannes)
+-----------------------------------------------------------------
 HEAD    (2004-07-29)
 	Schema Links in top of Main menü are now in  italics to 
 	make clear these Links are different from table links
