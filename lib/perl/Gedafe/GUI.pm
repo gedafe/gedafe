@@ -1444,13 +1444,13 @@ sub GUI_WidgetRead($$$)
 		}
 	}
 	elsif($w eq 'format_number') {
-		$value = DB_Format('char_to_number', $warg->{template}, $value);
+		$value = DB_Format($dbh, 'char_to_number', $warg->{template}, $value);
 	}
 	elsif($w eq 'format_date') {
-		$value = DB_Format('char_to_date', $warg->{template}, $value);
+		$value = DB_Format($dbh, 'char_to_date', $warg->{template}, $value);
 	}
 	elsif($w eq 'format_timestamp') {
-		$value = DB_Format('char_to_timestamp', $warg->{template}, $value);
+		$value = DB_Format($dbh, 'char_to_timestamp', $warg->{template}, $value);
 	}
 
 	# if it's a combo and no value was specified in the text field...
@@ -2311,13 +2311,13 @@ sub GUI_WidgetWrite($$$$)
 	}
 	elsif($w eq 'format_number' or $w eq 'format_date' or $w eq 'format_timestamp') {
 		if($w eq 'format_number') {
-			$value = DB_Format('number_to_char', $warg->{template}, $value);
+			$value = DB_Format($dbh, 'number_to_char', $warg->{template}, $value);
 		}
 		elsif($w eq 'format_date') {
-			$value = DB_Format('date_to_char', $warg->{template}, $value);
+			$value = DB_Format($dbh, 'date_to_char', $warg->{template}, $value);
 		}
 		elsif($w eq 'format_timestamp') {
-			$value = DB_Format('timestamp_to_char', $warg->{template}, $value);
+			$value = DB_Format($dbh, 'timestamp_to_char', $warg->{template}, $value);
 		}
 
 		my $size = defined $warg->{size} ? $warg->{size} : '20';
