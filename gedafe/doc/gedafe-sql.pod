@@ -57,7 +57,7 @@ Example:
 
 For the benefit of a friendly presentation, each field and table in
 the database must have a description. Descriptions are added using the
-B<COMMENT> command. If a table has no COMMENT on it, it will be hidden.
+B<COMMENT> command.
 
 Example:
 

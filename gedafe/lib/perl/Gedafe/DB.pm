@@ -106,8 +106,7 @@ END
 			$g{db_tables}{$table}{desc} = $g{db_tables}{"${table}_list"}{desc};
 		}
 		else {
-			# hide the table
-			delete $g{db_tables}{table};
+			$g{db_tables}{$table}{desc} = $table;
 		}
 	}
 
