@@ -56,7 +56,7 @@ Example:
 =head2 Table and Field Naming
 
 For the benefit of a friendly presentation, each field and table in
-the database must have a description. Descriptions are added using the
+the database can have a description. Descriptions are added using the
 B<COMMENT> command.
 
 Example:
@@ -105,10 +105,12 @@ in your view called B<meta_sort> which the front-end will use to sort
 the contents of the view as long as there are no other sorting
 instructions present.
 
-You can defined a separate description to the list view by setting a comment
-on it. If you don't, the table's comment will be taken. For each field in the
-view that has the same name of an another already commented field, that
-comment will be taken if not defined.
+You can set a COMMENT for each field of a B<*_list> view, this comment will
+then be taken as column head. If you do not define a special comment, but
+the name of the list field equivalent to its parent table, then the COMMENT
+from the parent table field will be used. The same is true if the list field
+name matches the name of any other commented table field in the database.
+
  
 =head2 The B<meta_fields> table
 
