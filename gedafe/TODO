@@ -2,6 +2,12 @@ Bugs
 ----
 - Database errors sometimes do not get printed
 
+- if meta_sort in views is not sorted and it sorts on one column which is not
+  unique the order of the elements might change while scrolling pages. this is
+  because postgresql doesn't ensure that unsorted records come always in the
+  same order. Maybe we should order with obj_id or something, so that it is
+  always the same, it is strange for users...
+
 Documentation
 -------------
 
