@@ -10,8 +10,9 @@ COMMENT ON DATABASE demo1 IS 'Gedafe Demo Application 1';
 
 DROP TABLE meta_tables;
 CREATE TABLE meta_tables (
+	meta_tables_id	serial NOT NULL PRIMARY KEY,
 	-- Table Name
-	meta_tables_table	NAME	NOT NULL PRIMARY KEY,
+	meta_tables_table	NAME	NOT NULL ,
 	-- Attribute
 	meta_tables_attribute	TEXT	NOT NULL,
 	-- Value
@@ -21,6 +22,7 @@ CREATE TABLE meta_tables (
 
 DROP TABLE meta_fields;
 CREATE TABLE meta_fields (
+        meta_fields_id  serial  NOT NULL PRIMARY KEY,
 	-- Table Name
 	meta_fields_table	NAME	NOT NULL,
 	-- Field Name

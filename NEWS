@@ -1,6 +1,12 @@
 
         News and upgrading information for Gedafe
         =========================================
+HEAD	(2003-11-26)
+------------------------------------------------------------------------------
+  * Add id columms to meta_fields and meta_tables in example database
+    demo.sql. This is not needed, but it allows you to maintain these
+    tables more easy with tools like phpPgAmin or pgadmin3 (johannes)
+------------------------------------------------------------------------------
 
 (arrows indicate actions that you should make when upgrading)
 
