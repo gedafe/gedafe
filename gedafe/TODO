@@ -21,6 +21,8 @@ Small features
 - meta_color field to select the color of the record in the list view (see
   mailing list)
 - edit mask (patch by Johannes Poehlmann) see mailing list
+- search field 'all' (ask mila), use as default
+- meta_tables/search_default: change default search field
 
 Big features
 ------------
