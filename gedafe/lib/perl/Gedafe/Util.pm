@@ -75,7 +75,7 @@ sub ConnectToTicketsDaemon($) {
 	my $s = shift;
 	my $file = $g{conf}{tickets_socket};
 	my $socket = IO::Socket::UNIX->new(Peer => $file)
-		or Error($s, "Couldn't connect to gedafed daemon: $!");
+		or Die("Couldn't connect to gedafed daemon: $!");
 	return $socket;
 }
 
@@ -147,7 +147,7 @@ sub GetUnique($)
 	$_ = <$socket>;
 	close($socket);
 	if(! /^([\w-]+)$/) {
-		Error($s, "Couldn't understand ticket daemon reply: $_");
+		Die("Couldn't understand ticket daemon reply: $_");
 	}
 	return $1;
 }
