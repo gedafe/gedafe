@@ -1403,7 +1403,7 @@ sub DB_UpdateRecord($$$)
 	$query .= join(', ',@updates);
 	$query .= " WHERE ${table}_id = $record->{id}";
     
-	my $result = DB_ExecQuery($dbh,$table,$query,\%dbdata,\@updatefields);
+	my $result = DB_ExecQuery_Fields($dbh,$table,$query,\%dbdata,\@updatefields);
 	my $ID =  $record->{id};
         
 	if (defined $result and scalar(@mnfields_list) ne 0) {
