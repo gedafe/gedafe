@@ -627,95 +627,92 @@ sub GUI_FilterFirst($$$$)
 
 
 
-sub GUI_ReadSearchSpec($$){
+sub GUI_ReadSearchSpec($)
+{
 	my $s = shift;
 	my $q = $s->{cgi};
-	my $view = shift;
-	my @search_fields = ();
 	my $fieldcount = 1;
 
-	my ($name,$value,$op,$operand);
-	while($name=$q->url_param('search_field'.$fieldcount)){
-		$name =~ s/^\s*//; $name =~ s/\s*$//;
-		$value = $q->url_param('search_value'.$fieldcount) || '';
+	# search_spec contains one element per searched line in the GUI
+	# each line has the form:
+	# { 
+	#   field => field_name,
+	#   value => full_line,
+	#   parsed => [
+	#                 { join_op => '',    neg => 0, op => '',      'bla' ],
+	#                 { join_op => 'AND', neg => 0, op => 'ILIKE', 'foo' ],
+	#                  ...
+	#             ]
+	# }
+	my @search_spec = ();
+	while(my $field=$q->url_param('search_field'.$fieldcount)) {
+		$field =~ s/^\s*//; $field =~ s/\s*$//;
+		my $value = $q->url_param('search_value'.$fieldcount) || '';
 		$value = "" if($q->url_param('search_clear'.$fieldcount));
-		$value =~ s/^\s*//; $value =~ s/\s*$//;
-		if($value){
-			#if($name ne '#ALL#' && 
-			#   $g{db_fields}{$view}{$name}{type} &&
-			#   $g{db_fields}{$view}{$name}{type} eq 'date') {
-			#	if($value =~ /today/i) {
-			#		$value =~ s/today/POSIX::strftime("%Y-%m-%d", localtime)/;
-			#	}
-			#	if($value =~ /yesterday/i) {
-			#		my $time = time;
-			#		$time -= 3600 * 24;
-			#		$value =~ s/today/POSIX::strftime("%Y-%m-%d", localtime($time))/;
-			#	}
-			#}
+		$value =~ s/^\s+//; $value =~ s/\s+$//;
+		$fieldcount++;
+		$value or next;
 
-			# print STDERR "Value read: $value\n";
-			# op  is the operator, like is default
-			# except when we are following a reference link
+		my %search_element = ( field => $field, value => $value );
+		my $join_op = '';
 
-			if($g{db_fields}{$view}{$name}{type} &&
-			   $g{db_fields}{$view}{$name}{type} eq 'bool') {
-				$op = '=';
-			}else{
-				$op = 'ilike';
+		while($value !~ /\G\z/gc) {
+			$value =~ /\G/gc;
+			my $last_pos = pos $value;
+
+			# optional negation
+			my $neg=0;
+			if($value =~ /\G\s*(!|not)/gc) {
+				$neg=1;
+			}
+
+			# optional operator
+			my $op;
+			if($value =~ /\G\s*(<=|>=|<|>|like|~|=|is\s+(?:not\s+)?null\b)/gci) {
+				$op = $1;
+			}
+
+			# operand
+			my $operand;
+			if($value =~ /\G\s*(\S+)/gc) {
+				$operand = $1;
+			}
+			elsif($value =~ /\G\s*"(.*?)"/gc) {
+				$operand = $1;
+			}
+
+			# some checks
+			if($op =~ /^is\s+(not\s+)?null\b/i) {
+				$op = 'is null';
+				$neg = 1 if defined $1;
+			}
+			else {
+				defined $operand or die "SYNTAX ERROR in search at pos $last_pos : $value\n";
 			}
 			
-			$operand = $value;
-			# print STDERR "$operand\n";
-			if($value =~ /^>=/){
-				$operand = substr $value,2;
-				$op = '>=';
-			}elsif($value =~ /^<=/){
-				$operand = substr $value,2;
-				$op = '<=';
-			}elsif($value =~ /^</){
-				$operand = substr $value,1;
-				$op = '<';
-			}elsif($value =~ /^>/){
-				$operand = substr $value,1;
-				$op = '>';
-			}elsif($value =~ /^like /){
-				$operand = substr $value,5;
-				$op = 'like';
-			}elsif($value =~ /^not /){
-				$operand = substr $value,4;
-				$op = 'not ilike';
-			}elsif($value =~ /^=\~/){
-				$operand = substr $value,2;
-				$op = '~*';
-			}elsif($value =~ /^\~\*/){
-				$operand = substr $value,2;
-				$op = '~*';
-			}elsif($value =~ /^=/){
-				$operand = substr $value,1;
-				$op = '=';
+			push @{$search_element{parsed}}, {
+				join_op => $join_op,
+				neg => $neg,
+				op  => $op,
+				operand => $operand
+			};
+
+			# and/or
+			if($value =~ /\G\s+(and|or)\b/gci) {
+				$join_op = ' '.lc($1).' ';
 			}
 			
-			$operand =~ s/^\s*//; $operand =~ s/\s*$//;
-			my @ors = split / or /i,$operand;
-			for(@ors){
-				my @ands = split / and | /i,$_;
-				for my $atom (@ands){
-					$atom =~ s/^\s*//; $atom =~ s/\s*$//;
+			# didn't progress? -> syntax error
+			if($value !~ /\G\z/ and $value =~ /\G/gc) {
+				if(pos($value) == $last_pos) {
+					die "SYNTAX ERROR in search at pos $last_pos: $value\n";
 				}
-				$_ = \@ands;
 			}
-
-			push @search_fields,{field=>$name,
-					     value=>$value,
-					     op=>$op,
-					     operand=>$operand,
-					     tree=>\@ors};
 		}
-		$fieldcount ++;
+		push @search_spec, \%search_element;
 	}
 
-	return \@search_fields;
+	return \@search_spec;
 }
 
 sub GUI_Search($$$){
@@ -723,17 +720,11 @@ sub GUI_Search($$$){
 	my $q = $s->{cgi};
 	my $view = shift;
 	my $template_args = shift;
-	my @search_fields = @{GUI_ReadSearchSpec($s,$view)};
-	my @return_fields = @search_fields;
+	my $search_fields = GUI_ReadSearchSpec($s);
 	
 	my @fields = @{$g{db_fields_list}{$view}};
-
-	#ADD ALL OPTION TO FIELDS LIST
 	unshift @fields, '#ALL#';
 
-	#ADD EMPTY SEARCH BOX;
-	unshift @search_fields,{field=>'#ALL#',value=>''};
-	
 	my %search_combos = ();
 	my ($name,$field,$value);
 	my $counter = 1;
@@ -745,15 +736,13 @@ sub GUI_Search($$$){
 	print Template($template_args);
 	delete $template_args->{SEARCH_ACTION};
 
-	
-	for(@search_fields){
+	for my $search_elem (@$search_fields, { field => '#ALL#', value => '' } ){
 		$name = 'search_field'.$counter;
-		$field = $_->{field};
-		$value = $_->{value};
-
+		$field = $search_elem->{field};
+		$value = $search_elem->{value};
 
 		#perhaps this is a referenced link
-		if($_->{field} =~ /^meta_rc_(.*)_(.*)$/){
+		if($search_elem->{field} =~ /^meta_rc_(.*)_(.*)$/){
 			$template_args->{REFERENCED_SEARCH} = 1;
 			$template_args->{SEARCHFIELD_FIELD} = $name;
 			$template_args->{SEARCHFIELD_FROM} = 
@@ -770,20 +759,13 @@ sub GUI_Search($$$){
 		delete $template_args->{SEARCHFIELD_FROM};
 		delete $template_args->{SEARCHFIELD_TO};
 
-
-		#default the field to 'all columns';
 		foreach my $tablefield (@fields) {
-			
 			$template_args->{ELEMENT} = 'field';
-			if($tablefield eq '#ALL#'){
-				$template_args->{SEARCHFIELD_ALL} = 1;
-			}
+			$template_args->{SEARCHFIELD_ALL} = 1 if $tablefield eq '#ALL#';
 			$template_args->{SEARCHFIELD_DESC} 
 			    = $g{db_fields}{$view}{$tablefield}{desc};
-			
 			$template_args->{SEARCHFIELD_SELECTED} 
 			    = $tablefield =~ /^$field$/ ? "SELECTED" : '';
-
 			$template_args->{SEARCHFIELD_TABLEFIELD} = $tablefield;
 			print Template($template_args);
 			delete $template_args->{SEARCHFIELD_ALL};
@@ -799,15 +781,13 @@ sub GUI_Search($$$){
 		delete $template_args->{SEARCHVALUE_NAME};
 		delete $template_args->{SEARCHVALUE_VALUE};
 
-
 		#add clear button to all rows except the last one.
 		push @clears, "search_clear$counter" unless($counter == 1);
 		$counter++;
 	} 
 
-
 	my $search_hidden = '';
-	foreach($q->url_param) {
+	foreach my $p ($q->url_param) {
 		#FIXME
 		#this copying of fields except when something special is at hand seems 
 		#fragile. There should be at least some rationale about which fields get
@@ -815,9 +795,8 @@ sub GUI_Search($$$){
 		next if /^search/;
 		next if /^button/;
 		next if /^offset$/;
-		$search_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
+		$search_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$p\" VALUE=\"".$q->url_param($p)."\">\n";
 	}
-
 
 	$template_args->{ELEMENT} = 'button';
 	$template_args->{SEARCH_SHOWALL} = MakeURL(MyURL($q), {},
@@ -831,8 +810,8 @@ sub GUI_Search($$$){
 	print Template($template_args);
 
 	$template_args->{ELEMENT} = 'clear';
-	for(@clears){
-		$template_args->{SEARCH_CLEAR_NAME} = $_;
+	for my $c (@clears){
+		$template_args->{SEARCH_CLEAR_NAME} = $c;
 		print Template($template_args);
 	}
 	delete $template_args->{SEARCH_CLEAR_NAME};
@@ -841,13 +820,12 @@ sub GUI_Search($$$){
 	$template_args->{ELEMENT} = 'clearfoot';
 	print Template($template_args);
 
-
 	$template_args->{ELEMENT} = 'foot';
 	$template_args->{SEARCH_HIDDEN} = $search_hidden;
 	print Template($template_args);
 	delete $template_args->{SEARCH_HIDDEN};
 
-	return \@return_fields;
+	return $search_fields;
 }
 
 sub GUI_EditLink($$$$)
@@ -1361,7 +1339,7 @@ sub GUI_Export($$$)
 	#$spec{search_field} =~ s/^\s*//; $spec{search_field} =~ s/\s*$//;
 	#$spec{search_value} =~ s/^\s*//; $spec{search_value} =~ s/\s*$//;
 
-	$spec{search} = GUI_ReadSearchSpec($s,$spec{view});
+	$spec{search} = GUI_ReadSearchSpec($s);
 
 	# fetch list
 	my $list = DB_FetchList($s, \%spec);
@@ -1859,7 +1837,7 @@ sub GUI_MakeRadio($$$$$$)
 	}
 
 	if ( $shownull == 1 ){
-	    print STDERR "shownull = $shownull, nulltext = $nulltext\n";
+	    #print STDERR "shownull = $shownull, nulltext = $nulltext\n";
 	    #$nulltext = " " unless defined $nulltext;
 	    $str .= "<input type=\"radio\" name=\"$name\" value=\"\" ";
 

@@ -70,7 +70,7 @@ number for each form.
 
 =item *
 
-Using the PearlReports integration, is is possible to write custom multilevel
+Using the PearlReports integration, it is possible to write custom multilevel
 report modules (Pearls) available from the Gedafe webinterface.
 
 =back
@@ -302,6 +302,34 @@ bookmark and the browsers have problems handling the reloading of
 pages obtained with a POST request. For that reason, POST was used
 only for database-modifying actions where large amounts of data must
 be transferred.
+
+=head2 Searching
+
+You can search on multiple fields, which are represented in the list view as
+multiple text fields on different lines. Each field must match. In each of the
+fields, you can type a search term using the following syntax:
+
+=over 4
+
+=item text
+
+simple 'ILIKE' matching of the selected field
+
+=item OP text
+
+use OP instead of 'ILIKE'. Can be '<', '<=', '>', '>=', '=', '~'.
+
+=item NOT expr
+
+Negate expression
+
+=item is [not] null
+
+=back
+
+Further, you can also join such expressions with 'OR' and 'AND. For example:
+
+ > 2004-01-01 and < 2004-12-31
 
 =head2 HTML Layout
 
