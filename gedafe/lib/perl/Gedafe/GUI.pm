@@ -636,8 +636,8 @@ sub GUI_ReadSearchSpec($$){
 		$value =~ s/^\s*//; $value =~ s/\s*$//;
 		if($value){
 			if($name ne '#ALL#' && 
-			   $g{db_fields}{$view}{$_}{type} &&
-			   $g{db_fields}{$view}{$_}{type} eq 'date') {
+			   $g{db_fields}{$view}{$name}{type} &&
+			   $g{db_fields}{$view}{$name}{type} eq 'date') {
 				if($value =~ /today/i) {
 					$value =~ s/today/POSIX::strftime("%Y-%m-%d", localtime)/;
 				}
@@ -652,7 +652,12 @@ sub GUI_ReadSearchSpec($$){
 			# op  is the operator, like is default
 			# except when we are following a reference link
 
-			$op = 'ilike';
+			if($g{db_fields}{$view}{$name}{type} &&
+			   $g{db_fields}{$view}{$name}{type} eq 'bool') {
+				$op = '=';
+			}else{
+				$op = 'ilike';
+			}
 			
 			$operand = $value;
 			# print STDERR "$operand\n";
@@ -723,11 +728,12 @@ sub GUI_Search($$$){
 	my %search_combos = ();
 	my ($name,$field,$value);
 	my $counter = 1;
+	my @clears = ();
+	
 	for(@search_fields){
 		$name = 'search_field'.$counter;
 		$field = $_->{field};
 		$value = $_->{value};
-
 
 		#default the field to 'all columns';
 		$search_combos{$name} = "<SELECT name=\"$name\" SIZE=\"1\">\n";
@@ -748,7 +754,7 @@ sub GUI_Search($$$){
 		$search_combos{$name} .= "<INPUT TYPE=\"text\" NAME=\"search_value$counter\" VALUE=\"$value\">\n";
 
 		#add clear button to all rows except the last one.
-		$search_combos{$name} .= "<INPUT TYPE=\"submit\" NAME=\"search_clear$counter\" VALUE=\"Clear\">\n" unless($counter == 1);
+		push @clears, "<INPUT TYPE=\"submit\" NAME=\"search_clear$counter\" VALUE=\"Clear\">\n" unless($counter == 1);
 		$counter++;
 	} 
 	my $search_hidden = '';
@@ -768,6 +774,8 @@ sub GUI_Search($$$){
 	$template_args->{ELEMENT} = 'search';
 	$template_args->{SEARCH_ACTION} = $q->url;
 	$template_args->{SEARCH_COMBO} = $search_gui;
+	$template_args->{SEARCH_CLEAR} = join "<br>\n",@clears;
+
 	$template_args->{SEARCH_HIDDEN} = $search_hidden;
 	#$template_args->{SEARCH_VALUE} = $search_value;
 	$template_args->{SEARCH_SHOWALL} = MakeURL(MyURL($q), {},
