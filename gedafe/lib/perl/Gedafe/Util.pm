@@ -21,16 +21,17 @@ require Exporter;
 	MyURL
 	InitTemplate
 	Template
-	Error
+	Die
 	DropUnique
 	UniqueFormStart
 	UniqueFormEnd
 	NextRefresh
 );
 
-sub Error($$) {
-	my $s = shift;
+# Gedafe's die handler
+sub Die($) {
 	my $error_text = shift;
+	my $s = $g{s};
 
 	my %t = (
 		PAGE => 'error',
@@ -56,14 +57,14 @@ sub Error($$) {
 #	}
 
 	$t{ELEMENT}  ='error';
-	$t{ERROR}    = $error_text;
+	$t{ERROR}    = $error_text ? $error_text : '(unknown)';
 	print Template(\%t);
 	delete $t{ERROR};
 
 	$t{ELEMENT}='footer';
 	print Template(\%t);
 
-	exit;
+	die $error_text;
 }
 
 sub ConnectToTicketsDaemon($) {
