@@ -325,39 +325,38 @@ sub GUI_FilterFirst($$$$)
 	my $ff_field = $g{db_tables}{$view}{meta}{filterfirst};
 	my $ff_value = $q->url_param('filterfirst') ||
 	               $q->url_param('combo_filterfirst') || '';
+	
+	defined $ff_field or return undef;
 
-	# filterfirst
-	if(defined $ff_field)
-	{
-		my $ff_ref = $g{db_fields}{$view}{$ff_field}{reference};
-		my $ff_combo_name = "${ff_ref}_combo" unless not defined $ff_ref;
-		if(!defined $ff_ref or !defined $g{db_tables}{$ff_combo_name}) {
-			die "combo not found for $ff_field";
-		}
-		else {
-			my $ff_combo = GUI_MakeCombo($dbh, $ff_combo_name, "combo_filterfirst", $ff_value);
-			my $ff_hidden = '';
-			foreach($q->url_param) {
-				next if /^filterfirst/;
-				next if /button$/;
-				$ff_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
-			}
-			$template_args->{ELEMENT}='filterfirst';
-			$template_args->{FILTERFIRST_FIELD}=$ff_field;
-			$template_args->{FILTERFIRST_FIELD_DESC}=$g{db_fields}{$view}{$ff_field}{desc};
-			$template_args->{FILTERFIRST_COMBO}=$ff_combo;
-			$template_args->{FILTERFIRST_HIDDEN}=$ff_hidden;
-			$template_args->{FILTERFIRST_ACTION}=$s->{url};
-			print Template($template_args);
-			delete $template_args->{ELEMENT};
-			delete $template_args->{FILTERFIRST_FIELD};
-			delete $template_args->{FILTERFIRST_FIELD_DESC};
-			delete $template_args->{FILTERFIRST_COMBO};
-			delete $template_args->{FILTERFIRST_HIDDEN};
-			delete $template_args->{FILTERFIRST_ACTION};
-		}
-		if($ff_value eq '') { $ff_value = undef; }
+	my $ff_ref = $g{db_fields}{$view}{$ff_field}{reference};
+	my $ff_combo_name = "${ff_ref}_combo" unless not defined $ff_ref;
+
+	if(!defined $ff_ref or !defined $g{db_tables}{$ff_combo_name}) {
+		die "combo not found for $ff_field";
 	}
+
+	my $ff_combo = GUI_MakeCombo($dbh, $ff_combo_name, "combo_filterfirst", $ff_value);
+	my $ff_hidden = '';
+	foreach($q->url_param) {
+		next if /^filterfirst/;
+		next if /button$/;
+		$ff_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
+	}
+	$template_args->{ELEMENT}='filterfirst';
+	$template_args->{FILTERFIRST_FIELD}=$ff_field;
+	$template_args->{FILTERFIRST_FIELD_DESC}=$g{db_fields}{$view}{$ff_field}{desc};
+	$template_args->{FILTERFIRST_COMBO}=$ff_combo;
+	$template_args->{FILTERFIRST_HIDDEN}=$ff_hidden;
+	$template_args->{FILTERFIRST_ACTION}=$s->{url};
+	print Template($template_args);
+	delete $template_args->{ELEMENT};
+	delete $template_args->{FILTERFIRST_FIELD};
+	delete $template_args->{FILTERFIRST_FIELD_DESC};
+	delete $template_args->{FILTERFIRST_COMBO};
+	delete $template_args->{FILTERFIRST_HIDDEN};
+	delete $template_args->{FILTERFIRST_ACTION};
+
+	if($ff_value eq '') { $ff_value = undef; }
 
 	return ($ff_field, $ff_value);
 }
