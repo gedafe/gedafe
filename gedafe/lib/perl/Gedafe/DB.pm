@@ -1349,7 +1349,6 @@ sub DB_AddRecord($$$)
 	}
 	$query   .= ");";
 
-	#parameter undef is for normal insert, 'MN' is for insert into M:N
 	my ($result, $oid) = DB_ExecQuery_Fields($dbh,$table,$query,\%dbdata,\@fields_list);
 
 	_DB_AddRecordMN($dbh, $table, $record, $oid) if $result;
@@ -1390,8 +1389,8 @@ sub DB_UpdateRecord($$$)
 	}
 	$query .= join(', ',@updates);
 	$query .= " WHERE ${table}_id = $record->{id}";
-    
-	my $result = DB_ExecQuery_Fields($dbh,$table,$query,\%dbdata,\@updatefields);
+
+	my ($result) = DB_ExecQuery_Fields($dbh,$table,$query,\%dbdata,\@updatefields);
 	my $ID =  $record->{id};
         
 	if (defined $result and scalar(@mnfields_list) > 0) {
