@@ -1,11 +1,9 @@
-<!-- TWOCOL Parameter:  ##TWOCOL##  -->
-#if ##TWOCOL## = 0
 <TR>
-<TD BGCOLOR="#e0e0e0" ALIGN="left" WIDTH="0"><small>##LABEL##:</small></TD>
-<TD BGCOLOR="#f0f0f0" ALIGN="left">##INPUT##</TD>
+#ifdef NOTNULL
+<TD BGCOLOR="#e6e6fa" ALIGN="left" WIDTH="0">
 #else
-<TD BGCOLOR="#e0e0e0" ALIGN="left" WIDTH="0"><small>##LABEL##:</small></TD>
+<TD BGCOLOR="#e0e0e0" ALIGN="left" WIDTH="0">
+#endif
+<small>##LABEL##:</small></TD>
 <TD BGCOLOR="#f0f0f0" ALIGN="left">##INPUT##</TD>
 </TR>
-#endif
-
