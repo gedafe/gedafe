@@ -289,6 +289,13 @@ current search.
 
 =head1 TROUBLESHOOTING
 
+=head2 Authentication always fails
+
+Gedafe only works with 'password' or 'crypt' authentication in PostgreSQL. You
+have to configure that in the pg_hba.conf file. For example:
+
+ host         all         0.0.0.0    0.0.0.0     crypt
+
 =head2 Edit form is empty
 
 When you get an empty form after selecting 'Edit' for a record, this could mean
