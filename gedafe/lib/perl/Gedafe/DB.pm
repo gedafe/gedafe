@@ -63,7 +63,7 @@ sub DB_RawField($$$$);
 sub DB_ReadDatabase($);
 sub DB_ReadFields($$$);
 sub DB_ReadTableAcls($$);
-sub DB_ReadTables($$$);
+sub DB_ReadTables($$);
 sub DB_Record2DB($$$$);
 sub DB_UpdateRecord($$$);
 sub DB_Widget($$);
@@ -95,7 +95,7 @@ sub DB_Init($$)
 	$g{db_database} = DB_ReadDatabase($dbh);
 	
 	# read tables
-	$g{db_tables} = DB_ReadTables($dbh, $g{db_database}, $g{conf}{schema});
+	$g{db_tables} = DB_ReadTables($dbh, $g{db_database});
 	defined $g{db_tables} or return undef;
 
 	# order tables
@@ -116,6 +116,20 @@ sub DB_Init($$)
 				$g{db_fields}{$table}{$b}{order} }
 				keys %{$g{db_fields}{$table}}
 			];
+	}
+
+	# set schema search path
+	if($g{db_database}{version} >= 7.2) {
+		# Set Schema search path
+		my $query="SET SEARCH_PATH TO ";
+		if (defined $g{conf}{schema_search_path})   {
+			$query .=  ($g{conf}{schema_search_path}. ";");
+		} elsif (defined $g{conf}{schema})   {
+			$query .= "'" . ($g{conf}{schema} . "';");
+		} else {
+			$query .=" '\$user', 'public';";
+		}
+		$dbh->do($query);
 	}
 
 	return 1;
@@ -162,9 +176,9 @@ sub DB_ReadDatabase($)
 	return \%database;
 }
 
-sub DB_ReadTables($$$)
+sub DB_ReadTables($$)
 {
-	my ($dbh, $database,$schema) = @_;
+	my ($dbh, $database) = @_;
 	my %tables = ();
 	my ($query, $sth, $data);
 
@@ -198,9 +212,9 @@ END
 		if($data->[0] =~ /^meta|(_list|_combo)$/) {
 			$tables{$data->[0]}{hide} = 1;
 		}
-		if($database->{version} >= 7.2){
+		if($database->{version} >= 7.2 and defined $g{conf}{schema}){
 			# Hide Tables from other schemas
-			if ($data->[1] ne $schema){
+			if ($data->[1] ne $g{conf}{schema}){
 				$tables{$data->[0]}{hide} = 1;
 			}
 		}
