@@ -182,7 +182,7 @@ sub UniqueFormStart($$)
 {
 	my $s = shift;
 	my $action = shift;
-	print qq{<FORM ACTION="$action" METHOD="POST" ENCTYPE="multipart/form-data" NAME="editform">\n};
+	print qq{<FORM ACTION="$action" METHOD="POST" ENCTYPE="multipart/form-data">\n};
 
 	$s->{in_form}=1;
 }
@@ -190,7 +190,7 @@ sub FormStart($$)
 {
 	my $s = shift;
 	my $action = shift;
-	print qq{<FORM ACTION="$action" METHOD="GET" ENCTYPE="multipart/form-data" NAME="editform">\n};
+	print qq{<FORM ACTION="$action" METHOD="GET">\n};
 	$s->{in_form}=1;
 }
 
