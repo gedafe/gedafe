@@ -8,6 +8,7 @@ Documentation
   - hint of possible gedafed problem when "Premature end of script"
     appears in the logs. This is a common error.
 - add in README tip to look at perldoc lib/perl/Text/CPPTemplate.pm
+- add description on Gedafe interaction with PostgreSQL access-rights.
 
 Small features
 --------------
