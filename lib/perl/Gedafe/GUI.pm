@@ -662,7 +662,7 @@ sub GUI_ReadSearchSpec($)
 
 			# optional negation
 			my $neg=0;
-			if($value =~ /\G\s*(!|not)/gc) {
+			if($value =~ /\G\s*(!|not)/gci) {
 				$neg=1;
 			}
 

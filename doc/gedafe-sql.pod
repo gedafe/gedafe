@@ -519,7 +519,7 @@ The optional parameter I<shownull> adds a button for the I<NULL> value,
 the optional parameter I<nulltext> defines the label next to the 
 I<INULL> button.
 
-Fixme: This wodget should switch automatically to a combo box if
+Fixme: This widget should switch automatically to a combo box if
 there are more options then a configurable threshold.
 
 =item isearch
