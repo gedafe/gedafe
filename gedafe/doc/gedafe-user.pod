@@ -1,6 +1,6 @@
 =head1 NAME
 
-gedafe-user - the Generic Database Front-End (GeDaFE) User-Manual
+gedafe-user - the Generic Database Front-End (Gedafe) User-Manual
 
 =head1 DESCRIPTION
 

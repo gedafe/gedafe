@@ -2,9 +2,9 @@
 .SUFFIXES: .c .o .pl .pm .pod .html .man .wml .1 .txt
 SHELL=/bin/sh
 
-MAJOR  = 0
-MINOR  = 9
-MMINOR = 16
+MAJOR  = 1
+MINOR  = 0
+MMINOR = 0
 VERSION = $(MAJOR).$(MINOR).$(MMINOR)
 
 TAR = gedafe-$(VERSION).tar.gz
