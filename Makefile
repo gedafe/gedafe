@@ -4,7 +4,7 @@ SHELL=/bin/sh
 
 MAJOR  = 2
 MINOR  = 0
-MMINOR = 0-pre1
+MMINOR = 0pre1
 VERSION = $(MAJOR).$(MINOR).$(MMINOR)
 
 GNUTAR = gtar
