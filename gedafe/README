@@ -9,7 +9,13 @@ Documentation
 -------------
 
     Read doc/gedafe-user.pod for the frontend installation and usage
-    and doc/gedafe-sql.pod for database-setup instructions
+    and doc/gedafe-sql.pod for database-setup instructions.
+
+
+Examples
+--------
+
+    See example/README.
 
 
 Versioning Scheme
