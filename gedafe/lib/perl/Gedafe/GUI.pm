@@ -1024,7 +1024,10 @@ sub GUI_Edit($$$)
 		my $ff_field = $g{db_tables}{$table}{filterfirst};
 		my $ff_value = $q->url_param('filterfirst') || $q->url_param('combo_filterfirst') || '';
 		if(defined $ff_value and defined $ff_field) {
-			$values{$ff_field} = DB_ID2HID($dbh, $table, $g{db_tables}{$table}{filterfirst}, $ff_value);
+			if(defined $g{db_fields}{$table}{$ff_field}{ref_hid}) {
+				# convert ID reference to HID
+				$values{$ff_field} = DB_ID2HID($dbh, $g{db_fields}{$table}{$ff_field}{reference}, $ff_value);
+			}
 		}
 		# copy fields from previous add form
 		foreach(@fields_list) {

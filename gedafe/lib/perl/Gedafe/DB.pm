@@ -366,7 +366,7 @@ sub DB_GetDefault($$$)
 
 	if($g{db_fields}{$table}{$field}{ref_hid}) {
 		my $ref = $g{db_fields}{$table}{$field}{reference};
-		$query = "${ref}_id2hid($query)";
+		$query = DB_ID2HID($dbh, $ref, $query);
 	}
 
 	$query = "SELECT ".$query;
@@ -515,37 +515,35 @@ sub DB_GetRecord($$$$)
 	return 1;
 }
 
-sub DB_ID2HID($$$$)
+sub DB_ID2HID($$$)
 {
 	my $dbh = shift;
 	my $table = shift;
-	my $field = shift;
-	my $data = shift;
+	my $id = shift;
 
-	if((not defined $data) or  ($data eq '') or (not defined $g{db_fields}{$table}{$field}{ref_hid})) { return $data; }
-	my $ref = $g{db_fields}{$table}{$field}{reference};
-	my $q = "SELECT ${ref}_id2hid('$data')";
+	return unless defined $id and $id ne '';
+	my $q = "SELECT ${table}_hid FROM ${table} WHERE ${table}_id = '$id'";
 	my $sth = $dbh->prepare_cached($q) or return undef;
 	$sth->execute or return undef;
 	my $d = $sth->fetchrow_arrayref();
 	$sth->finish;
+
 	return $d->[0];
 }
 
-sub DB_HID2ID($$$$)
+sub DB_HID2ID($$$)
 {
 	my $dbh = shift;
 	my $table = shift;
-	my $field = shift;
-	my $data = shift;
+	my $hid = shift;
 
-	if((not defined $data) or  ($data eq '') or (not defined $g{db_fields}{$table}{$field}{ref_hid})) { return $data; }
-	my $ref = $g{db_fields}{$table}{$field}{reference};
-	my $q = "SELECT ${ref}_hid2id('$data')";
+	return unless defined $hid and $hid ne '';
+	my $q = "SELECT ${table}_id FROM ${table} WHERE ${table}_hid = '$hid'";
 	my $sth = $dbh->prepare_cached($q) or return undef;
 	$sth->execute or return undef;
 	my $d = $sth->fetchrow_arrayref();
 	$sth->finish;
+
 	return $d->[0];
 }
 
@@ -597,7 +595,11 @@ sub DB_DB2Record($$$$)
 		my $type = $fields->{$f}{type};
 		my $data = $dbdata->{$f};
 		
-		$data = DB_ID2HID($dbh, $table, $f, $data);
+		if(defined $fields->{$f}{ref_hid}) {
+			# convert ID reference to HID
+			$data = DB_ID2HID($dbh, $fields->{$f}{reference}, $data);
+		}
+
 		$record->{$f} = $data;
 	}
 	return 1;
@@ -619,7 +621,11 @@ sub DB_Record2DB($$$$)
 		my $data = $record->{$f};
 
 		$data = DB_PrepareData($data, $type);
-		$data = DB_HID2ID($dbh, $table, $f, $data);
+		if(defined $fields->{$f}{ref_hid}) {
+			# convert HID reference to ID
+			$data = DB_HID2ID($dbh, $fields->{$f}{reference}, $data);
+		}
+
 		$dbdata->{$f} = $data;
 	}
 
