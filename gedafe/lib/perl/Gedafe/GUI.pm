@@ -246,14 +246,18 @@ sub GUI_InitTemplateArgs($$)
 sub GUI_Header($$)
 {
 	my ($s, $args) = @_;
-
+	my $table = $args->{TABLE};
+	
 	$args->{ELEMENT}='header';
+	
+	if(defined $g{db_mnfields}{$table}) {
+		# load javascript_mncombo.html in ##HEAD_SCRIPT##
+		$args->{HEAD_SCRIPT} = Template({ELEMENT=>'javascript_mncombo'});
+	}
 	print Template($args);
 
 	$args->{ELEMENT}='header_table';
 	my $user = $args->{USER};
-
-	my $save_table = $args->{TABLE};
 
 	my $actualschema = $s->{cgi}->url_param('schema');
 	
@@ -285,10 +289,8 @@ sub GUI_Header($$)
 	delete $args->{TABLE_TOOLTIP};
 	delete $args->{TABLE_URL};
 
-        my $longcomment= $g{db_tables}{$save_table}{meta}{longcomment};
+        my $longcomment= $g{db_tables}{$table}{meta}{longcomment};
         $args->{TABLE_LONGCOMMENT} = $longcomment;
-
-	$args->{TABLE} = $save_table;
 
 	$args->{ELEMENT}='header2';
 	print Template($args);
@@ -305,7 +307,7 @@ sub GUI_Entry_Header($$)
 
 	$args->{ELEMENT}='header';
 	print Template($args);
-
+	
 	$args->{ELEMENT}='header_table';
 	my $user = $args->{USER};
 
@@ -1513,14 +1515,14 @@ end
 	$template_args{ELEMENT} = 'editform_footer';
 	print Template(\%template_args);
     
-    #addition to mncombo representaion
-    my $str = "<script>\n<!--\n\n";
-    $str .= "function selectInALLCombos(){\n";
-    foreach my $vfield (@fields_vlist) {
-       $str .= "selectALL(document.editform.field_$vfield);\n";
-    }
-    $str .= "}\n";
-    $str .= "\n-->\n</script>\n";
+	#addition to mncombo representaion
+	my $str = "<script>\n<!--\n\n";
+	$str .= "function selectInALLCombos(){\n";
+	foreach my $vfield (@fields_vlist) {
+		$str .= "selectALL(document.editform.field_$vfield);\n";
+	}
+	$str .= "}\n";
+	$str .= "\n-->\n</script>\n";
 	print $str;
 	
 	# Buttons
@@ -1651,17 +1653,16 @@ sub GUI_MakeRadio($$$$$$)
 		return undef;
 	}
 
-	if ( $shownull == 1 ){
-	    print STDERR "shownull = $shownull, nulltext = $nulltext\n";
-	    #$nulltext = " " unless defined $nulltext;
-	    $str .= "<input type=\"radio\" name=\"$name\" value=\"\" ";
+	if ( $shownull == 1 ){	
+		print STDERR "shownull = $shownull, nulltext = $nulltext\n";
+		#$nulltext = " " unless defined $nulltext;
+		$str .= "<input type=\"radio\" name=\"$name\" value=\"\" ";
 
-	    if( $value eq "" ) {
-	                  $str .= " checked=\"checked\" ";
-	          }
-	      $str .= ">$nulltext &nbsp";
+		if( $value eq "" ) {
+			$str .= " checked=\"checked\" ";
+		}
+		$str .= ">$nulltext &nbsp";
 	}
-
 	foreach(@combo) {
 		my $id = $_->[0];
 		$id=~s/^\s+//; $id=~s/\s+$//;
@@ -2478,13 +2479,12 @@ sub GUI_MakeMNCombo($$$$$)
 {
 	
 	my ($s, $dbh, $combo_view, $input_name, $value) = @_;
-    my $name = "${input_name}_mncombo";
-    my $virtual_field = $input_name;
-    $virtual_field =~ s/^field_//;
-    
-    my $q = $s->{cgi};
-    my $MNCOMBO = $s->{mncombo};
-	$s->{mncombo} = $MNCOMBO + 1;
+	my $name = "${input_name}_mncombo";
+	my $virtual_field = $input_name;
+	$virtual_field =~ s/^field_//;
+	
+	my $q = $s->{cgi};
+	$s->{mncombo} = $s->{mncombo}++;
 		
 	$value =~ s/^\s+//;
 	$value =~ s/\s+$//;
@@ -2493,27 +2493,27 @@ sub GUI_MakeMNCombo($$$$$)
 
 	my @acombo;
 	my @bcombo;
-    
-    if(not defined DB_GetMNCombo($s,$combo_view,\@acombo,$virtual_field,' not in '))  {
+	
+	if(not defined DB_GetMNCombo($s,$combo_view,\@acombo,$virtual_field,' not in '))  {
 		return undef;
 	}
 	if(not defined DB_GetMNCombo($s,$combo_view,\@bcombo,$virtual_field,' in ')) {
 		return undef;
 	}
 	
-    $str .= "<table id=\"mncombo\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n";
-    $str .= "<tr><td>";
-    $str .= "<table><tr><td>";
+	$str .= "<table id=\"mncombo\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n";
+	$str .= "<tr><td>";
+	$str .= "<table><tr><td>";
 	$str .= "<INPUT TYPE=button NAME=\"direction\" VALUE=\"Up\" onClick=\"moveUp(document.editform.$input_name);\"/>";
 	$str .= "</td></tr><tr><td>";
 	$str .= "<INPUT TYPE=button NAME=\"direction\" VALUE=\"Dn\" onClick=\"moveDown(document.editform.$input_name);\"/>";
 	$str .= "</td></tr></table>";
-    $str .= "</td><td valign=\"top\" style=\"width: 300;\">\n";
+	$str .= "</td><td valign=\"top\" style=\"width: 300;\">\n";
 	
-    $str .= "Already Selected:<br>\n";
+	$str .= "Already Selected:<br>\n";
 	$str .= "<select name=\"$input_name\" size=\"5\" style=\"width: 300;\" ";
-	$str .= "onDblClick=\"move(document.editform.$input_name,document.editform.$input_name$MNCOMBO);";
-	$str .= "sortSelect(document.editform.$input_name$MNCOMBO,compareText);\" ";
+	$str .= "onDblClick=\"move(document.editform.$input_name,document.editform.$input_name$s->{mncombo});";
+	$str .= "sortSelect(document.editform.$input_name$s->{mncombo},compareText);\" ";
 	$str .= "multiple>\n";
 	
 	foreach(@bcombo) {
@@ -2530,14 +2530,14 @@ sub GUI_MakeMNCombo($$$$$)
 	
 	$str .= "</td><td valign=\"middle\" align=\"center\" style=\"width:  50;\">\n";
 	$str .= "<INPUT TYPE=\"button\" VALUE=\"-->\" ";
-	$str .= "onClick=\"move(document.editform.$input_name,document.editform.$input_name$MNCOMBO);";
-	$str .= "sortSelect(document.editform.$input_name$MNCOMBO,compareText);\" />";
-    $str .= "<INPUT TYPE=\"button\" VALUE=\"<--\" onClick=\"move(document.editform.$input_name$MNCOMBO,document.editform.$input_name);\"/>";
+	$str .= "onClick=\"move(document.editform.$input_name,document.editform.$input_name$s->{mncombo});";
+	$str .= "sortSelect(document.editform.$input_name$s->{mncombo},compareText);\" /><br/>";
+	$str .= "<INPUT TYPE=\"button\" VALUE=\"<--\" onClick=\"move(document.editform.$input_name$s->{mncombo},document.editform.$input_name);\"/>";
 	$str .= "</td><td  valign=\"top\" style=\"width: 300;\">\n";
 
 	$str .= "New to Choose:<br>\n";
-	$str .= "<select name=\"$input_name$MNCOMBO\" size=\"5\" style=\"width: 300;\" ";
-	$str .= "onDblClick=\"move(document.editform.$input_name$MNCOMBO,document.editform.$input_name);\"";
+	$str .= "<select name=\"$input_name$s->{mncombo}\" size=\"5\" style=\"width: 300;\" ";
+	$str .= "onDblClick=\"move(document.editform.$input_name$s->{mncombo},document.editform.$input_name);\"";
 	$str .= ">\n";
 	
 	foreach(@acombo) {
@@ -2552,7 +2552,7 @@ sub GUI_MakeMNCombo($$$$$)
 	}
 	$str .= "</SELECT><br>\n";
 	$str .= "<INPUT TYPE=\"text\" VALUE=\"\" NAME=\"filtercombobox\" ";
-	$str .= "onKeyUp=\"selectMe(document.editform.$input_name$MNCOMBO,value);\">";	
+	$str .= "onKeyUp=\"selectMe(document.editform.$input_name$s->{mncombo},value);\">";	
 	$str .= "</td></tr>\n";
 	$str .= "</tr>\n";
 	$str .= "</table>\n";
@@ -2560,29 +2560,29 @@ sub GUI_MakeMNCombo($$$$$)
 }
 
 sub _GUI_GetAllFields($){
-    my $table = shift;
-    my @fields_list;
-    my @vfields_list;
+	my $table = shift;
+    	my @fields_list;
+    my @mnfields_list;
     
-    my @wvfields = @{$g{db_fields_list}{$table}};
-    foreach my $nvf (@wvfields){
+    my @wmnfields = @{$g{db_fields_list}{$table}};
+    foreach my $nvf (@wmnfields){
         if (not $g{db_fields}{$table}{$nvf}{virtual} eq 'true'){
             push @fields_list, $nvf;
         }
         else{
-            push @vfields_list, $nvf; 
+            push @mnfields_list, $nvf; 
         }
     } 
-    return (\@fields_list, \@vfields_list);
+    return (\@fields_list, \@mnfields_list);
 };
 
 sub _GUI_GetMNref($){
     my $table = shift;
-    my ($fields_listref, $vfields_listref) = _GUI_GetAllFields($table);
+    my ($fields_listref, $mnfields_listref) = _GUI_GetAllFields($table);
 	my @mntables;
-    my @vfields_list =  @$vfields_listref;
+    my @mnfields_list =  @$mnfields_listref;
     
-    for my $item (@vfields_list){
+    for my $item (@mnfields_list){
         push @mntables, $g{db_fields}{$table}{$item}{reference};
     }
 
