@@ -10,6 +10,7 @@ doc/gedafe-templates.txt
 doc/gedafe-user.pod
 doc/gedafe-sql.txt
 doc/gedafe-user.txt
+example/README
 example/images/bookmark.gif
 example/images/delete.gif
 example/images/edit.gif
@@ -61,4 +62,3 @@ lib/perl/Gedafe/Global.pm
 lib/perl/Gedafe/Start.pm
 lib/perl/Gedafe/Util.pm
 lib/perl/Text/CPPTemplate.pm
-Makefile
