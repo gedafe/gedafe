@@ -1194,6 +1194,8 @@ sub GUI_EditField($$$$)
 			$value = '';
 		}
 	}
+	my $escval = $value;
+	$escval =~ s/\"/&quot;/g;
 
 	if($widget eq 'readonly') {
 		return $value eq '' ? '&nbsp;' : $value;
@@ -1204,13 +1206,13 @@ sub GUI_EditField($$$$)
 			$value."</TEXTAREA>";
 	}
 	if($type eq 'date') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$escval."\">";
 	}
 	if($type eq 'time') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$escval."\">";
 	}
 	if($type eq 'timestamp') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"22\" VALUE=\"".$value."\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"22\" VALUE=\"".$escval."\">";
 	}
 	if($type eq 'int4') {
 		my $out;
@@ -1218,26 +1220,26 @@ sub GUI_EditField($$$$)
 			$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10>";
 		}
 		else {
-			$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=\"$value\">";
+			$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=\"$escval\">";
 		}
 		$out .= GUI_MakeCombo($dbh, $table, $field, "combo_$field", $value);
 		return $out;
 	}
 	if($type eq 'numeric' or $type eq 'float8') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"$escval\">";
 	}
 	if($type eq 'bpchar') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"30\" VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"30\" VALUE=\"$escval\">";
 	}
 	if($type eq 'text') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"40\" VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"40\" VALUE=\"$escval\">";
 	}
         if($type eq 'varchar') {                                                                                            
-                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" MAXLENGTH=\"$length\" VALUE=\"$value\">";        
+                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" MAXLENGTH=\"$length\" VALUE=\"$escval\">";        
         }                                                                                                                   
 
 	if($type eq 'name') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" VALUE=\"$value\">";
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" VALUE=\"$escval\">";
 	}
 	if($type eq 'bool') {
 		if($value) {
