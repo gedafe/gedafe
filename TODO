@@ -7,8 +7,6 @@ Documentation
 
 Small features
 --------------
-- add a widget for referencing fields where only
-  the combo-box is wanted
 - improve README (put what additional software is needed)
 - TUTORIAL ?
 - meta_database, default_hide
@@ -23,6 +21,8 @@ Small features
 - edit mask (patch by Johannes Poehlmann) see mailing list
 - search field 'all' (ask mila), use as default
 - meta_tables/search_default: change default search field
+- refine search (add another search line if a search was done)
+- parse search box for numerical search like < 5
 
 Big features
 ------------
