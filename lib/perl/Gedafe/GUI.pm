@@ -96,7 +96,7 @@ sub GUI_InitTemplateArgs($$);
 sub GUI_List($$$);
 sub GUI_ListButtons($$$$);
 sub GUI_ListTable($$$);
-sub GUI_MakeCombo($$$$);
+sub GUI_MakeCombo($$$$;$);
 sub GUI_MakeISearch($$$$$$);
 sub GUI_PostEdit($$$);
 sub GUI_Search($$$);
@@ -1747,9 +1747,10 @@ sub GUI_Pearl($)
 	GUI_Footer(\%template_args);
 }
 
-sub GUI_MakeCombo($$$$)
+sub GUI_MakeCombo($$$$;$)
 {
-	my ($dbh, $combo_view, $name, $value) = @_;
+	my ($dbh, $combo_view, $name, $value, $no_tab) = @_;
+	$no_tab = $no_tab ? ' TABINDEX="-1"' : '';
 
 	$value =~ s/^\s+//;
 	$value =~ s/\s+$//;
@@ -1761,7 +1762,7 @@ sub GUI_MakeCombo($$$$)
 		return undef;
 	}
 
-	$str = "<!-- |$value| -->\n<SELECT SIZE=\"1\" name=\"$name\">\n";
+	$str = "<!-- |$value| -->\n<SELECT SIZE=\"1\" name=\"$name\"$no_tab>\n";
 	# the empty option must not be empty! else the MORE ... disapears off screen
 	$str .= "<OPTION VALUE=\"\">Make your Choice ...</OPTION>\n";
 	foreach(@combo) {
@@ -2210,10 +2211,10 @@ sub GUI_WidgetWrite($$$$)
 		
 		if($g{conf}{gedafe_compat} eq '1.0') {
 			$value = DB_ID2HID($dbh,$warg->{'ref'},$value) if $w eq 'hidcombo';
-			$combo = GUI_MakeCombo($dbh, $warg->{'combo'}, "${input_name}_combo", $value);
+			$combo = GUI_MakeCombo($dbh, $warg->{'combo'}, "${input_name}_combo", $value, 1);
 		}
 		else {
-			$combo = GUI_MakeCombo($dbh, $warg->{'combo'}, "${input_name}_combo", $value);
+			$combo = GUI_MakeCombo($dbh, $warg->{'combo'}, "${input_name}_combo", $value, 1);
 			$value = DB_ID2HID($dbh,$warg->{'ref'},$value) if $w eq 'hidcombo';
 		}
 		$out .= "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
