@@ -12,8 +12,6 @@ use Gedafe::Global qw(%g);
 use DBI;
 use DBD::Pg;
 
-use Data::Dumper;
-
 use vars qw(@ISA @EXPORT);
 require Exporter;
 @ISA       = qw(Exporter);
@@ -362,8 +360,6 @@ END
 		}
 	}
 	$sth->finish;
-
-	print STDERR Dumper(\%g);
 }
 
 sub DB_Connect($$) {
