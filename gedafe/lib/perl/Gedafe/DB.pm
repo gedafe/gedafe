@@ -39,7 +39,7 @@ require Exporter;
 );
 
 sub DB_AddRecord($$$);
-sub DB_Connect($$);
+sub DB_Connect($$$);
 sub DB_DB2HTML($$);
 sub DB_DeleteRecord($$$);
 sub DB_DumpBlob($$$$);
@@ -118,32 +118,6 @@ sub DB_Init($$)
 			];
 	}
 
-	# set schema search path
-	if($g{db_database}{version} >= 7.2) {
-	    # Set Schema search path
-	    my $query="SET SEARCH_PATH TO ";
-	    if ( defined $g{conf}{schema}){
-
-		if (defined $g{conf}{schema_search_path})   {
-			$query .=  ($g{conf}{schema_search_path}. ";");
-		} else { # Schema Search path set to default schema
-			$query .= "'". $g{conf}{schema} . "';"  ;
-		}
-	    } else {	# No default Schema defined	
-
-		$g{conf}{schema}='public';
-		$query .=" '\$user', 'public';";
-
-		if ( defined $g{conf}{schema_search_path})   {
-		    print STDERR "DB::DB_Init::Schema search path dropped\n"; 
-		    print STDERR "DB::DB_Init:: Error: No schema parameter ";
-		    print STDERR "in Call of Start()\n";
-		    print STDERR "DB::DB_Init:: Check cgi script\n";
- 		}
-	    }
-	    $dbh->do($query);
-	}
-
 	return 1;
 }
 
@@ -207,7 +181,6 @@ WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND   (c.relname !~ '^pg_')
 AND   (c.relnamespace = n.oid) 
 END
-
 	} else { # no schema support before 7.3
         $query = <<"END";
 SELECT c.relname
@@ -225,16 +198,17 @@ END
 			$tables{$data->[0]}{hide} = 1;
 		}
 		if($database->{version} >= 7.2 ){
-		    if (defined $g{conf}{schema}){
-			# Hide Tables from other schemas
-			if ($data->[1] ne $g{conf}{schema}){
-				$tables{$data->[0]}{hide} = 1;
-			}
-		    } else { # undefined Schema defaults to public
-			if ($data->[1] ne 'public'){
-				$tables{$data->[0]}{hide} = 1;
-			}
-		    }
+		    #FIXME:
+		    #if (defined $g{conf}{schema}){
+		    #    # Hide Tables from other schemas
+		    #    if ($data->[1] ne $g{conf}{schema}){
+		    #    	$tables{$data->[0]}{hide} = 1;
+		    #    }
+		    #} else { # undefined Schema defaults to public
+		    #    if ($data->[1] ne 'public'){
+		    #    	$tables{$data->[0]}{hide} = 1;
+		    #    }
+		    #}
 		} 
 		if($data->[0] =~ /_rep$/) {
 			$tables{$data->[0]}{report} = 1;
@@ -659,19 +633,39 @@ END
 	return \%fields;
 }
 
-sub DB_Connect($$)
+sub DB_Connect($$$)
 {
-	my $user = shift;
-	my $pass = shift;
-	my $dbh;
-	if($dbh = DBI->connect_cached("$g{conf}{db_datasource}", $user, $pass)) {
-		if(not defined $g{db_meta_loaded}) {
-			DB_Init($user, $pass) or return undef;
-			$g{db_meta_loaded} = 1;
-		}
-		return $dbh;
+	my ($s, $user, $pass) = @_;
+
+	my $dbh = DBI->connect_cached("$g{conf}{db_datasource}", $user, $pass)
+		or return undef;
+
+	if(not defined $g{db_meta_loaded}) {
+		DB_Init($user, $pass) or return undef;
+		$g{db_meta_loaded} = 1;
 	}
-	return undef;
+
+	# set schema search path
+	if($g{db_database}{version} >= 7.2) {
+		my $query="SET SEARCH_PATH TO ";
+		if (defined $s->{schema}) {
+			if (defined $g{conf}{schema_search_path})   {
+				$query .=  ($g{conf}{schema_search_path}. ";");
+			} else { # Schema Search path set to default schema
+				$query .= "'". $s->{schema} . "';"  ;
+			}
+		} else {	# No default Schema defined	
+			$s->{schema}='public';
+			$query .=" '\$user', 'public';";
+			if (defined $g{conf}{schema_search_path})   {
+				print STDERR "Gedafe: Warning: No schema parameter in call of Start()\n";
+				print STDERR "Gedafe: Warning: Schema search path dropped\n"; 
+			}
+		}
+		$dbh->do($query);
+	}
+
+	return $dbh;
 }
 
 sub DB_GetDefault($$$)

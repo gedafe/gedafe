@@ -64,9 +64,11 @@ sub Start(%)
 
 	# install Gedafe's die handler
 	$SIG{__DIE__}=\&Die; #}}
-	  if(defined $q->url_param('reload')) {
-	    %g = ();
-	  }
+
+	# init global state if 'reload' in the url
+	if(defined $q->url_param('reload')) {
+	  %g = ();
+	}
 
 	# configuration
 	if(not exists $g{conf}) {
@@ -90,6 +92,9 @@ sub Start(%)
 		}
 	}
 
+	# schema
+	my $url_schema = $q->url_param('schema');
+	$s{schema} = defined $url_schema ? $url_schema : $g{conf}{schema};
 	
 	$s{url} = MyURL($q);
 	$q->url(-absolute=>1) =~ /(.*)\/([^\/]*)/;
