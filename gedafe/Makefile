@@ -7,7 +7,7 @@ MINOR  = 0
 MMINOR = 1pre2
 VERSION = $(MAJOR).$(MINOR).$(MMINOR)
 
-GNUTAR = tar
+GNUTAR = gtar
 TARFILE = gedafe-$(VERSION).tar.gz
 
 release: release-tag tarball
