@@ -26,7 +26,7 @@ require Exporter;
 sub ConnectToTicketsDaemon() {
 	my $file = $g{conf}{tickets_socket};
 	my $socket = IO::Socket::UNIX->new(Peer => $file)
-		or die "Couldn't connect to gpw3f_tickets daemon: $!\n";
+		or die "Couldn't connect to gedafed daemon: $!\n";
 	return $socket;
 }
 

@@ -1,103 +1,102 @@
 =head1 NAME
 
-gpw3f-user - Generic PostgreSQL Web Frontend (GPW3F) User-Manual
+gedafe-user - the Generic Database Frontend (Gedafe) User-Manual
 
 =head1 DESCRIPTION
 
-GPW3F (Generic PostgreSQL Web Frontend) is a web-based database frontend
+Gedafe (the Generic Database Frontend) is a web-based database frontend
 that is database-application independent. That means that the (perl) code
 doesn't contain any information about what tables are present in the
-database, how the data is organized or how the forms should be made.
+database or how the data is organized.
 
-This is made by using the high sofistication of PostgreSQL that permits to
-define not only the format of the various tables for the data but also how
-they should be used. It is for example possible to define in the database
-the relational constraints, such that the database integrity, independently
-from the frontend used, is guaranteed.
+This is only possible if a fullfeatured SQL dB server like PostgreSQL
+is used as backend. PostgreSQL permits to define not only the format
+of the various tables and fields but also how tables are related to
+each other. It is even possible to write powerful functions inside the
+database which get executed as new data is accessed or modified.
 
-The added advantage of this "application in the database" approach is that
-we have to write one time the code to handle for example a form for adding
-a record though a form, then it works for every table in the database. GPW3F
-gathers information about the database at startup and generates the whole
-interface dynamically.
+The effect of this is, that the database server guarantees the
+integrity of the database independently from the software used to
+access the database.  The frontend can read all the integrity
+constraints directly off the database and enforce them itself in order
+to provide faster response to the user, but at the end of the day the
+database server will only accept data which fits its own rules.
 
-Finally, it is much more easier to write new database applications: you just
-have to define a new database. No need to touch the perl code.
+Overall, this approach makes the creation and maintenance of Database
+applications much simpler. New databases can be created on the
+database server alone, using the language which is best suited for
+this task: SQL. The frontend then comes almost for free.
 
 =head2 Features
 
-GPW3F has the following "special" features:
+Gedafe has the following features:
 
 =over 4
 
 =item *
 
-I<Generic> frontend to the database. No need to change the CGI script when
-developing a new database application.
+It is completely I<generic>. Gedafe does not need to know anything
+about the structure or contents of the database it is working with.
 
 =item * 
 
-The I<authentication> is done only at the database-level, is transparent to the
-requested URL (after a login you get the page you requested initially) and uses
-cookies that expire server-side.
+I<Authentication> is done at the database-level. And it is URL
+transparent.  This means you can directly go to the URL of the page
+you want to look at, if necessary, the login screen will pop up and
+after successful login you will be transported to the page you
+initially requested. 
 
 =item *
 
-Almost no HTML is used in the code. External little files containing the HTML
-are used as template. That makes for an I<easily changeable look>.
+Almost no HTML is used in the frontend code. External template files
+define the look and feel of pages.
 
 =item *
 
-POST is used only for data that modifies the database. Every view is encoded in
-the URL, which makes them storable as bookmarks.
+POST is used only for data that modifies the database. Every page has
+a distinc URL, which makes them storable as bookmarks (Deep Linking).
 
 =item *
 
-After a form to enter for example a new record you arrive directly at the list
-view where you were before that form. I<No intermediate pages> are used when
-possible.
-
-=item *
-
-I<Double form protection>. It is not possible to submit erroneously two times
-the same form.  Because of the fact that no intermediate pages are used, often
-views are the result of a POST request, which is automatically resent on some
-netscape versions when a reload is made. Without a double form protection, the
-data would be entered two times in the database.
+I<Double form protection>. It is not possible to accidently submit the
+same form twice. Because in each form comes with a unique serial
+number.
 
 =back
 
 =head1 INSTALLATION
 
-The structure of the GPW3F distribution is as follows:
+The structure of the Gedafe distribution is as follows:
 
  .
- |-- bin              binaries (gpw3fd daemon)
- |-- doc              documentation
- |-- lib              
- |   `-- perl
- |       `-- GPW3F    gpw3f main source
+ |-- bin/              binaries (gedafed daemon)
+ |-- doc/              documentation
+ |-- lib/              
+ |   `-- perl/
+ |       `-- Gedafe/    gedafed main source
  `-- example
-     |-- templates    html templates
+     |-- templates/    HTML templates
      |-- demo.cgi     demo-application  script
-     `-- demo.sql     postgresql script to initialize the
+     `-- demo.sql     PostgreSQL script to initialize the
                       demo-application database
 
-The only thing you have to do is ensure (in the application script) that
-lib/perl of the GPW3F distribution is found by perl and start the gpw3fd
-daemon (you can use the script gpw3fd-ctl to start it with SYSV-init).
- 
+In order to start using gedafe you have to ensure that F<lib/perl> of
+the Gedafe distribution is found by F<perl> and start the F<gedafed>
+daemon (you can use the script gedafed-ctl to start it with
+SYSV-init).
+
 =head2 The Application Script
 
-GPW3F is actually a library. The application just calls the 'Start' function
-from that library to start it up. This is the script that should be called
-from the web. It should look as follows:
-  
+Gedafe is actually a library. The application itself just calls the
+'Start' function of the library, providing the necessary configuration
+information as arguments. The application startup script should look
+as follows:
+
  #!/usr/sepp/bin/speedy -w
  
- use lib "/usr/local/gpw3f/lib/perl";
+ use lib "/usr/local/gedafe/lib/perl";
  
- use GPW3F::Start;
+ use Gedafe::Start;
  
  Start(
  	app_site       => 'mysite.com:8000',
@@ -105,21 +104,23 @@ from the web. It should look as follows:
  	db_datasource  => 'dbi:Pg:dbname=demo',
  	list_rows      => 15,
  	admin_user     => 'admin',
- 	templates      => '/usr/local/gpw3f/templates/demo',
+ 	templates      => '/usr/local/gedafe/templates/demo',
  	documentation_url => 'http://mysite.com/demo-docs',
  );
 
-GPW3F gathers information about the database structure at the first use. This
-can take much time, so it is heavily suggested that you use a persistant perl
-instance with for example I<speedy>. I<mod_perl> works also great, but you have
-to be careful if you run multiple database applications, since if the same
-persistant perl is used, the cached data of the applications will go in the
-same global variable, which is certainly not what you want.
+Gedafe gathers information about the database structure when it is
+started.  This process can take a lot of time, it is therefor strongly
+suggested that you use a persistent perl instance with for example
+I<speedy>. I<mod_perl> works also great, but you have to be careful if
+you run multiple database applications, since if the same persistent
+perl is used, the cached data of the applications will go in the same
+global variable, which is certainly not what you want.
 
-Very important in this script is the first 'use' statement. It should point to
-where you have stored F<lib/perl> of the distribution. I<Start> starts the
-application by specifying gpw3f-configuration variables. The following
-configuration variables are defined:
+Very important in this script is the first 'use' statement. It should
+point to where you have stored F<lib/perl> of the
+distribution. I<Start> starts the application by specifying Gedafe
+configuration variables. The following configuration variables are
+defined:
 
 =over 20
 
@@ -133,7 +134,7 @@ Path-part of the URL where the application resides.
 
 =item db_datasource
 
-DBI datasource string specifying the database.
+DBI data-source string specifying the database.
 
 =item list_rows
 
@@ -141,8 +142,8 @@ Default number of rows to show.
 
 =item admin_user
 
-Name of the administrator user. A tag is passed to the html templates when the
-user is this one to for example change the background color.
+Name of the administrator user. A tag is passed to the html templates
+when the user is this one to for example change the background color.
 
 =item templates
 
@@ -151,30 +152,31 @@ F<example/templates>)
 
 =item documentation_url
 
-URL passed to the html templates where the documention of the application is
-stored.
+URL passed to the html templates where the documentation of the
+application is stored.
 
 =back
 
-=head2 The gpw3fd Daemon
+=head2 The gedafed Daemon
 
-GPW3F uses an external process to manage session data called gpw3fd. This
-daemon must be running to make GPW3F work. You can start it in the init phase
-using the bin/gpw3fd-ctl script.
+Gedafe uses an external process to manage session data called
+gedafed. This daemon must be running to make Gedafe work. You can
+start it in the init phase using the bin/gedafed-ctl script.
 
 =head2 The Database
 
-F<gpw3f-sql.pod> describes how the database should be setup to work with GPW3F.
+F<gedafe-sql.pod> describes how the database should be setup to work with
+Gedafe.
 
 =head1 USAGE
 
 =head2 Authentication
 
-Authentication is done with the help of gpw3fd. This daemon stores
+Authentication is done with the help of gedafed. This daemon stores
 user/password pairs using a random-generated "ticket", which is stored in a
-cookie on the client side. To make these tickets more secure gpw3fd manages an
+cookie on the client side. To make these tickets more secure gedafed manages an
 expiration on these tickets. Every time that ticket is used, it's expiration
-is prolongued by a certain amount (configured in the script) of seconds. The
+is prolonged by a certain amount (configured in the script) of seconds. The
 result is that if the database isn't accessed for a certain amount of time,
 the ticket isn't anymore valid and login must be made.
 
@@ -182,13 +184,17 @@ The login screen is transparent to the page accessed: whenever a login is
 needed, the login screen is first presented, after which the requested page is
 shown.
 
+Warning: Gedafe will not work with blank passwords. If you want to do anonymous
+logins, you may put the user in the url (as an additional parameter,
+user=xxx&...) and the password sent to the database will be 'anonymous'.
+
 =head2 Forms and Navigation
 
-The navigation and general use of GPW3F should be straightforward. At the
+The navigation and general use of Gedafe should be straightforward. At the
 beginning, you are presented with the "Entry" page that contains links to every
 table to edit and every available report.
 
-For forms, the guiding principle while designing GPW3F was 'POST is evil, use
+For forms, the guiding principle while designing Gedafe was 'POST is evil, use
 it the less possible'. The reason for it is that if a generated page depends on
 POST data, that page can't be stored in a bookmark and the browsers have
 problems handling the reloading of pages obtained with a POST request. For that
@@ -199,10 +205,10 @@ transfer large amounts of data.
 
 Almost no HTML is present in the perl code. The HTML is generated with the help
 of Text::CPPTemplate, a very simple C-preprocessor-style templating system
-included in the GPW3F distribution. The templates are taken from a directory
+included in the Gedafe distribution. The templates are taken from a directory
 specified in the startup script with the 'templates' parameter.
 
-The basic idea is that GPW3F places small "elements" of the page currently
+The basic idea is that Gedafe places small "elements" of the page currently
 being generated such as the header or the cell of a table by only specifying
 variables (properties) of that element. Every element has always the following
 minimal variables specified:
@@ -223,7 +229,7 @@ In addition to these, element-specific data such as I<DATA> for the I<td>
 element must be defined. Text::CPPTemplate will then search for an appropriate
 template to use and generate the HTML code. See L<Text::CPPTemplate(3)> for a
 description of the syntax and how the templates are stored in files. See also
-F<gpw3f-templates.txt> for a description of what elements are used with what
+F<gedafe-templates.txt> for a description of what elements are used with what
 variables.
 
 =head2 Hidden features
@@ -259,7 +265,7 @@ be multiplied by 100/60 and added to C<hh>.
 
 =head2 Caching and Bookmarks
 
-A difficulty that we encountered while developing GPW3F was the caching of
+A difficulty that we encountered while developing Gedafe was the caching of
 pages by the browser.  We have to control precisely when a page can be cached
 and when not. The implementation is made with the C<refresh> URL parameter:
 when it is set, the expiration of the page is set to some positive value,
@@ -290,8 +296,8 @@ primitive right now. A possibility is Template::Toolkit.
 =item *
 
 We will integrate PearlReports (by Tobias Oetiker <oetiker@ee.ethz.ch>, not yet
-released) into GPW3F to allow generating with the HTML interface real reports
-in HTML and parhaps also directly in PDF.
+released) into Gedafe to allow generating with the HTML interface real reports
+in HTML and perhaps also directly in PDF.
 
 =item *
 
@@ -303,7 +309,7 @@ could be gained through a rewrite.
 
 =head1 SEE ALSO
 
-F<gpw3f-sql.pod>, F<gpw3f-templates.txt>
+F<gedafe-sql.pod>, F<gedafe-templates.txt>
 
 =head1 COPYRIGHT
 
@@ -328,4 +334,4 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 =head1 AUTHOR
 
 David Schweikert <dws@ee.ethz.ch> and
-Tobi Oetiker <oetiker@ee.ethz.ch>
+Tobias Oetiker <oetiker@ee.ethz.ch>
