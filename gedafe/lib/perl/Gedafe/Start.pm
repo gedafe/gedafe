@@ -63,6 +63,7 @@ sub Start(%)
 		$g{conf} = {
 			list_rows  => 10,
 			tickets_socket => '/tmp/.gedafed.sock',
+			gedafe_compat => '1.2',
 		};
 
 		# init config
