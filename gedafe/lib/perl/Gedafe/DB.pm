@@ -814,7 +814,7 @@ sub DB_UpdateRecord($$$$)
 	my @fields_list = @{$g{db_fields_list}{$table}};
 
 	# filter-out readonly fields
-	@fields_list = grep { not defined $g{db_fields}{$table}{$_}{widget} or $g{db_fields}{$table}{$_}{widget} ne 'readonly' } @fields_list;
+	@fields_list = grep { $g{db_fields}{$table}{$_}{widget} ne 'readonly' } @fields_list;
 
 	my %dbdata = ();
 	DB_Record2DB($dbh, $table, $record, \%dbdata) or do {

@@ -91,7 +91,7 @@ INSERT INTO meta_fields VALUES ('product', 'product_description', 'widget', 'are
 -- combo-box
 DROP VIEW product_combo;
 CREATE VIEW product_combo AS
-	SELECT product_id AS id,
+	SELECT product_hid AS id,
 		product_hid || ' -- ' || product_description AS text
 	FROM product;
 GRANT SELECT ON product_combo TO PUBLIC ;
@@ -148,13 +148,7 @@ CREATE VIEW due_shipments_rep AS
 	WHERE orders_product = product_id AND orders_shipped = FALSE
 	GROUP BY product_hid, product_description;
 
-COMMENT ON VIEW due_shipments_rep IS 'Due Product Shipments';
+COMMENT ON TABLE due_shipments_rep IS 'Due Product Shipments';
 COMMENT ON COLUMN due_shipments_rep.orders_total IS 'Orders';
 
 GRANT SELECT ON due_shipments_rep TO PUBLIC;
-
---Fix for recent Postgresses
-
-GRANT ALL ON customer_customer_id_seq TO PUBLIC;
-GRANT ALL ON product_product_id_seq TO PUBLIC;
-GRANT ALL ON orders_orders_id_seq TO PUBLIC;
