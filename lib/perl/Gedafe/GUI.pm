@@ -23,6 +23,7 @@ use Gedafe::DB qw(
 	DB_HID2ID
 	DB_RawField
 	DB_DumpTable
+	DB_DumpJSITable
 );
 
 use Gedafe::Util qw(
@@ -52,6 +53,7 @@ require Exporter;
 	GUI_Delete
 	GUI_Export
 	GUI_DumpTable
+	GUI_DumpJSIsearch
 	GUI_Pearl
 	GUI_WidgetRead
 );
@@ -937,7 +939,7 @@ sub GUI_WidgetRead($$$)
 			}
 		}
 	}
-	if($w eq 'hid' or $w eq 'hidcombo' or $w eq 'hidisearch') {
+	if($w eq 'hid' or $w eq 'hidcombo' or $w eq 'hidisearch' or $w eq 'hjsisearch') {
 		if(defined $value and $value !~ /^\s*$/) {
 			$value=DB_HID2ID($dbh,$warg->{'ref'},$value);
 		}
@@ -1283,6 +1285,106 @@ sub GUI_MakeISearch($$$$$$)
 	return $html
 }
 
+sub GUI_MakeJSISearch($$$$$$)
+{
+	my $ref_target = shift;
+	my $input_name = shift;
+	my $ticket = shift;
+	my $myurl = shift;
+	my $value = shift;
+	my $hidisearch = shift;
+	
+	$value =~ s/^\s+//;
+	$value =~ s/\s+$//;
+
+
+	my $targeturl = MakeURL($myurl,{action=>'jsisearch',
+					table=>$ref_target,
+					hid=>$hidisearch,
+					input_name=>$input_name});
+
+	my $html;
+	$html .= qq{<input type="button" onclick="};
+	$html .= qq{var tmp=window.open('','INTERACTIVE_SEARCH',};
+	$html .= qq{'width=500,height=500};	
+	$html .= qq{location=no,directories=no,screenX=50,screenY=50};
+	$html .= qq{,toolbar=no,status=no');tmp.document.location.href='$targeturl';" };
+	$html .= qq{value="I-Search">};
+	return $html;
+}
+
+sub GUI_DumpJSIsearch($$$){
+	my $s = shift;
+	my $q = $s->{cgi};
+	my $dbh = shift;
+	my $hid = shift;
+	my $myurl = MyURL($q);
+	my $table = $q->url_param('table');
+	my $input_name = $q->url_param('input_name');
+
+	#filter the table on these variables.
+	my %atribs;
+	foreach($q->param) {
+		if(/^field_(.*)/) {
+			$atribs{$1} = $q->param($_);
+		}
+	}
+	my $data;
+
+	#perhaps there is a view for this table
+	my $view = defined $g{db_tables}{"${table}_list"} ?
+			"${table}_list" : $table;
+
+	my $jsheader = "<script language=\"javascript\">\n<!--\n";
+	my $jsfooter = "//-->\n</script>\n";
+       
+
+	my @fields_list = @{$g{db_fields_list}{$view}};	
+
+	#will hold the number of the id of hid
+	#column from which to return values.
+	my $retcolumn = 0; 
+
+	if($hid){
+		my $tmp = 0;
+		for my $fieldname (@fields_list){
+			if($fieldname =~ /_hid/){
+				$retcolumn = $tmp;
+			}
+			$tmp++;
+		}
+
+	}
+
+	my $fieldsrows="";
+	for my $fieldname (@fields_list){
+		my $field_data = $q->param("field_".$fieldname);
+		$fieldsrows .= Template({FIELDNAME=>$fieldname,
+					 DATA=>$field_data,
+					 PAGE=>'jsisearch',
+					 ELEMENT=>'field'});
+	}
+	my %template_args = (PAGE => 'jsisearch',
+			     ELEMENT=>'head',
+			     RETCOLUMN=>$retcolumn,
+			     INPUTNAME=>$input_name,
+			     TABLE=>$table,
+			     MYURL=>$myurl,
+			     HID=>$hid,
+			     FIELDS=>$fieldsrows);
+	
+	#I'm using prints here to stream the data to the client.
+	print Template(\%template_args);
+	DB_DumpJSITable($dbh,$table,\%atribs);
+	
+	#this is the javascript function that will make all
+	# the magick happen.
+	print $jsheader."display();\n".$jsfooter;
+	
+	print Template({PAGE=>'jsisearch',ELEMENT=>'foot'});
+}
+
+
 sub GUI_AppletParam($$){
 	my $name=shift;
 	my $value=shift;
@@ -1340,6 +1442,24 @@ sub GUI_WidgetWrite($$$$)
 		}
 		
 		my $combo = GUI_MakeISearch($warg->{'ref'}, $input_name,
+			$s->{ticket_value}, $myurl, $value, $hidisearch);
+
+		$out.="<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
+		$out .= " VALUE=\"$value\"";
+		$out .= ">\n$combo";
+		return $out;
+	}
+	elsif($w eq 'jsisearch' or $w eq 'hjsisearch') {
+		my $out;
+		my $hidisearch;
+		$hidisearch = 0;
+		if($w eq 'hjsisearch') {
+			# replace value with HID if 'hidcombo'
+			$value = DB_ID2HID($dbh,$warg->{'ref'},$value);
+			$hidisearch=1;
+		}
+		
+		my $combo = GUI_MakeJSISearch($warg->{'ref'}, $input_name,
 			$s->{ticket_value}, $myurl, $value, $hidisearch);
 
 		$out.="<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
@@ -1499,6 +1619,8 @@ sub GUI_WidgetWrite_Date($$$)
 <select NAME="$dayinput" onChange="$functionname()">
   $dayselect</select>
 
+
+
 <input TYPE="hidden" NAME="$input_name" VALUE="$escval">
 end
 	return $out;
@@ -1537,7 +1659,6 @@ sub GUI_Delete($$$)
 sub GUI_DumpTable($$$){
 	my $s = shift;
 	my $q = $s->{cgi};
-	my $user = shift;
 	my $dbh = shift;
 	my $myurl = MyURL($q);
 	my $table = $q->url_param('table');
