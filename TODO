@@ -1,3 +1,5 @@
 - relative urls for images in the example templates
+- use use the COMMENTS from the base table if there is no COMMENT
+  for the *_list view
 - add a widget for referencing fields where only
   the combo-box is wanted
