@@ -20,7 +20,7 @@ $Id$
    [x] g. first/last navigation links (adi)
    [x] h. csv/tsv export (adi)
    [x] i. NEWS: compatiblity with 1.0 / upgrade info (david)
-   [ ] j. increase version in all distributed files
+   [x] j. increase version in all distributed files
 
 3. Testing
 
