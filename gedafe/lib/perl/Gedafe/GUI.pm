@@ -32,7 +32,7 @@ use Gedafe::Util qw(
 	Template
 	DropUnique
 	UniqueFormStart
-        FormStart
+	FormStart
 	UniqueFormEnd
 	FormEnd
 	NextRefresh
@@ -52,8 +52,8 @@ require Exporter;
 	GUI_Delete
 	GUI_Export
 	GUI_DumpTable
-        GUI_Pearl
-        GUI_WidgetRead
+	GUI_Pearl
+	GUI_WidgetRead
 );
 
 sub GUI_AppletParam($$);
@@ -1174,7 +1174,6 @@ sub GUI_Pearl($)
 
 	my $next_url = 	$form_url;
 
-        
 	GUI_InitTemplateArgs($s, \%template_args);
 	GUI_Header($s, \%template_args);
 
