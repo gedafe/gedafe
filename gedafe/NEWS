@@ -4,6 +4,16 @@
 
 (arrows indicate actions that you should make when upgrading)
 ------------------------------------------------------------------
+HEAD    (2004-05-24)
+
+   *    A new way of searching was added: Parsed searching.
+
+	-> install Parse::RecDescent to enable searchquery parsing
+	
+	see gedafe-search.pod for more information
+		Freek	
+
+------------------------------------------------------------------
 HEAD    (2004-04-13)
 
    *    Enhance the refcol feature: Make the referencing column
