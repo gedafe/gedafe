@@ -63,10 +63,16 @@ Example:
    customer_age INT,
    customer_address TEXT);
 
-The reason we are requiering unique nonspeaking ids is twofold. First it is
-good design practice to use nonspeaking keys and second, we need some way to
-uniquely identified each database record. In any event, if you need speaking
-keys, just use a *_hid on top of the *_id, and you are all set.
+The reason we are requiering unique nonspeaking ids is twofold. First gedafe
+need some way to uniquely identify each database record (*_list, *_combo,
+...) and second it is good design practice to use nonspeaking keys. In any
+event, if you need speaking keys, just use a *_hid on top of the *_id, and
+you are all set.
+
+You will also note, that we are imposing some magic names, like *_list,
+*_combo, *_id, *_hid, ... we chose todo this, because we think it is simpler
+to name fields apropriately, than to write up another table telling gedafe
+about which field has what role in the database.
  
 =head2 Table and Field Naming
 
