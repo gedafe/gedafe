@@ -378,6 +378,16 @@ name of the referenced table (so that the C<hid> can be converted to C<id>).
 
 Like C<idcombo> but just the combo-box without text entry.
 
+=item radio
+
+Like C<idcombo>, but the values are presented as Radio Buttons.
+The optional parameter I<shownull> adds a button for the I<NULL> value,
+the optional parameter I<nulltext> defines the label next to the 
+I<INULL> button.
+
+Fixme: This wodget should switch automatically to a combo box if
+there are more options then a configurable threshold.
+
 =item isearch
 
 I<isearch> as a widget for a column that references another table specifies
