@@ -908,7 +908,7 @@ sub GUI_PostEdit($$$)
 			$record{$field} = $value;
 		}
 	    }
-	    
+
 	    # combo
 	    my $p;
 	    foreach $p ($q->param) {
@@ -1016,10 +1016,11 @@ sub GUI_Edit($$$)
 			}
 		}
 		# copy fields from previous add form
-		foreach(@fields_list) {
-			my $v = $q->param("field_$_") || $q->param("combo_$_");
-			if(defined $v and $g{db_fields}{$table}{$_}{copy}) {
-				$values{$_} = $v;
+		for my $field (@fields_list) {
+			if($g{db_fields}{$table}{$field}{copy}) {
+				my $f = $g{db_fields}{$table}{$field};
+				my $v = GUI_WidgetRead($s, $f);
+				$values{$field} = $v if defined $v;
 			}
 		}
 	}
@@ -1149,7 +1150,6 @@ sub GUI_WidgetWrite($$$$)
 	my $s = shift;
 	my $q = $s->{cgi};
 	my $myurl = MyURL($q);
-
 
 	my $f = $g{db_fields}{$table}{$field};
 
