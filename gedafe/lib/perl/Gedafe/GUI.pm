@@ -679,7 +679,7 @@ sub GUI_ListRep($$$)
 	my ($filterfirst_field, $filterfirst_value) =  GUI_FilterFirst($s, $dbh, $view, \%template_args);
 
 	# search
-	my ($search_field, $search_value) = GUI_Search($q, $view, \%template_args);
+	my ($search_field, $search_value) = GUI_Search($s, $view, \%template_args);
 
 	# orderby
 	if($orderby eq '') {
