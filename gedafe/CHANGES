@@ -1,6 +1,7 @@
 2001-08-13
 ----------
-* example templates: remove FONT SIZE from header for application title.
+* example templates: remove FONT SIZE from header for application title,
+  make header buttons a bit smaller
 
 2001-08-06
 ----------
