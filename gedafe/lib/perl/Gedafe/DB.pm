@@ -400,7 +400,7 @@ END
 	$sth = $dbh->prepare($query) or die $dbh->errstr;
 	$sth->execute() or die $sth->errstr;
 	while ($data = $sth->fetchrow_arrayref()) {
-		my @d = split(/\\000/,$$data[0]);
+		my @d = split(/(?:\000|\\000)/,$$data[0]); # DBD::Pg 0.95: \\000, DBD::Pg 0.98: \000
 		$meta_fields{$d[1]}{$d[4]}{reference} = $d[2];
 	}
 	$sth->finish;
