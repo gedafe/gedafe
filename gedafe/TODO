@@ -1,6 +1,8 @@
 Bugs
 ----
-- none known :-)
+- reedit doesn't work with ','. Encode the comma...
+- searching booleans doesn't work
+# - none known :-)
 
 Documentation
 -------------
@@ -20,7 +22,7 @@ Small features
 - TUTORIAL ?
 - meta_fields: combo
 - meta_database, default_hide
-- drop naming rule (table_field)
+- pass database COMMENT to header templates
 
 Big features
 ------------
@@ -33,6 +35,7 @@ Big features
 - make nicer templates
 - multi-level combos
 - editable views
+- drop naming rule (table_field)
 
 Internal changes
 ----------------
