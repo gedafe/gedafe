@@ -1,6 +1,11 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
-<HTML>
-<HEAD><TITLE>Gedafe Demo Application</TITLE></HEAD>
+<HTML><HEAD><TITLE>
+#ifdef DATABASE_DESC
+##DATABASE_DESC##
+#else
+Gedafe
+#endif
+</TITLE></HEAD>
 <BODY  text="#000000" link="#0000FF" 
 #if ##USER## = isgroot
 
@@ -13,7 +18,9 @@ bgcolor="#ffffff"
  vlink="#0000FF" alink="#FF0000">
 
 <TABLE WIDTH="100%" CELLPADDING=2 BORDER=0 CELLSPACING=0 ><TR>
-  <TD WITH="100%"><FONT SIZE=6><B>Gedafe Demo</B></FONT></TD>
+#ifdef DATABASE_DESC
+  <TD WITH="100%"><FONT SIZE=6><B>##DATABASE_DESC##</B></FONT></TD>
+#endif
 #ifdef USER
   <TD>User: <B>##USER##</B></TD>
 #endif
