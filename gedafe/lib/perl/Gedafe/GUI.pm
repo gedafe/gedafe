@@ -604,7 +604,6 @@ sub GUI_ListTable($$$)
 			delete $template_args{ALIGN};
 			delete $template_args{ELEMENT};
 			delete $template_args{DATA};
-			delete $template_args{MARKUP};
 
 			my $c = $list->{columns}[$column_number];
 			$column_number++;
@@ -649,13 +648,12 @@ sub GUI_ListTable($$$)
 			$template_args{ALIGN}=$align;
 			$template_args{ELEMENT}='td';
 			$template_args{DATA}=$d;
-			$template_args{MARKUP}=GUI_HTMLMarkup($d) if $d and $c->{markup};
+			$template_args{DATA}=GUI_HTMLMarkup($d) if $d and $c->{markup};
 			print Template(\%template_args);
 		}
 		
 		delete $template_args{DATA};
 		delete $template_args{ALIGN};
-		delete $template_args{MARKUP};
 
 		$template_args{ID} = $row->[0];
 		GUI_EditLink($s, \%template_args, $list, $row) if $can_edit;

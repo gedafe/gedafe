@@ -275,11 +275,10 @@ Do not show this field in the list (table) view.
 
 =item markup
 
-If set to '1', the data in this field will be scanned for tokens which
+If set to '1', the data in this field will be scanned for strings which
 resemble special web objects (currently implemented: e-mail addresses
-and http URLs).  If found, an additional template variable MARKUP will
-be defined in template element 'td' which contains appropriate HTML
-markup of the web object.
+and http URLs).  If found, these strings will be replaced with appropriate
+HTML markup (template variable DATA will be altered in element 'td').
 
 =item sortfunc
 
