@@ -131,9 +131,7 @@ attributes are at the moment defined:
 
 =over 2
 
-=item *
-
-filterfirst
+=item filterfirst
 
 If a table tends to be big, it is possible to suggest a field to filter on
 before an table is displayed. This is done by specifying an appropriate
@@ -142,14 +140,12 @@ field name as value for this attribute.
 Note that the specified field must be part of the table or the corresponding
 B<*_list> view.
 
-=item *
-
-hide
+=item hide
 
 If the value is set to '1', the table won't be shown in the frontend.
 
 =back
- 
+
 =head2 The B<meta_fields> table
 
 For most fields is is possible to determine a presentation mode
@@ -174,24 +170,18 @@ field. The following attributes are defined:
 
 =over 2
 
-=item *
-
-widget
+=item widget
 
 Use this special widget for the edit form. At the moment only I<area> can be
 specified, which makes Gedafe select a TEXTAREA widget for this field, such that
 longer amounts of text can be entered.
 
-=item *
-
-copy
+=item copy
 
 If set to '1', the data will be copied while adding entries from one form to
 the next.
 
-=item *
-
-sortfunc
+=item sortfunc
 
 If you have a column which contains names like 'von Burg' or 'di Alfredi'
 and you want the column sorted by the second word, you can create a function
