@@ -334,6 +334,20 @@ the  field description and ##XXXX_INPUT## at the place you want the Input
 widget to be in your html layout. A very ugly example "customer" template is
 supplied for the "customer" table.
 
+=item quicklink 
+
+A quicklink is shown at the botton of a list screen. You can offer links 
+to different gedafe databases, external sources of information, gedafe pearls,
+gedafe onions, online help or whatever external web site.
+
+A quicklink is defined as a URL, a optional icon and a description text.
+
+As you can define 9 quicklink per Table, the attribute is quicklink(1) to
+quicklink(9) respectivly. The value is of the form:
+
+foot("http://example","/img/icon.gif","Example Quicklink");
+
+A empty icon is coded as a I<""> empty string.
 
 =back
 

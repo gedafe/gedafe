@@ -85,6 +85,9 @@ sub GUI_Export($$$);
 sub GUI_ExportData($$);
 sub GUI_FilterFirst($$$$);
 sub GUI_Footer($);
+sub GUI_Footer_Quicklink($);
+sub GUI_Footer_Quicklink_Start($);
+sub GUI_Footer_Quicklink_End($);
 sub GUI_HTMLMarkup($);
 sub GUI_Header($$);
 sub GUI_InitTemplateArgs($$);
@@ -282,10 +285,31 @@ sub GUI_Header($$)
 	$s->{header_sent}=1;
 }
 
-sub GUI_Footer($)
+sub GUI_Footer($){
+        my ($args) = @_;
+	$args->{ELEMENT}='footer';
+	print Template($args);
+	delete $args->{ELEMENT};
+}
+
+sub GUI_Footer_Quicklink_Start($){
+        my ($args) = @_;
+        $args->{ELEMENT}='footer_quicklink_start';
+        print Template($args);
+        delete $args->{ELEMENT};
+
+};
+sub GUI_Footer_Quicklink($){
+	my ($args) = @_;
+        $args->{ELEMENT}='footer_quicklink';
+        print Template($args);
+        delete $args->{ELEMENT};
+
+};
+sub GUI_Footer_Quicklink_End($)
 {
 	my ($args) = @_;
-	$args->{ELEMENT}='footer';
+	$args->{ELEMENT}='footer_quicklink_end';
 	print Template($args);
 	delete $args->{ELEMENT};
 }
@@ -970,7 +994,40 @@ sub GUI_List($$$)
 	delete $list->{totalrecords} if $g{conf}{show_row_count};
 
 	# footer
+	# Allow up to 9 user defined Buttons in the Foot line of list view
+	# These buttons are defined on a per table basis in meta_tables.
+	# key= 'quicklink(N)', value = 'foot("link","icon","Text")'
+
+	# For speed, we set persistent values in DB_Init. So we only have
+	# to loop over existing navigation entries.
+	# Boolean: $g{db_tables}{$table}{has_quicklinks} 
+	# Boolean: { $g{db_tables}{$table}{quicklinks}[0-9]}{type},
+		# where type may be "url","img" and "alt" .
+	my $has_quicklinks =  $g{db_tables}{$table}{has_quicklinks};
+	if (defined $has_quicklinks ){
+		GUI_Footer_Quicklink_Start(\%template_args);
+		my ($keyitem);
+		for my $iter ( @{ $g{db_tables}{$table}{quicklinks} } ) {
+			$template_args{"QUICK_LINK_URL"}= $iter->{url} 
+				if defined $iter->{url};
+			$template_args{"QUICK_LINK_IMG"}= $iter->{img} 
+				if defined $iter->{img};
+			$template_args{"QUICK_LINK_ALT"}= $iter->{alt} 
+				if defined $iter->{alt};
+			
+			GUI_Footer_Quicklink(\%template_args);
+
+			delete $template_args{"QUICK_LINK_URL"}
+				if defined $iter->{url};
+			delete $template_args{"QUICK_LINK_IMG"}
+				if defined $iter->{img};
+			delete $template_args{"QUICK_LINK_ALT"}
+				if defined $iter->{alt};
+		}
+		GUI_Footer_Quicklink_End(\%template_args);
+	}
 	GUI_Footer(\%template_args);
+
 }
 
 sub GUI_ExportData($$)

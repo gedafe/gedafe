@@ -7,6 +7,8 @@
 package Gedafe::DB;
 use strict;
 
+#use Data::Dumper qw(Dumper);
+
 use Gedafe::Global qw(%g);
 
 use DBI;
@@ -120,6 +122,10 @@ sub DB_Init($$)
 				keys %{$g{db_fields}{$table}}
 			];
 	}
+
+
+
+	#print STDERR '$',"g after DB_Init(): \n", Dumper(\%g),"\n" ;
 
 	return 1;
 }
@@ -266,12 +272,26 @@ END
 	$sth = $dbh->prepare($query) or die $dbh->errstr;
 	$sth->execute() or die $sth->errstr;
 	while ($data = $sth->fetchrow_arrayref()) {
-		next unless defined $tables{$data->[0]};
-		my $attr = lc($data->[1]);
-		$tables{$data->[0]}{meta}{$attr}=$data->[2];
-		if($attr eq 'hide' and $data->[2]) {
-			$tables{$data->[0]}{hide}=1;
+	    next unless defined $tables{$data->[0]};
+	    my $attr = lc($data->[1]);
+	    $tables{$data->[0]}{meta}{$attr}=$data->[2];
+	    if($attr eq 'hide' and $data->[2]) {
+		$tables{$data->[0]}{hide}=1;
+	    }
+	    # reorder navi-link entries for speed. (Hack Alarm ?)
+	    if ( my ($num) = ($attr =~ m/^\s*quicklink\(([0-9])\)\s*/ ) ) {
+		#print STDERR "quicklink (",$num,") =",$data->[2]," found\n";
+	        if ( my ($url,$icon,$alt)= 
+		    ($data->[2] =~ m/foot\(\s*"([^"]*)"\s*,\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\)/ )){
+
+			    #print STDERR "quicklink vals  $url, $icon, $alt found\n";
+			    $tables{$data->[0]}{has_quicklinks} = 1;
+			    $tables{$data->[0]}{quicklinks}[$num]{url}=$url;
+			    $tables{$data->[0]}{quicklinks}[$num]{icon}=$icon;
+			    $tables{$data->[0]}{quicklinks}[$num]{alt}=$alt;
+					
 		}
+	    }
 	}
 	$sth->finish;
 
