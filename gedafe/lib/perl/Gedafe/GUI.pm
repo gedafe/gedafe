@@ -1300,7 +1300,7 @@ sub GUI_WidgetRead($$$)
 			# make sure the target directory exists
 			# ifa folks do not want real filenames for uploaded files they consider it a security risk
 			# build a name based on table_field_id.ext
-			my $ext = ( $upload =~ /\.([^.\s]+)\s*$/) ? $1 : '.bin';
+			my $ext = ( $upload =~ /\.([^.\s]+)\s*$/) ? $1 : 'bin';
 			$upload = time().".".$ext;
 			my $targetdir = '/';
 			for ( split /\//, $warg->{'uploadpath'} ){
@@ -1313,7 +1313,7 @@ sub GUI_WidgetRead($$$)
 			$upload =~ s|[^-_.A-Za-z0-9]||g;
 			my $fh = $q->upload("file_update_$input_name") 
 			    or die "reading uploaded file\n";
-			my $unique=$$.time;
+			my $unique=$$.time();
 			$value="$targetdir/$upload";			
 			$value =~ s|//+|/|g;
 			# make sure we have a unique filename for the upload
