@@ -16,3 +16,13 @@ Important when you do changes:
   because of this. Try to follow the 'application in the database' approach.
 
 David Schweikert <dws@ee.ethz.ch>, 2003-11-24
+
+- Use the flying fish approach for smaller updates: 
+  Check out the fresh version (HEAD), make your changes, test them, update
+  from the repository to merge in changes from others, see if the merge
+  went well and did not produce nonsense, then commit. 
+
+- Ask David for a branch, when having found a consensus on a bigger change
+
+Johannes Poehlmann <phn@izt.fraunhofer.de>
+
