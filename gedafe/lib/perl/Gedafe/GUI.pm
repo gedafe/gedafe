@@ -52,6 +52,37 @@ require Exporter;
 	GUI_DumpTable
 );
 
+sub GUI_AppletParam($$);
+sub GUI_CheckFormID($$);
+sub GUI_Delete($$$);
+sub GUI_DeleteLink($$$$);
+sub GUI_DumpTable($$$);
+sub GUI_Edit($$$);
+sub GUI_EditLink($$$$);
+sub GUI_Edit_Error($$$$$$);
+sub GUI_Entry($$$);
+sub GUI_Export($$$);
+sub GUI_ExportData($$);
+sub GUI_FilterFirst($$$$);
+sub GUI_Footer($);
+sub GUI_HTMLMarkup($);
+sub GUI_Hash2Str($);
+sub GUI_Header($$);
+sub GUI_InitTemplateArgs($$);
+sub GUI_List($$$);
+sub GUI_ListButtons($$$$);
+sub GUI_ListTable($$$);
+sub GUI_MakeCombo($$$$);
+sub GUI_MakeISearch($$$$$$);
+sub GUI_PostEdit($$$);
+sub GUI_Search($$$);
+sub GUI_Str2Hash($$);
+sub GUI_URL_Decode($);
+sub GUI_URL_Encode($);
+sub GUI_WidgetRead($$$);
+sub GUI_WidgetWrite($$$$);
+sub GUI_WidgetWrite_Date($$);
+
 my %numeric_types = (
 	time      => 1,
 	timestamp => 1,
