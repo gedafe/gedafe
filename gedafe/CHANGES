@@ -2,6 +2,11 @@
 ----------
 * example templates: fix table borders for browsers other than netscape
 
+2001-08-05
+----------
+* rewrite widget handling, implement meta-customizable widgets
+* always use ID in combo-boxes
+
 2001-06-07
 ----------
 * improve url-encoding for data in the url (reedit)
