@@ -46,8 +46,8 @@ sub DB_Init($$)
 	defined $g{db_tables} or return undef;
 	$g{db_editable_tables_list} = [];
 	$g{db_report_views} = [];
-	for $table (sort { $g{$db_tables}{$a}{desc} cmp
-		$g{$db_tables}{$b}{desc} } keys %{$g{db_tables}})
+	for $table (sort { $g{db_tables}{$a}{desc} cmp
+		$g{db_tables}{$b}{desc} } keys %{$g{db_tables}})
 	{
 		if($g{db_tables}{$table}{editable}) {
 			push @{$g{db_editable_tables_list}}, $table;
