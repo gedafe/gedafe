@@ -26,6 +26,8 @@
     -> Change the meta_table_table field of all filterfirst attributes to
        the name of the _list view instead of the table, if a list view is
        present.
+    -> Since attributes in a _list view have no reference property, this must be
+       specified in meta_fields (check the docs)
 
   * More widgets: the 'widget' attribute of the meta_fields
     can now specify more widgets and widgets can now have parameters. For
