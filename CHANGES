@@ -1,3 +1,7 @@
+2001-06-07
+----------
+* encode also single and double quotes in urls for reedit
+
 2001-06-04
 ----------
 * README: fix mailing-list subscription instructions
