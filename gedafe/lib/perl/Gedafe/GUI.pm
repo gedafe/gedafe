@@ -1278,31 +1278,63 @@ sub GUI_WidgetRead($$$)
 		}
 	}
 	elsif($w eq 'file2fs'){
-		my $file = $value;
-		my $deletefile = $q->param("file_delete_$input_name");
-		my $localpath = $q->param("file_update_$input_name");
-						
-		if($deletefile) {
-			$value="";
-		}
+		my $currentfile = $value;
+		die "invalid current filename: $currentfile\n" if $currentfile =~ m|\.\.|;
+		my $upload = $q->param("file_update_$input_name");						
 		
-		if ($localpath){
-			my $uploadpath = $localpath;
-			$uploadpath =~ s/.*[\\\/]//; #strip path
-			$uploadpath =~ 
-			    s/ /gedafe_PROTECTED_sPace/g;
-			$uploadpath =~ 
-			    s/#/gedafe_PROTECTED_hAsh/g;
-			$uploadpath = "$warg->{'uploadpath'}/".time()."_".$uploadpath;
-			
-			my $upload_tempfilename = $q->tmpFileName($q->param('file_update_$input_name'));
-			my $realname = $q->tmpFileName($localpath);
-			$value =_GUI_Upload2FS($realname,$uploadpath); 
-						
+		my $root = $g{conf}{file2fs_dir};
+		
+		die "file2fs_dir is not configured in your gedafe cgi wrapper\n"
+		    unless $g{conf}{file2fs_dir};
+		
+		die "file2fs_dir ($g{conf}{file2fs_dir}) does not point to a directory\n"
+		    unless -d $g{conf}{file2fs_dir};
+		
+		# if delte is active or if a new file is supplied
+		if ($q->param("file_delete_$input_name") or $upload){
+			unlink $root."/".$currentfile if -f $root."/".$currentfile;
+			$value = undef;
+		} 
+		
+		if ($upload){
+			# make sure the target directory exists
+			my $targetdir = '/';
+			for ( split /\//, $warg->{'uploadpath'} ){
+				next if $_ eq '..';
+				$targetdir .= "/$_";
+				next if -d "/$root.$targetdir";
+				mkdir "/$root$targetdir" or die "mkdir $root$targetdir: $!\n";
+			};
+			$upload =~ s|^.*/||;
+			$upload =~ s|[^-_.A-Za-z0-9]||g;
+			my $fh = $q->upload("file_update_$input_name") 
+			    or die "reading uploaded file\n";
+			my $unique=$$.time;
+			$value="$targetdir/$upload";			
+			$value =~ s|//+|/|g;
+			# make sure we have a unique filename for the upload
+			# there should be no race here ... right ?		
+			while (not symlink $$,"/$root$value"){
+				my $num = int(rand(999));
+				$value =~ s/(?:\.\d+.)?\.([^.]*)$/.$num.$1/;
+			};
+			die "somehow tobi did not get the unique file code right\n"
+			    unless readlink "/$root$value" == $$;
+			open(FILE,">/$root$value.tmp") 
+			    || die "writing $targetdir/$upload: $!\n";
+	    		binmode FILE;
+			my $buff;
+		 	while (read($fh,$buff,2048)) {
+				print FILE $buff or die "writing to $targetdir/$upload: $!\n";
+			}
+			close(FILE);
+			close($fh);
+			# delete the old file if we have not died yet
+			unlink $root."/".$currentfile if -f $root."/".$currentfile;
+			# and now we replace the link with our stuff ... 
+			rename "/$root$value.tmp","/$root$value";
 		}
-		if ($value eq ''){$value=undef;}
 	}
-
 	return $value;
 }
 
@@ -2128,13 +2160,18 @@ sub GUI_WidgetWrite($$$$)
 		return $out;
 	}
 	elsif($w eq 'file2fs'){
-		my $filename = $value ne ''  ? $value : "(none)";
-		my $out = "Current uploaded file: <b>$filename</b>";
-		if($value ne ''){
-			$out .= "<br>Delete file?: <INPUT TYPE=\"checkbox\" NAME=\"file_delete_$input_name\">";
+		my $out ='';
+		if($value){
+			$out .= <<DIALOG;
+Uploaded File: <b>$value</b> Delete? <INPUT TYPE="checkbox" NAME="file_delete_$input_name"><br/>
+Replace File: <INPUT TYPE="file" NAME="file_update_$input_name">
+DIALOG
+		} else {
+			$out .= <<DIALOG;
+Upload File: <INPUT TYPE="file" NAME="file_update_$input_name">
+DIALOG
 		}
-		$out .= "<br>Enter filename to update.<br><INPUT TYPE=\"file\" NAME=\"file_update_$input_name\">";
-		$out .= "<INPUT TYPE=\"hidden\" NAME=\"$input_name\" VALUE=\"$filename\"></INPUT>";
+		$out .= "<INPUT TYPE=\"hidden\" NAME=\"$input_name\" VALUE=\"$value\"></INPUT>";
 
 		return $out;
 	}
@@ -2591,30 +2628,6 @@ sub _GUI_GetAllFields($){
     return (\@fields_list, \@mnfields_list);
 };
 
-sub _GUI_Upload2FS($$)  {
-	my($localpath, $uploadpath) = (shift,shift);
-    my($size, $buff, $bytes_count);
-	
-	$size = $bytes_count =0;
-	
-	open(FILEREAD,"<$localpath") || print STDERR ("Error opening file $localpath for reading, error $!", 1);
-    open(FILE,">$uploadpath") || print STDERR ("Error opening file $uploadpath for writing, error $!", 1);
-	binmode FILE;
-	
-	while ($bytes_count = read(FILEREAD,$buff,2048)) {
-		$size += $bytes_count;
-		print FILE $buff;
-    }
-	close(FILE);
-	close(FILEREAD);
-
-	if ((stat "$uploadpath")[7] <= 0) {
-		unlink("$uploadpath");
-		print STDERR "File $localpath is not uploaded)";
-		return undef;
-	} 
-	return $uploadpath;
-}
 
 1;
 # Emacs Configuration

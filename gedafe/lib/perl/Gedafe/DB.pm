@@ -547,8 +547,8 @@ sub DB_ParseWidget($)
 			die "widget $widget: mandatory argument 'combo' not defined";
 	}
 	if($type eq 'file2fs') {
-		defined $args{'uploadpath'} or
-			die "widget $widget: mandatory argument 'uploadpath' not defined";
+		defined $g{conf}{file2fs_dir} or
+			die "widget $widget: mandatory conf propperty file2fs_dir is not set in the cgi wrapper";
 	}
 	return ($type, \%args);
 }
