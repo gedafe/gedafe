@@ -602,7 +602,7 @@ sub DB_FetchList($$$$;%)
 		if(defined $limit) {
 			$query .= " LIMIT $limit";
 		}
-		if(defined $offset) {
+		if(defined $offset and $offset > 0) {
 			$query .= " OFFSET $offset";
 		}
 		$$sth = $dbh->prepare_cached($query) or goto ERROR;

@@ -509,7 +509,9 @@ sub GUI_List($$$)
 	my $fetch_state=0;
 	my $data;
 	my $fetched = 0;
-	my $fetchamount = $q->url_param('list_rows') || $g{conf}{list_rows};
+	my $fetchamount = $q->url_param('list_rows') ||
+		$g{db_tables}{$view}{meta}{list_rows} ||
+		$g{conf}{list_rows};
 	my $error=undef;
 	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,\$error,
 		-descending => $descending,
@@ -727,7 +729,10 @@ sub GUI_ListRep($$$)
 	my $fetch_state=0;
 	my $data;
 	my $fetched = 0;
-	my $fetchamount = $q->url_param('listrep_rows') || $q->url_param('list_rows') || $g{conf}{list_rows};
+	my $fetchamount = $q->url_param('listrep_rows') ||
+		$q->url_param('list_rows') ||
+		$g{db_tables}{$view}{meta}{list_rows} ||
+		$g{conf}{list_rows};
 	my $error=undef;
 	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,\$error,
 		-descending => $descending,

@@ -1,9 +1,13 @@
+2002-04-29
+----------
+* added support for list_rows in meta_tables
+
 2002-04-11
 ----------
 * released 1.0.7
-* added documentation about configuration of password or crypt authentication
-  in PostgreSQL
-* PostgreSQL 7.2.1 wasn't correctly detected (reported by
+* added documentation about configuration of password or crypt
+  authentication in PostgreSQL (in gedafe-user.pod)
+* PostgreSQL 7.2.1 wasn't correctly detected (reported by 
   Freek Zindel <freek@zindel.nl>)
 
 2002-03-17
