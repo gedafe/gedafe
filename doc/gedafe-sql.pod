@@ -231,6 +231,24 @@ and http URLs).  If found, an additional template variable MARKUP will
 be defined in template element 'td' which contains appropriate HTML
 markup of the web object.
 
+=item log_create_time
+
+For DATE, TIME, and TIMESTAMP fields, if set to '1' gedafe will record
+the date and/or time the record was first created (SQL INSERT) in the
+database.  This option has no effect for fields of type other than
+DATE, TIME, or TIMESTAMP.
+
+Tip: this feature works well with B<widget> => I<readonly>
+
+=item log_modify_time
+
+For DATE, TIME, and TIMESTAMP fields, if set to '1' gedafe will record
+the date and/or time the record was last modified (SQL UPDATE) in the
+database.  This option has no effect for fields of type other than
+DATE, TIME, or TIMESTAMP.
+
+Tip: this feature works well with B<widget> => I<readonly>
+
 =back
 
 =head2 The Combo-box
