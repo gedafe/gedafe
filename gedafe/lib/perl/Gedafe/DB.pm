@@ -110,6 +110,15 @@ END
 		}
 	}
 
+	# sort tables
+	@{$g{db_editable_tables_list}} = sort {
+		$g{db_tables}{$a}{desc} cmp $g{db_tables}{$b}{desc}
+	} @{$g{db_editable_tables_list}};
+	# sort reports
+	@{$g{db_report_views}} = sort {
+		$g{db_tables}{$a}{desc} cmp $g{db_tables}{$b}{desc}
+	} @{$g{db_report_views}};
+
 	# meta tables
 	$query = 'SELECT meta_tables_table, meta_tables_filterfirst, meta_tables_hide FROM meta_tables';
 	$sth = $dbh->prepare($query) or return undef;
