@@ -1066,7 +1066,7 @@ sub DB_GetCombo($$$)
 		$query .= " ORDER BY meta_sort";
 	}
 	else {
-		$query .= " ORDER BY id";
+		$query .= " ORDER BY text";
 	}
 	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
 	$sth->execute() or die $sth->errstr;
