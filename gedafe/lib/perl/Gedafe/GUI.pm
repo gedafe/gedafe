@@ -7,7 +7,6 @@
 package Gedafe::GUI;
 
 use strict;
-use Data::Dumper;
 
 use Gedafe::Global qw(%g);
 use Gedafe::DB qw(
@@ -332,7 +331,7 @@ sub GUI_FilterFirst($$$$)
 	my $ff_combo_name = "${ff_ref}_combo" unless not defined $ff_ref;
 
 	if(!defined $ff_ref or !defined $g{db_tables}{$ff_combo_name}) {
-		die "combo not found for $ff_field";
+		die "combo not found for $ff_field (reference: ${ff_ref})";
 	}
 
 	my $ff_combo = GUI_MakeCombo($dbh, $ff_combo_name, "combo_filterfirst", $ff_value);
@@ -680,7 +679,7 @@ sub GUI_List($$$)
 
 	# filterfirst
 	($spec{filter_field}, $spec{filter_value}) =
-	  GUI_FilterFirst($s, $dbh, $table, \%template_args);
+	  GUI_FilterFirst($s, $dbh, $spec{view}, \%template_args);
 
 	# search
 	($spec{search_field}, $spec{search_value}) =
@@ -1157,7 +1156,6 @@ sub GUI_MakeISearch($$$$$$)
 
 
 	my $meta = $g{db_fields}{$table}{$field};
-
 
 	my $target = $meta->{reference};
 
