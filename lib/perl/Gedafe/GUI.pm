@@ -792,9 +792,9 @@ sub GUI_Search($$$){
 		#this copying of fields except when something special is at hand seems 
 		#fragile. There should be at least some rationale about which fields get
 		#copied. Also this rather important bit of code is sort of hidden here.
-		next if /^search/;
-		next if /^button/;
-		next if /^offset$/;
+		next if $p =~ /^search/;
+		next if $p =~ /^button/;
+		next if $p =~ /^offset$/;
 		$search_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$p\" VALUE=\"".$q->url_param($p)."\">\n";
 	}
 
