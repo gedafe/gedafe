@@ -666,15 +666,24 @@ sub GUI_List($$$)
 	$list->{totalrecords} = DB_GetNumRecords($s, \%spec)
 	  if $g{conf}{show_row_count};
 	
+	my $list_buttons = $g{conf}{list_buttons};
+	if(!$list_buttons){
+	  $list_buttons = 'both';
+	}
+
 	# top buttons
-	GUI_ListButtons($s, $list, $g{db_tables}{$table}{report} ? 'listrep' : 'list', 'top');
+	if($list_buttons eq 'top' || $list_buttons eq 'both'){
+	  GUI_ListButtons($s, $list, $g{db_tables}{$table}{report} ? 'listrep' : 'list', 'top');
+	}
 
 	# display table
 	GUI_ListTable($s, $list, 'list');
 
 	# bottom buttons
-	GUI_ListButtons($s, $list, $g{db_tables}{$table}{report} ? 'listrep' : 'list', 'bottom');
+	if($list_buttons eq 'bottom' || $list_buttons eq 'both'){
 
+	  GUI_ListButtons($s, $list, $g{db_tables}{$table}{report} ? 'listrep' : 'list', 'bottom');
+	}
 	delete $list->{displayed_recs};
 	delete $list->{totalrecords} if $g{conf}{show_row_count};
 
