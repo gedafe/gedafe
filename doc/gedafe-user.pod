@@ -199,12 +199,14 @@ entry screen. See F<gedafe-pearls.pod> for more information.
 =item schema
 
 defines the current schema, i.e. the schema we want to work in.
-You do not see tables in other schemas.
+You do not see tables in other schemas. From Postgres Version
+7.2 on this value defaults to "public" if you do not set it.
 
 =item "schema_search_path"
 
 specifies a search path i.e. defines the schemas
-where we want to find tables in.
+where we want to find tables in. This value defaults 
+to the value of schema (above) if you do not set it.
 
 =back
 
