@@ -796,6 +796,7 @@ sub GUI_ListTable($$$)
 	delete $template_args{DATA};
 	delete $template_args{FIELD};
 	delete $template_args{SORT_URL};
+	delete $template_args{NOTNULL};
 
 	unless ($g{conf}{edit_buttons_left}) {
 		if($can_edit) {
@@ -1513,11 +1514,11 @@ sub GUI_Edit($$$)
                     $template_form_args{(uc $field)."_INPUT"}= $inputelem
 
                 } else {
-
 		    $template_args{ELEMENT} = 'editfield';
 	    	    $template_args{FIELD} = $field;
 		    $template_args{LABEL} = $fields->{$field}{desc};
 		    $template_args{INPUT} = $inputelem;
+		    $template_args{NOTNULL} = $fields->{$field}{attnotnull} ? 1 : undef;
 			if ( defined $g{db_tables}{$table}{meta}{twocols} 
 			     and  $g{db_tables}{$table}{meta}{twocols}== 1 ){
 			   $template_args{TWOCOL} = $n%2 ;

@@ -562,7 +562,7 @@ sub DB_ReadFields($$$)
 
 	# fields
 	$query = <<'END';
-SELECT a.attname, t.typname, a.attnum, a.atthasdef, a.atttypmod
+SELECT a.attname, t.typname, a.attnum, a.atthasdef, a.atttypmod, a.attnotnull
 FROM pg_class c, pg_attribute a, pg_type t
 WHERE c.relname = ? AND a.attnum > 0
 AND a.attrelid = c.oid AND a.atttypid = t.oid
@@ -584,7 +584,8 @@ END
 					type => $data->[1],
 					attnum => $data->[2],
 					atthasdef => $data->[3],
-					atttypmod => $data->[4] 
+					atttypmod => $data->[4],
+					attnotnull => $data->[5],
 				};
 			}
 		}
