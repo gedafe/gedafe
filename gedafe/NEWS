@@ -20,6 +20,13 @@
 
          gedafe_compat => '1.0'
 
+  * The 'filterfirst' attribute must now be set on the _list view if one
+    is used.
+
+    -> Change the meta_table_table field of all filterfirst attributes to
+       the name of the _list view instead of the table, if a list view is
+       present.
+
   * More widgets: the 'widget' attribute of the meta_fields
     can now specify more widgets and widgets can now have parameters. For
     example with 'idcombo(combo=...)' another combo-box can be selected
