@@ -4,11 +4,6 @@ Bugs
 
 Documentation
 -------------
-- add troobleshooting section to gedafe-user.pod
-  - hint of possible gedafed problem when "Premature end of script"
-    appears in the logs. This is a common error.
-  - table_id is messing from the table view (edit is blank)
-- add description on Gedafe interaction with PostgreSQL access-rights.
 
 Small features
 --------------
@@ -35,6 +30,5 @@ Big features
 
 Internal changes
 ----------------
-
 - move GUI_Header, GUI_Footer, etc. to Layout.pm
 - move GUI_CheckFormID to Util.pm

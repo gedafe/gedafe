@@ -1,3 +1,8 @@
+2001-02-19
+----------
+* begun TROUBLESHOOTING section in gedafe-user.pod
+* added ACCESS RIGHTS section in gedafe-sql.pod
+
 2001-02-17
 ----------
 * deleted compatibility code for old meta_tables and meta_fields

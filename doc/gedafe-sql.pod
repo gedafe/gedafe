@@ -40,6 +40,9 @@ Example:
    customer_age  INT,
    customer_address TEXT);
 
+Note that this is rule currently assumed by Gedafe, so you must conform to it,
+but it will be relaxed in the future (it will remain just a "good practice" :-))
+
 =head2 Non Speaking Unique ID
 
 Each table defines a B<unique>, B<non speaking>, B<numeric>
@@ -279,6 +282,15 @@ Example:
     WHERE absence_pers=pers_id 
           AND absence_absty=absty_id AND NOT pers_virt
     GROUP BY pers_hid, absty_hid, year;
+
+=head1 ACCESS RIGHTS
+
+Gedafe reads the access rights of the user to determine if a table should be
+shown (SELECT must be granted), if a record can be added (INSERT must be
+granted) and if a record can be edited/deleted (UPDATE must be granted). Be
+careful about access rights in the database: it will determine effectively what
+users can and can't do.  You can use groups to manage more easily the access
+rights.
 
 =head1 COPYRIGHT
 

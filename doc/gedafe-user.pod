@@ -286,36 +286,19 @@ the C<refresh> parameter, such that a new version of the page is always
 requested from the server. There is a link on every page, that you can drag to
 store the currently viewed page.
 
-=head1 FUTURE WORK
+=head1 TROUBLESHOOTING
 
-=over 4
+=head2 Edit form is empty
 
-=item *
-
-Ports to other databases such as Ingres or Oracle.
-
-=item *
-
-We will probably completely rework and improve the templating system,
-since it is very primitive right now. A possibility is the usage of
-Template::Toolkit.
-
-=item *
-
-We will integrate PearlReports (by Tobias Oetiker
-<oetiker@ee.ethz.ch>, not yet released) into Gedafe to allow more
-powerful report generation in HTML and perhaps also in PDF directly
-from the HTML interface.
-
-=item *
-
-Internal code cleanup and possibly code rewrite.
-
-=back
+If you get an empty form when selecting 'Edit' for a record, it could mean that
+you didn't put in the first column of the presentation (list) view or the table
+(if there isn't a presentation view) the id of the record. Gedafe needs to know
+which the id of the record to edit and it does so by using the first column as
+key. See the F<gedafe-sql.pod>, section 'Presentation View'.
 
 =head1 SEE ALSO
 
-F<gedafe-sql.pod>, F<gedafe-templates.txt>
+F<gedafe-sql.pod>, F<gedafe-templates.txt>, F<Text::CPPTemplate>
 
 =head1 COPYRIGHT
 
