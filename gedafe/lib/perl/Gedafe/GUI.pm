@@ -525,7 +525,7 @@ sub GUI_List($$$)
 		-filter_value => $filterfirst_value)))
 	{
 		$fetched++;
-		if($fetched>$fetchamount) { next; }
+		next if $fetchamount>0 and $fetched>$fetchamount;
 		my $id = $data->[0];
 
 		if($fetched%2) { $template_args{EVENROW}=1; }
@@ -745,7 +745,7 @@ sub GUI_ListRep($$$)
 		-filter_value => $filterfirst_value)))
 	{
 		$fetched++;
-		if($fetched>$fetchamount) { next; }
+		next if $fetchamount>0 and $fetched>$fetchamount;
 
 		if($fetched%2) { $template_args{EVENROW}=1; }
 		else           { $template_args{ODDROW}=1; }
