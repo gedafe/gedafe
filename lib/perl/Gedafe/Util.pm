@@ -1,6 +1,6 @@
 # Gedafe, the Generic Database Frontend
-# copyright (c) 2000,2001 ETH Zurich
-# see http://isg.ee.ethz.ch/tools/gedafe
+# copyright (c) 2000-2002 ETH Zurich
+# see http://isg.ee.ethz.ch/tools/gedafe/
 
 # released under the GNU General Public License
 
@@ -125,6 +125,7 @@ sub MakeURL($$)
 	return $url;
 }
 
+# get full URL, including parameters
 sub MyURL($)
 {
 	my $q = shift;
@@ -141,7 +142,7 @@ sub GetUnique($)
 {
 	my $s = shift;
 	my $socket = ConnectToTicketsDaemon($s);
-	print $socket "SITE $s->{url}\n";
+	print $socket "SITE $s->{path}/$s->{script}\n";
 	<$socket>;
 	print $socket "GETUNIQUE\n";
 	$_ = <$socket>;
@@ -158,7 +159,7 @@ sub DropUnique($$)
 	my $unique_id = shift;
 	if(defined $unique_id) {
 		my $socket = ConnectToTicketsDaemon($s);
-		print $socket "SITE $s->{url}\n";
+		print $socket "SITE $s->{path}/$s->{script}\n";
 		<$socket>;
 		print $socket "DROPUNIQUE $unique_id\n";
 		$_ = <$socket>;
