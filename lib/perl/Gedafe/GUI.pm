@@ -1092,7 +1092,7 @@ sub GUI_EditField($$$$)
 	}
 
 	if($widget eq 'readonly') {
-		return $value || '&nbsp;';
+		return $value eq '' ? '&nbsp;' : $value;
 	}
 
 	if($widget eq 'area') {

@@ -1,3 +1,7 @@
+2001-08-24
+----------
+* display correctly '0' in readonly fields (Nico Latzer <nico.latzer@r-kom.de>)
+
 2001-08-13
 ----------
 * example templates: remove FONT SIZE from header for application title,
