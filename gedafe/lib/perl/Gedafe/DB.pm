@@ -830,7 +830,7 @@ sub DB_AddRecord($$$$)
 		$$err=$dbh->errstr;
 		return undef;
 	}
-	if($res != 1) {
+	if($res ne 1 and $res ne '0E0') {
 		$$err = "Number of rows affected is not 1! ($res)";
 		return undef;
 	}
