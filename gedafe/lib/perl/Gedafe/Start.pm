@@ -25,6 +25,7 @@ use Gedafe::GUI qw(
 	GUI_Delete
 	GUI_Export
 	GUI_DumpTable
+	GUI_DumpJSIsearch
         GUI_Pearl
 );
 use Gedafe::DB qw(
@@ -201,6 +202,11 @@ sub Start(%)
 	elsif($action eq 'dumptable'){
 		my $table = $q->url_param('table');
 		GUI_DumpTable(\%s, $user, $dbh);
+	}
+	elsif($action eq 'jsisearch'){
+		my $table = $q->url_param('table');
+		my $hid = $q->url_param('hid');
+		GUI_DumpJSIsearch(\%s, $dbh,$hid);
 	}
 	else {
 		GUI_Entry(\%s, $user, $dbh);

@@ -32,6 +32,7 @@ require Exporter;
 	DB_GetBlobName
 	DB_DumpBlob
 	DB_RawField
+	DB_DumpJSITable
 	DB_DumpTable
 );
 
@@ -350,6 +351,17 @@ sub DB_Widget($$)
 			return "hidisearch(ref=$r)";
 		}
 		return "isearch(ref=$r)";
+	}
+
+	if(defined $f->{widget} and $f->{widget} eq 'jsisearch'){
+		my $r  = $f->{reference};
+		my $rt = $g{db_tables}{$r};
+		defined $rt or die "table $f->{reference}, referenced from $f->{table}:$f->{field}, not found.\n";
+		if(defined $fields->{$r}{"${r}_hid"}) {
+			# Combo with HID
+			return "hjsisearch(ref=$r)";
+		}
+		return "jsisearch(ref=$r)";
 	}
 
 
@@ -1316,6 +1328,118 @@ sub DB_DumpTable($$$)
 		$data = "Resultset exeeds desirable size.\n";
 	}
 	return $data;
+}
+
+sub DB_DumpJSITable($$$)
+{
+	my $dbh = shift;
+	my $table = shift;
+	my $view = defined $g{db_tables}{"${table}_list"} ?
+			"${table}_list" : $table;	
+	my $atribs = shift;
+
+	my @fields = @{$g{db_fields_list}{$view}};
+	# update the query to prevent listing binary data
+	my @select_fields = @fields;
+	for(@select_fields){
+		if($g{db_fields}{$view}{$_}{type} eq 'bytea'){
+			$_ = "substring($_,1,position(' '::bytea in $_)-1)";
+		}
+	}
+
+	my $query = "SELECT ";
+	$query .= join(', ',@select_fields);
+	$query .= " FROM $view";
+	
+	# fix this for placeholders
+
+	my $first = 1;
+	for my $field (keys(%$atribs)){
+		if($first){
+			$query .= " where ";
+		}else{
+			$query .= " and ";
+		}
+		$first = 0;
+		my $value = $atribs->{$field};
+		my $type = $g{db_fields}{$view}{$field}{type};
+		if($type eq 'date') {
+			$query .= " $field = '$value'";
+		}
+		elsif($type eq 'bool') {
+			$query .= " $field = '$value'";
+		}
+		else {
+			$query .= " $field ~* '.*$value.*'";
+		}
+	}
+
+	my (@row, $numrecs,$jsheader,$jsfooter);
+	
+	$jsheader = "<script language=\"javascript\">\n<!--\n";
+	$jsfooter = "//-->\n</script>\n";
+
+	#prints everywhere to stream data to client.
+
+
+	my $sth = $dbh->prepare($query) or return undef;
+	unless($sth->execute()){
+	    print $jsheader."dberror = true;\n".$jsfooter;
+	    return;
+	}
+
+	$numrecs=$sth->rows;
+
+
+	if($numrecs == -1){
+	    print $jsheader."dberror = true;\n".$jsfooter;
+	    return;
+	}elsif($numrecs > 1500){
+	    print $jsheader."toolarge = true;\n".$jsfooter;
+	    return;
+	}
+		
+	print $jsheader."idata = new Array($numrecs);\n".$jsfooter;
+
+	$first = 1;
+	my $numcolumns = scalar @select_fields;
+	my $dataline;
+	my $recno = 0;
+
+	my $collecting = 1;
+
+	print $jsheader;
+
+	while(@row = $sth->fetchrow_array()) {
+		$first = 1;
+		print "idata[$recno] = new Array(\"";
+		for (0..$numcolumns-1){
+			my $field=$row[$_];
+			if(!$field||$field eq ""){
+				$field = " ";
+			}
+			
+			if(not $first){
+				print '","';
+			}
+			$first = 0;
+			$field =~ s/\t/\&\#09\;/gm;
+			$field =~ s/\n/\&\#10\;/gm;
+			$field =~ s/\"/\&\#34\;/gm;
+			$field =~ s/[\r\f]//gm;
+			
+			print $field;
+		}
+		print "\");\n";
+		if($recno % 100 == 0){
+		    print $jsfooter;
+		    print $jsheader."progress(".(100*$recno/$numrecs).");\n".$jsfooter;
+		    print $jsheader;
+		}
+		$recno++;
+	}
+	$sth->finish();
+	print $jsfooter;
 }
 
 1;

@@ -1,0 +1,232 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>Interactive Search</title>
+<script language="javascript">
+
+function filter(input,filters){
+   var l = input.length;
+   var output = new Array(0);
+   var nextr = 0;
+   for(var j=0;j<l;j++){
+     if(recordFilter(input[j],filters)){
+	output.length++;
+	output[output.length-1]=input[j];
+     }
+   }
+   return output;
+}
+
+function recordFilter(record,filters){
+  for(var i = 0;i<record.length;i++){
+    if(record[i].indexOf(filters[i])==-1)return false;
+  }
+  return true;
+}
+
+
+function summarize(s){
+    if(s.length<20){
+      return s;
+    }
+    l =0;
+    r =0;
+    
+    if((l=s.toUpperCase().indexOf("<H1>"))>-1 && (r=s.toUpperCase().indexOf("</H1>"))>-1){
+      return summarize(s.substring(l+4,r));
+    }
+
+    if((l=s.toUpperCase().indexOf("<B>"))>-1&& (r=s.toUpperCase().indexOf("<B>",l))>-1){
+      return summarize(s.substring(l+3,r));
+    }
+    r=s.indexOf("\\n");
+    if(r>-1&&r<20){
+      return s.substring(0,r);
+    }
+	    
+    return s.substring(0,20);
+}
+
+function rec2string(r){
+	var o="";
+	for(var i=0;i<r.length;i++){
+		o+= " "+summarize(r[i]);
+	}
+	return o;
+}
+
+function progress(prog){
+   var progdiv = document.getElementById("progress");
+   var obj = progdiv.childNodes[0];
+   if(prog==-1){
+	   progdiv.style.visibility="hidden";
+   }else{
+	   var i = prog/5;
+var j;
+	   tmp = "[";
+	   for(j=0;j<i;j++){
+		   tmp +="|";
+	   }
+	   for(;j<20;j++){
+		   tmp +=".";
+	   }
+	   tmp +="]";
+	   
+	   obj.data = "Loading: "+tmp;   
+   }
+}
+
+function display(){
+	progress(-1)
+	if(dberror){
+		dberrormessage(true);
+}if(toolarge){
+		muchtoolarge(true);
+	}else{
+                viewSelect(true);
+                refilter();
+
+        }
+}
+
+function muchtoolarge(enabled){
+   if(enabled){
+     viewSelect(false);
+     dberrormessage(false);
+   }
+var obj = document.getElementById("toolarge");
+   obj.style.visibility= enabled ? "visible" : "hidden";
+   setPosition(obj);
+}
+
+function viewSelect(enabled){
+   if(enabled){
+     dberrormessage(false);
+     muchtoolarge(false);
+   }
+   var obj = document.getElementById("seldiv");
+   obj.style.visibility= enabled ? "visible" : "hidden";
+   setPosition(obj);
+}
+
+
+function dberrormessage(enabled){
+   if(enabled){
+     viewSelect(false);
+     muchtoolarge(false);
+   }
+   var obj = document.getElementById("dberror");
+   obj.style.visibility= enabled ? "visible" : "hidden";
+   setPosition(obj);
+}
+
+
+function recselEnable(en){
+   var obj = document.getElementById("recsel");
+   obj.disabled=!en;
+}
+
+function setPosition(target){
+   var obj = document.getElementById("fielddiv");
+   var left = obj.offsetLeft;
+   var top = obj.offsetTop + obj.offsetHeight + 10;
+   target.left = left;
+   target.top = top;
+}
+
+
+function readFilter(){
+   var childNodes = document.getElementsByTagName("INPUT");
+   var filterarray = new Array();
+   for(var i=0;i<childNodes.length;i++){
+	   if(childNodes[i].name.substring(0,6)=="field_"){
+		   filterarray.length++;
+		   filterarray[filterarray.length-1]=childNodes[i].value;
+	   }
+   }
+   return filterarray;
+}
+
+function refilter(){
+	recselEnable(false);
+	var filters = readFilter();
+	var records = filter(idata,filters);
+	var sel = document.getElementById("recsel");
+	var opts = sel.options;
+	opts.length = 0;
+
+
+	for(var i=0;i<records.length;i++){
+		opts.length++;
+		opts[opts.length-1]= new Option(rec2string(records[i]),records[i][##RETCOLUMN##]);
+	}
+        recselEnable(true);
+}
+
+function setGedafe(){
+   var obj = document.getElementById("recsel");
+   if(obj.selectedIndex==-1)return;
+
+   window.opener.document.editform.##INPUTNAME##.value = obj.options[obj.selectedIndex].value;
+   window.close();
+}
+
+
+var dberror = false;
+var toolarge = false;
+var idata = new Array()
+</script>
+</head>
+<body>
+
+<h2 align="CENTER">Search ##TABLE## interactively.</h2>
+
+<div id="fielddiv" style="background-color: #f0f0f0; border-color:#afafaf; border-width:1;border-style:solid; padding-left:5; padding-top:5; padding-bottom:5; padding-right:5; margin-bottom:8">
+
+  <form id="jsiform" action="##MYURL##">
+    <input type="hidden" name="action" value="jsisearch">
+    <input type="hidden" name="hid" value="##HID##">
+    <input type="hidden" name="table" value="##TABLE##">
+    <input type="hidden" name="input_name" value="##INPUTNAME##">
+    <table border=0>
+      ##FIELDS##
+    </table>
+    <div align="right">
+      <div id="progress">[...................]</div>
+      <input type="submit" value="rescan">
+    </div>
+  <form>
+</div>
+
+<div id="dberror" style="visibility : hidden; z-index:2; background-color: green; position: absolute">
+  <p>Some error in the database has occured.</p>
+  <div align="right">
+    <input type="button" value="Cancel" onclick="window.close()">
+  </div>
+</div>
+
+<div id="toolarge" style="visibility : hidden;z-index:3;  position: absolute; padding-left:8;padding-right:8;padding-top:8;padding-bottom:8">
+  <p>At this time there is too much data in the ##TABLE## table 
+  you are trying to view<br>
+  Please enter some values in the fields above to narrow your search 
+  down to fewer rows.</p>
+  <p>After entering some data in the fields you should hit the [rescan]
+  button to retrieve your
+  new selection from the ##TABLE## table.</p>
+  <div align="right">
+    <input type="button" value="Cancel" onclick="window.close()">
+  </div>
+</div>
+
+<div id="seldiv" style="visibility: hidden; z-index: 4; position: absolute">
+  <select id="recsel" size=5 DISABLED style="width:484; margin-bottom:8">
+    <option>No records loaded</option>
+  </select><br>
+  <div align="right">
+    <form>
+      <input type="button" value="Cancel" onclick="window.close()">
+      <input type="button" value="OK" onclick="setGedafe()">
+    </form>
+  </div>
+</div>
+
