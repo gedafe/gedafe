@@ -1,3 +1,7 @@
+2003-03-18
+----------
+* bugfix: wrong size of INPUT field for bare VARCHAR (reported by George Loyer)
+
 2003-02-17
 ----------
 * bigger text field for dates, float4
