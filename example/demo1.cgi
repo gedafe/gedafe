@@ -20,6 +20,7 @@ Start(
     schema_search_path => " 'public','test' ",     
     pearl_dir      => '/usr/local/gedafe/example/mypearls',
     widget_dir      => '/usr/local/gedafe/example/mywidgets',
+    oyster_dir      => '/usr/local/gedafe/example/myoysters',
     isearch        => 'java/isearch.jar',
     show_row_count => 0,
     edit_buttons_left => 0,

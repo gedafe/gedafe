@@ -26,7 +26,16 @@ use IO::Socket;
 #
 # 5) from client: DROPUNIQUE unique-id\n
 #      to client: (OK|FALSE)\n
-
+#
+# 6) from client: FILE identifier filename mimetype bytecount\n
+#      to client: OK
+#    from client: |bytecount bytes|
+#      to client: FILE OK bytecount
+#
+# 7) from client: GETFILE identifier
+#      to client: (FILE NOT FOUND|OK mimetype bytecount\n |bytecount bytes|)
+#
+#
 # TODO: cleanup expired tickets
 
 my $DEBUG=0;
@@ -36,6 +45,8 @@ my $tickets_validity = 7200; # in seconds, delete ticket after that delay of non
 
 my %tickets_cache = ();
 my %uniques_cache = ();
+
+my %files_cache = ();
 
 if($> == 0) {
 	# we don't need root privileges
@@ -67,12 +78,26 @@ sub myprint($$)
 	print "> $str" if $DEBUG;
 }
 
+sub clearfiles(){
+    my $exp = time - $tickets_validity;
+    for my $id (keys %files_cache){
+	for(keys %{$files_cache{$id}}){
+	    #2 is the timestamp
+	    if($files_cache{$id}{$_}[2] < $exp){
+		delete $files_cache{$_};
+	    }
+	}
+    }
+}
+
 unlink $socket_path;
 my $socket = IO::Socket::UNIX->new(Local  => $socket_path,
                                    Listen => 5 )
 	or die "Couldn't setup unix-domain socket ($socket_path): $!\n";
 
 chmod 0666, $socket_path;
+
+
 
 while(defined (my $conn = $socket->accept)) {
 	# SITE
@@ -87,6 +112,12 @@ while(defined (my $conn = $socket->accept)) {
 	}
 	my $site = "$1";
 	myprint $conn, "OK\n";
+
+	#clear old files in the buffer;
+	#since files can be large but few in number we want
+	#to do this every chance we get.
+        clearfiles();
+
 
 	# REQUEST
 	$_ = <$conn>;
@@ -127,6 +158,32 @@ while(defined (my $conn = $socket->accept)) {
 		}
 		else {
 			myprint $conn, "FAIL\n";
+		}
+	}
+	elsif(/^FILE ([\w-]+) (\S+) ([\w\/]+) (\d+)$/) {
+	        my $id     = $1;
+	        my $name   = $2;
+	        my $type   = $3;
+	        my $length = $4;
+		myprint $conn, "OK\n";
+		my $blob;
+		read($conn,$blob,$length);
+		$files_cache{$id}{$name}=[$blob,$type,time];
+		$length = length $blob;
+		myprint $conn, "FILE OK $length\n";
+	}
+	elsif(/^GETFILE ([\w-]+) (\S+)$/) {
+	        my $id     = $1;
+	        my $name   = $2;
+		if(!$files_cache{$id}{$name}){
+		    myprint($conn, "FILE NOT FOUND\n")
+		}else{
+		    my $blob = $files_cache{$id}{$name}[0];
+		    my $type = $files_cache{$id}{$name}[1];
+		    $files_cache{$id}{$name}[2] = time;
+		    my $length = length $blob;
+		    myprint $conn, "OK $type $length\n";
+		    myprint $conn, $blob;
 		}
 	}
 	elsif(/^\s$/) {
