@@ -313,28 +313,31 @@ sub GUI_FilterFirst($$$$)
 	my $view = shift;
 	my $template_args = shift;
 	my $myurl = MyURL($q);
-	my $filterfirst_field = $g{db_tables}{$view}{meta}{filterfirst};
-	my $filterfirst_value = $q->url_param('filterfirst') || $q->url_param('combo_filterfirst') || '';
+	my $ff_field = $g{db_tables}{$view}{meta}{filterfirst};
+	my $ff_value = $q->url_param('filterfirst') ||
+	               $q->url_param('combo_filterfirst') || '';
 
 	# filterfirst
-	if(defined $filterfirst_field)
+	if(defined $ff_field)
 	{
-		if(not defined $g{db_fields}{$view}{$filterfirst_field}{ref_combo}) {
-			die "combo not found for $filterfirst_field";
+		my $ff_ref = $g{db_fields}{$view}{$ff_field}{reference};
+		my $ff_combo_name = "${ff_ref}_combo" unless not defined $ff_ref;
+		if(!defined $ff_ref or !defined $g{db_tables}{$ff_combo_name}) {
+			die "combo not found for $ff_field";
 		}
 		else {
-			my $filterfirst_combo = GUI_MakeCombo($dbh, $view, $filterfirst_field, "combo_filterfirst", $filterfirst_value);
-			my $filterfirst_hidden = '';
+			my $ff_combo = GUI_MakeCombo($dbh, $ff_combo_name, "combo_filterfirst", $ff_value);
+			my $ff_hidden = '';
 			foreach($q->url_param) {
 				next if /^filterfirst/;
 				next if /button$/;
-				$filterfirst_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
+				$ff_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
 			}
 			$template_args->{ELEMENT}='filterfirst';
-			$template_args->{FILTERFIRST_FIELD}=$filterfirst_field;
-			$template_args->{FILTERFIRST_FIELD_DESC}=$g{db_fields}{$view}{$filterfirst_field}{desc};
-			$template_args->{FILTERFIRST_COMBO}=$filterfirst_combo;
-			$template_args->{FILTERFIRST_HIDDEN}=$filterfirst_hidden;
+			$template_args->{FILTERFIRST_FIELD}=$ff_field;
+			$template_args->{FILTERFIRST_FIELD_DESC}=$g{db_fields}{$view}{$ff_field}{desc};
+			$template_args->{FILTERFIRST_COMBO}=$ff_combo;
+			$template_args->{FILTERFIRST_HIDDEN}=$ff_hidden;
 			$template_args->{FILTERFIRST_ACTION}=$s->{url};
 			print Template($template_args);
 			delete $template_args->{ELEMENT};
@@ -344,10 +347,10 @@ sub GUI_FilterFirst($$$$)
 			delete $template_args->{FILTERFIRST_HIDDEN};
 			delete $template_args->{FILTERFIRST_ACTION};
 		}
-		if($filterfirst_value eq '') { $filterfirst_value = undef; }
+		if($ff_value eq '') { $ff_value = undef; }
 	}
 
-	return ($filterfirst_field, $filterfirst_value);
+	return ($ff_field, $ff_value);
 }
 
 sub GUI_Search($$$)
@@ -1097,19 +1100,17 @@ sub GUI_Edit($$$)
 	GUI_Footer(\%template_args);
 }
 
-sub GUI_MakeCombo($$$$$)
+sub GUI_MakeCombo($$$$)
 {
-	my ($dbh, $table, $field, $name, $value) = @_;
+	my ($dbh, $combo_view, $name, $value) = @_;
 
 	$value =~ s/^\s+//;
 	$value =~ s/\s+$//;
 
 	my $str;
 
-	my $meta = $g{db_fields}{$table}{$field};
-
 	my @combo;
-	if(not defined DB_GetCombo($dbh,$meta->{reference},\@combo)) {
+	if(not defined DB_GetCombo($dbh,$combo_view,\@combo)) {
 		return undef;
 	}
 
@@ -1243,10 +1244,10 @@ sub GUI_WidgetWrite($$$$$$$)
 		
 		if($g{conf}{gedafe_compat} eq '1.0') {
 			$value = DB_ID2HID($dbh,$warg->{'ref'},$value) if $w eq 'hidcombo';
-			$combo = GUI_MakeCombo($dbh, $table, $field, "combo_$field", $value);
+			$combo = GUI_MakeCombo($dbh, $warg->{'combo'}, "combo_$field", $value);
 		}
 		else {
-			$combo = GUI_MakeCombo($dbh, $table, $field, "combo_$field", $value);
+			$combo = GUI_MakeCombo($dbh, $warg->{'combo'}, "combo_$field", $value);
 			$value = DB_ID2HID($dbh,$warg->{'ref'},$value) if $w eq 'hidcombo';
 		}
 		$out.="<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
