@@ -1,5 +1,6 @@
 2001-02-17
 ----------
+* deleted compatibility code for old meta_tables and meta_fields
 * improved cookies: path is set and script-name is encoded in cookie name, such
   that there should be no conflicts with other Gedafe applications
 * app_site and app_path are not anymore used

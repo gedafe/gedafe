@@ -3,6 +3,7 @@ CHANGES
 COPYING
 README
 TODO
+UPGRADE
 bin/daemon-ctl
 bin/gedafed
 bin/gedafed-ctl
@@ -11,6 +12,7 @@ doc/gedafe-sql.txt
 doc/gedafe-templates.txt
 doc/gedafe-user.pod
 doc/gedafe-user.txt
+doc/cpptemplate.txt
 example/README
 example/demo1.cgi
 example/demo1.sql
@@ -35,6 +37,7 @@ example/templates/editform_header.html
 example/templates/entry_entrytable.html
 example/templates/entry_reports_list_header.html
 example/templates/entry_tables_list_header.html
+example/templates/error.html
 example/templates/filterfirst.html
 example/templates/footer.html
 example/templates/header.html
@@ -53,7 +56,6 @@ example/templates/th.html
 example/templates/th_delete.html
 example/templates/th_edit.html
 example/templates/tr.html
-example/templates/wrong_url.html
 example/templates/xtable.html
 example/templates/xtr.html
 example/useful-functions.sql

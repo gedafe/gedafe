@@ -4,22 +4,29 @@ SHELL=/bin/sh
 
 MAJOR  = 1
 MINOR  = 0
-MMINOR = 1
+MMINOR = 1pre2
 VERSION = $(MAJOR).$(MINOR).$(MMINOR)
 
-TAR = gedafe-$(VERSION).tar.gz
+GNUTAR = tar
+TARFILE = gedafe-$(VERSION).tar.gz
 
-release: release-tag
-	doc/gedafe-sql.txt doc/gedafe-user.txt
+release: release-tag tarball
+
+tarball:  doc/gedafe-sql.txt doc/gedafe-user.txt doc/cpptemplate.txt
 	shtool mkdir -p gedafe-$(VERSION)
-	gtar -T MANIFEST -cf - | (cd gedafe-$(VERSION) && gtar xf -)
-	gtar --mode=g-s -czvf pub/$(TAR) gedafe-$(VERSION)
+	$(GNUTAR) -T MANIFEST -cf - | (cd gedafe-$(VERSION) && $(GNUTAR) xf -)
+	$(GNUTAR) --mode=g-s -czvf pub/$(TARFILE) gedafe-$(VERSION)
 	rm -rf gedafe-$(VERSION)
 	
 release-tag:
 	cvs tag -F v$(MAJOR)_$(MINOR)_$(MMINOR)
 
+doc/cpptemplate.txt:
+	pod2man --release=0.3 --center=gedafe lib/perl/Text/CPPTemplate.pm >pod2txt.tmp
+	groff -man -Tascii -P-u -P-b -P-o pod2txt.tmp > $@
+	rm pod2txt.tmp
+
 .pod.txt:
 	pod2man --release=$(VERSION) --center=gedafe $<  >pod2txt.tmp
-	groff -man -Tascii pod2txt.tmp > $@
+	groff -man -Tascii -P-u -P-b -P-o pod2txt.tmp > $@
 	rm pod2txt.tmp
