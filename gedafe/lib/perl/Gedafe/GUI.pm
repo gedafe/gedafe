@@ -446,6 +446,9 @@ sub GUI_List($$$)
 	$template_args{ELEMENT}='table';
 	print Template(\%template_args);
 
+	# die will put a </TABLE>
+	$s->{in_table}=1;
+
 	my $f;
 	my $skip_id = 0;
 	# if hid, then do not show id.
@@ -615,6 +618,9 @@ sub GUI_List($$$)
 
 	$template_args{ELEMENT}='xtable';
 	print Template(\%template_args);
+
+	# die won't put a </TABLE>
+	delete $s->{in_table};
 
 	# buttons
 	my $nextoffset = $fetched == $fetchamount+1 ? $offset+$fetchamount : $offset;
@@ -958,7 +964,7 @@ sub GUI_Edit($$$)
 	GUI_Header($s, \%template_args);
 
 	# FORM
-	UniqueFormStart($next_url);
+	UniqueFormStart($s, $next_url);
 	print "<INPUT TYPE=\"hidden\" NAME=\"post_action\" VALUE=\"$action\">\n";
 
 	# Initialise values
@@ -1164,7 +1170,7 @@ sub GUI_Delete($$$)
 
 	GUI_InitTemplateArgs($q, \%template_args);
 	GUI_Header($s, \%template_args);
-	UniqueFormStart($next_url);
+	UniqueFormStart($s, $next_url);
 
 	$template_args{ELEMENT}='delete';
 	print Template(\%template_args);
