@@ -1,6 +1,6 @@
 # Gedafe, the Generic Database Frontend
-# copyright (c) 2000,2001 ETH Zurich
-# see http://isg.ee.ethz.ch/tools/gedafe
+# copyright (c) 2000-2002 ETH Zurich
+# see http://isg.ee.ethz.ch/tools/gedafe/
 
 # released under the GNU General Public License
 
@@ -19,7 +19,6 @@ use Gedafe::Global qw(%g);
 use Gedafe::GUI qw(
 	GUI_Entry
 	GUI_List
-	GUI_ListRep
 	GUI_CheckFormID
 	GUI_PostEdit
 	GUI_Edit
@@ -72,8 +71,8 @@ sub Start(%)
 	}
 
 	
+	$s{url} = MyURL($q);
 	$q->url(-absolute=>1) =~ /(.*)\/([^\/]*)/;
-	$s{url} = $q->url();
 	$s{path} = $1; $s{script} = $2;
 	$s{ticket_name} = "Ticket_$2"; $s{ticket_name} =~ s/\./_/g;
 
@@ -98,6 +97,8 @@ sub Start(%)
 	my $dbh = AuthConnect(\%s, \$user, \$cookie) or do {
 		die "Couldn't connect to database or database error";
 	};
+	$s{dbh}=$dbh;
+	$s{user}=$user;
 
 	my $action = $q->url_param('action') || '';
 	if($action eq 'edit' or $action eq 'add' or $action eq 'delete') {
@@ -122,9 +123,6 @@ sub Start(%)
 
 	if($action eq 'list') {
 		GUI_List(\%s, $user, $dbh);
-	}
-	elsif($action eq 'listrep') {
-		GUI_ListRep(\%s, $user, $dbh);
 	}
 	elsif($action eq 'edit' or $action eq 'add' or $action eq 'reedit') {
 		GUI_Edit(\%s, $user, $dbh);

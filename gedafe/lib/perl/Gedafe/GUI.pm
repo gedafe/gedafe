@@ -1,6 +1,6 @@
 # Gedafe, the Generic Database Frontend
-# copyright (c) 2000,2001 ETH Zurich
-# see http://isg.ee.ethz.ch/tools/gedafe
+# copyright (c) 2000-2002 ETH Zurich
+# see http://isg.ee.ethz.ch/tools/gedafe/
 
 # released under the GNU General Public License
 
@@ -29,6 +29,7 @@ use Gedafe::Util qw(
 );
 
 use POSIX;
+use Data::Dumper;
 
 use vars qw(@ISA @EXPORT_OK);
 require Exporter;
@@ -36,42 +37,16 @@ require Exporter;
 @EXPORT_OK    = qw(
 	GUI_Entry
 	GUI_List
-	GUI_ListRep
 	GUI_CheckFormID
 	GUI_PostEdit
 	GUI_Edit
 	GUI_Delete
 );
 
-sub GUI_DB2HTML($$)
-{
-	my $str = shift;
-	my $type = shift;
-
-	# undef -> ''
-	$str = '' unless defined $str;
-
-	# trim space
-	$str =~ s/^\s+//;
-	$str =~ s/\s+$//;
-
-	if($type eq 'bool') {
-		$str = ($str ? 'yes' : 'no');
-	}
-	if($type eq 'text' and $str !~ /<[^>]+>/) { #make sure the text does not contain html
-		$str =~ s/\n/<BR>/g;
-	}
-	if($str eq '') {
-		$str = '&nbsp;';
-	}
-
-	return $str;
-}
-
 sub GUI_InitTemplateArgs($$)
 {
-	my $q = shift;
-	my $args = shift;
+	my ($s, $args) = @_;
+	my $q = $s->{cgi};
 
 	my $refresh = NextRefresh();
 
@@ -80,7 +55,7 @@ sub GUI_InitTemplateArgs($$)
 	$args->{DOCUMENTATION_URL}=$g{conf}{documentation_url};
 	$args->{THEME}=$q->url_param('theme');
 
-	my $stripped_url = MakeURL(MyURL($q), {
+	my $stripped_url = MakeURL($s->{url}, {
 				filterfirst_button => '',
 				search_button => '',
 			});
@@ -119,8 +94,7 @@ sub GUI_InitTemplateArgs($$)
 
 sub GUI_Header($$)
 {
-	my $s = shift;
-	my $args = shift;
+	my ($s, $args) = @_;
 
 	$args->{ELEMENT}='header';
 	print Template($args);
@@ -130,8 +104,10 @@ sub GUI_Header($$)
 	my $user = $args->{USER};
 
 	my $save_table = $args->{TABLE};
-	
-	foreach $t (@{$g{db_editable_tables_list}}) {
+
+	foreach $t (@{$g{db_tables_list}}) {
+		next if $g{db_tables}{$t}{hide};
+		next if $g{db_tables}{$t}{report};
 		if(defined $g{db_tables}{$t}{acls}{$user} and
 			$g{db_tables}{$t}{acls}{$user} !~ /r/) { next; }
 		my $desc = $g{db_tables}{$t}{desc};
@@ -158,7 +134,7 @@ sub GUI_Header($$)
 
 sub GUI_Footer($)
 {
-	my $args = shift;
+	my ($args) = @_;
 	$args->{ELEMENT}='footer';
 	print Template($args);
 	delete $args->{ELEMENT};
@@ -166,13 +142,8 @@ sub GUI_Footer($)
 
 sub GUI_Edit_Error($$$$$$)
 {
-	my $s = shift;
+	my ($s, $user, $str, $form_url, $data, $action) = @_;
 	my $q = $s->{cgi};
-	my $user = shift;
-	my $str = shift;
-	my $form_url = shift;
-	my $data = shift;
-	my $action = shift;
 
 	my %template_args = (
 		PAGE => 'edit_error',
@@ -186,7 +157,7 @@ sub GUI_Edit_Error($$$$$$)
 			}),
 	);
 
-	GUI_InitTemplateArgs($q, \%template_args);
+	GUI_InitTemplateArgs($s, \%template_args);
 	GUI_Header($s, \%template_args);
 
 	$template_args{ELEMENT}='edit_error';
@@ -196,11 +167,9 @@ sub GUI_Edit_Error($$$$$$)
 	exit;
 }
 
-# fixme: move to Util
 sub GUI_CheckFormID($$)
 {
-	my $s = shift;
-	my $user = shift;
+	my ($s, $user) = @_;
 	my $q = $s->{cgi};
 
 	my $next_url = $q->param('next_url');
@@ -224,10 +193,8 @@ sub GUI_CheckFormID($$)
 
 sub GUI_Entry($$$)
 {
-	my $s = shift;
+	my ($s, $user, $dbh) = @_;
 	my $q = $s->{cgi};
-	my $user = shift;
-	my $dbh = shift;
 
 	my $refresh = NextRefresh();
 
@@ -245,13 +212,15 @@ sub GUI_Entry($$$)
 
 	my $t;
 	$template_args{ELEMENT}='entrytable';
-	foreach $t (@{$g{db_editable_tables_list}}) {
+	foreach $t (@{$g{db_tables_list}}) {
+		next if $g{db_tables}{$t}{hide};
+		next if $g{db_tables}{$t}{report};
 		if(defined $g{db_tables}{$t}{acls}{$user} and
 			$g{db_tables}{$t}{acls}{$user} !~ /r/) { next; }
 		my $desc = $g{db_tables}{$t}{desc};
 		$desc =~ s/ /&nbsp;/g;
 		$template_args{TABLE_DESC}=$desc;
-		$template_args{TABLE_URL}= MakeURL(MyURL($q), {
+		$template_args{TABLE_URL}= MakeURL($s->{url}, {
 					action => 'list',
 					table  => $t,
 					refresh => $refresh,
@@ -265,14 +234,16 @@ sub GUI_Entry($$$)
 	print Template(\%template_args);
 
 	$template_args{ELEMENT}='entrytable';
-	foreach $t (@{$g{db_report_views}}) {
+	foreach $t (@{$g{db_tables_list}}) {
+		next if     $g{db_tables}{$t}{hide};
+		next unless $g{db_tables}{$t}{report};
 		if(defined $g{db_tables}{$t}{acls}{$user} and
 			$g{db_tables}{$t}{acls}{$user} !~ /r/) { next; }
 		my $desc = $g{db_tables}{$t}{desc};
 		$desc =~ s/ /&nbsp;/g;
 		$template_args{TABLE_DESC}=$desc;
-		$template_args{TABLE_URL}= MakeURL(MyURL($q), {
-					action => 'listrep',
+		$template_args{TABLE_URL}= MakeURL($s->{url}, {
+					action => 'list',
 					table  => $t,
 					refresh => $refresh,
 				});
@@ -283,205 +254,69 @@ sub GUI_Entry($$$)
 	GUI_Footer(\%template_args);
 }
 
-sub GUI_FilterFirst($$$$)
+sub GUI_EditLink($$$)
 {
-	my $s = shift;
-	my $q = $s->{cgi};
-	my $dbh = shift;
-	my $view = shift;
-	my $template_args = shift;
-	my $myurl = MyURL($q);
-	my $filterfirst_field = $g{db_tables}{$view}{meta}{filterfirst};
-	my $filterfirst_value = $q->url_param('filterfirst') || $q->url_param('combo_filterfirst') || '';
-
-	# filterfirst
-	if(defined $filterfirst_field)
-	{
-		if(not defined $g{db_fields}{$view}{$filterfirst_field}{ref_combo}) {
-			die "combo not found for $filterfirst_field";
-		}
-		else {
-			my $filterfirst_combo = GUI_MakeCombo($dbh, $view, $filterfirst_field, "combo_filterfirst", $filterfirst_value);
-			my $filterfirst_hidden = '';
-			foreach($q->url_param) {
-				next if /^filterfirst/;
-				next if /button$/;
-				$filterfirst_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
-			}
-			$template_args->{ELEMENT}='filterfirst';
-			$template_args->{FILTERFIRST_FIELD}=$filterfirst_field;
-			$template_args->{FILTERFIRST_FIELD_DESC}=$g{db_fields}{$view}{$filterfirst_field}{desc};
-			$template_args->{FILTERFIRST_COMBO}=$filterfirst_combo;
-			$template_args->{FILTERFIRST_HIDDEN}=$filterfirst_hidden;
-			$template_args->{FILTERFIRST_ACTION}=$s->{url};
-			print Template($template_args);
-			delete $template_args->{ELEMENT};
-			delete $template_args->{FILTERFIRST_FIELD};
-			delete $template_args->{FILTERFIRST_FIELD_DESC};
-			delete $template_args->{FILTERFIRST_COMBO};
-			delete $template_args->{FILTERFIRST_HIDDEN};
-			delete $template_args->{FILTERFIRST_ACTION};
-		}
-		if($filterfirst_value eq '') { $filterfirst_value = undef; }
-	}
-
-	return ($filterfirst_field, $filterfirst_value);
+	my ($s, $list, $row) = @_;
+	my $edit_url;
+	$edit_url = MakeURL($s->{url}, {
+		action=>'edit',
+		id=>$row->[0],
+		refresh=>NextRefresh,
+	}); 
+	$template_args->{ELEMENT}='td_edit';
+	$template_args->{EDIT_URL}=$edit_url;
+	print Template(\%template_args);
+	delete $template_args{EDIT_URL};
 }
 
-sub GUI_Search($$$)
+sub GUI_DeleteLink($$$)
 {
-	my $s = shift;
-	my $q = $s->{cgi};
-	my $view = shift;
-	my $template_args = shift;
-	my $search_field = $q->url_param('search_field') || '';
-	my $search_value = $q->url_param('search_value') || '';
-
-	$search_field =~ s/^\s*//; $search_field =~ s/\s*$//;
-	$search_value =~ s/^\s*//; $search_value =~ s/\s*$//;
-	my $fields = $g{db_fields}{$view};
-	my $search_combo = "<SELECT name=\"search_field\" SIZE=\"1\">\n";
-	foreach(@{$g{db_fields_list}{$view}}) {
-		next if /${view}_id/;
-		if(/^$search_field$/) {
-			$search_combo .= "<OPTION SELECTED VALUE=\"$_\">$fields->{$_}{desc}</OPTION>\n";
-		}
-		else {
-			$search_combo .= "<OPTION VALUE=\"$_\">$fields->{$_}{desc}</OPTION>\n";
-		}
-	}
-	$search_combo .= "</SELECT>\n";
-	my $search_hidden = '';
-	foreach($q->url_param) {
-		next if /^search/;
-		next if /^button/;
-		next if /^offset$/;
-		$search_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
-	}
-	$template_args->{ELEMENT} = 'search';
-	$template_args->{SEARCH_ACTION} = $s->{url};
-	$template_args->{SEARCH_COMBO} = $search_combo;
-	$template_args->{SEARCH_HIDDEN} = $search_hidden;
-	$template_args->{SEARCH_VALUE} = $search_value;
-	$template_args->{SEARCH_SHOWALL} = MakeURL(MyURL($q), { search_value=>'', search_button=>'', search_field=>'' });
-	print Template($template_args);
-	delete $template_args->{ELEMENT};
-	delete $template_args->{SEARCH_ACTION};
-	delete $template_args->{SEARCH_COMBO};
-	delete $template_args->{SEARCH_HIDDEN};
-	delete $template_args->{SEARCH_VALUE};
-	delete $template_args->{SEARCH_SHOWALL};
-
-	# search date = TODAY
-	if($search_field ne '') {
-		if($g{db_fields}{$view}{$search_field}{type} eq 'date') {
-			if($search_value =~ /^today$/i) {
-				$search_value = POSIX::strftime("%Y-%m-%d", localtime);
-			}
-			elsif($search_value =~ /^yesterday$/i) {
-				my $time = time;
-				$time -= 3600 * 24;
-				$search_value = POSIX::strftime("%Y-%m-%d", localtime($time));
-			}
-		}
-	}
-
-	return ($search_field, $search_value);
+	my $delete_url;
+	$delete_url =  MakeURL($s->{url}, {
+		action=>'delete',
+		id=>$row->[0],
+		refresh=>NextRefresh,
+	});
+	$template_args{ELEMENT}='td_delete';
+	$template_args{DELETE_URL}=$delete_url;
+	return Template(\%template_args);
+	delete $template_args{DELETE_URL};
 }
 
-sub GUI_List($$$)
+sub GUI_ListTable($$$)
 {
-	my $s = shift;
-	my $q = $s->{cgi};
-	my $user = shift;
-	my $dbh = shift;
-	my $myurl = MyURL($q);
-	my $table = $q->url_param('table');
-	my $orderby = $q->url_param('orderby') || '';
-	my $descending = $q->url_param('descending') || '';
-	my $acl = defined $g{db_tables}{$table}{acls}{$user} ?
-		$g{db_tables}{$table}{acls}{$user} : '';
-	my $can_add = ($acl =~ /a/);
-	my $can_edit = ($acl =~ /w/);
-	my $can_delete = ($acl =~ /w/);
+	my ($s, $list, $page) = @_;
 
-	my $next_refresh = NextRefresh();
-
-	# select view / table
-	my $view;
-	if(exists $g{db_tables}{"${table}_list"}) {
-		$view = "${table}_list";
-	}
-	else {
-		$view = $table;
-	}
-
-	# does the view/table exist?
-	if(not defined $g{db_fields_list}{$view}) {
-		die "no such table: $view\n";
-	}
+	my $can_edit = ($list->{acl} =~ /w/);
+	my $can_delete = $can_edit;
 
 	my %template_args = (
-		USER => $user,
-		PAGE => 'list',
-		URL => $myurl,
-		TABLE => $table,
-		TITLE => "$g{db_tables}{$table}{desc}",
+		USER => $s->{user},
+		PAGE => $page,
+		URL => $s->{url},
+		TABLE => $list->{spec}{view},
+		TITLE => "$g{db_tables}{$list->{spec}{table}}{desc}",
+		ORDERBY => $list->{spec}{orderby},
 	);
-	
-	my @fields_list = @{$g{db_fields_list}{$view}};
-	my $fields = $g{db_fields}{$view};
 
-	# header
-	GUI_InitTemplateArgs($q, \%template_args);
-	GUI_Header($s, \%template_args);
+	my $fields = $g{db_fields}{$list->{spec}{view}};
 
-	# filterfirst
-	my ($filterfirst_field, $filterfirst_value) =  GUI_FilterFirst($s, $dbh, $table, \%template_args);
-
-	# search
-	my ($search_field, $search_value) = GUI_Search($s, $view, \%template_args);
-
-	# TABLE
+	# <TABLE>
 	$template_args{ELEMENT}='table';
 	print Template(\%template_args);
+	$s->{in_table}=1; # die will put a </TABLE>
 
-	# die will put a </TABLE>
-	$s->{in_table}=1;
-
-	my $f;
-	my $skip_id = 0;
-	# if hid, then do not show id.
-	if(grep /^${table}_hid$/, @fields_list) {
-		$skip_id = 1;
-	}
-	# orderby
-	if($orderby eq '') {
-		if(not defined $g{db_tables}{$view}{meta_sort}) {
-			$orderby = $skip_id ? $fields_list[1] : $fields_list[0];
-		}
-	}
-	$template_args{ORDERBY}=$orderby;
-
-	# HEADER
+	# header
 	$template_args{ELEMENT}='tr';
-	$template_args{HEADER}=1;
 	print Template(\%template_args);
-
-	foreach $f (@fields_list) {
-		if($skip_id and $f eq "${table}_id") { next; }
-
+	for my $f (@{$list->{fields}}) {
 		my $sort_url;
-		if($orderby eq $f) {
-			if($descending) {
-				$sort_url = MakeURL($myurl, { descending=>'' });
-			}
-			else {
-				$sort_url = MakeURL($myurl, { descending=>1 });
-			}
+		if($list->{spec}{orderby} eq $f) {
+			my $d = $list->{spec}{descending} ? '' : 1;
+			$sort_url = MakeURL($s->{url}, { descending => $d });
 		}
 		else {
-			$sort_url = MakeURL($myurl, { orderby=>"$f", descending=>'' });
+			$sort_url = MakeURL($s->{url}, { orderby => "$f", descending=>'' });
 		}
 
 		$template_args{ELEMENT}='th';
@@ -489,9 +324,10 @@ sub GUI_List($$$)
 		$template_args{FIELD}=$f;
 		$template_args{SORT_URL}=$sort_url;
 		print Template(\%template_args);
-		delete $template_args{DATA};
-		delete $template_args{SORT_URL};
 	}
+	delete $template_args{DATA};
+	delete $template_args{FIELD};
+	delete $template_args{SORT_URL};
 	if($can_edit) {
 		$template_args{ELEMENT}='th_edit';
 		print Template(\%template_args);
@@ -502,284 +338,99 @@ sub GUI_List($$$)
 	}
 	$template_args{ELEMENT}='xtr';
 	print Template(\%template_args);
-	delete $template_args{HEADER};
 
 	# data
-	my $offset = $q->url_param('offset') || 0;
-	my $fetch_state=0;
-	my $data;
-	my $fetched = 0;
-	my $fetchamount = $q->url_param('list_rows') || $g{conf}{list_rows};
-	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,
-		-descending => $descending,
-		-orderby => $orderby,
-		-limit => $fetchamount+1,
-		-offset => $offset,
-		-fields => \@fields_list,
-		-search_field => $search_field,
-		-search_value => $search_value,
-		-filter_field => $filterfirst_field,
-		-filter_value => $filterfirst_value)))
-	{
-		$fetched++;
-		if($fetched>$fetchamount) { next; }
-		my $id = $data->[0];
-
-		if($fetched%2) { $template_args{EVENROW}=1; }
-		else           { $template_args{ODDROW}=1; }
-
+	for my $row (@{$list->{data}}) {
 		$template_args{ELEMENT}='tr';
-		$template_args{ID}=$id;
 		print Template(\%template_args);
 
-		my $i=0;
-		$template_args{ELEMENT}='td';
-		my $skip_first = $skip_id;
-		my $d;
-		foreach $d (@$data) {
-			if($skip_first) {
-				$skip_first=0;
-			}
-			else {
-				my $field_name = $g{db_fields_list}{$view}[$i];
-				$template_args{FIELDNAME}=$field_name;
-				my $field_type = $g{db_fields}{$view}{$field_name}{type};
-				$template_args{FIELDTYPE}=$field_type;
-				$template_args{DATA}=GUI_DB2HTML($d, $field_type);
-				print Template(\%template_args);
-				delete $template_args{DATA};
-			}
-			$i++;
-		}
-		delete $template_args{FIELDTYPE};
-
-		# edit button
-		if($can_edit) {
-			my $edit_url;
-			if(defined $id and $id ne '') {
-				$edit_url = MakeURL($myurl, {
-					action=>'edit',
-					id=>$id,
-					refresh=>$next_refresh,
-				}); 
-			}
-			else {
-				# not a real entry (virtual row, outer join): fill in fields
-				my %fields_hash;
-				@fields_hash{@fields_list} = (@$data);
-				# in the _list, normally the hid of the referenced
-				# record is shown...
-				# it is then called ref_hid instead of table_ref
-				foreach(@fields_list) {
-					/^(.+)_hid$/ or next;
-					my $ref = $1;
-					my $f = "${table}_$ref";
-					$fields_hash{$f}=$fields_hash{$_};
-					delete $fields_hash{$_};
-				}
-				my $fields_str = GUI_Hash2Str(\%fields_hash);
-
-				$edit_url = MakeURL($myurl, {
-						action=>'reedit',
-						reedit_action=>'add',
-						reedit_data=>$fields_str,
-						refresh => $next_refresh,
-					});
-			}
-			$template_args{ELEMENT}='td_edit';
-			$template_args{EDIT_URL}=$edit_url;
+		for my $d (@{$row->[1]}) {
+			$template_args{ELEMENT}='td';
+			$template_args{DATA}=$d;
 			print Template(\%template_args);
-			delete $template_args{EDIT_URL};
 		}
 
-		# delete button
-		if($can_delete) {
-			my $delete_url;
-			if(defined $id) {
-				$delete_url =  MakeURL($myurl, {
-					action=>'delete',
-					id=>$id,
-					refresh=>$next_refresh,
-					});
-			}
-			$template_args{ELEMENT}='td_delete';
-			$template_args{DELETE_URL}=$delete_url;
-			print Template(\%template_args);
-			delete $template_args{DELETE_URL};
-		}
+		print GUI_EditLink($s, $list, $row) if can_edit;
+		print GUI_DeleteLink($s, $list, $row) if can_delete;
 
 		$template_args{ELEMENT}='xtr';
+		delete $template_args{DATA};
 		print Template(\%template_args);
-
-		delete $template_args{ID};
-		if($fetched%2) { delete $template_args{EVENROW}; }
-		else           { delete $template_args{ODDROW}; }
 	}
 
+	# </TABLE>
 	$template_args{ELEMENT}='xtable';
 	print Template(\%template_args);
+	$s->{in_table}=0;
+}
 
-	# die won't put a </TABLE>
-	delete $s->{in_table};
+sub GUI_ListButtons($$$$)
+{
+	my ($s, $list, $page, $position) = @_;
 
-	# buttons
-	my $nextoffset = $fetched == $fetchamount+1 ? $offset+$fetchamount : $offset;
-	my $prevoffset = $offset-$fetchamount; if($prevoffset<=0) { $prevoffset=''; }
-	my $add_url  = $can_add ? MakeURL($myurl, {
+	my $next_refresh = NextRefresh;
+
+	my $nextoffset = $list->{offset}+$list->{limit};
+	my $prevoffset = $list->{offset}-$list->{limit};
+	$prevoffset >= 0 or $prevoffset = 0;
+
+	my $add_url  = $can_add ? $s->{url}, {
 			action => 'add',
 			refresh => $next_refresh,
 		}) : undef;
-	my $prev_url = $offset != 0 ? MakeURL($myurl, { offset => $prevoffset }) : undef;
-	my $next_url = $fetched == $fetchamount+1 ? MakeURL($myurl, { offset => $nextoffset }) : undef;
+
+	my $prev_url = $list->{offset} != 0 ? MakeURL($s->{url},
+		{ offset => $prevoffset }) : undef;
+	my $next_url = $list->{end} ? MakeURL($s->{url},
+		{ offset => $nextoffset }) : undef;
 
 	$template_args{ELEMENT}='buttons';
 	$template_args{ADD_URL}=$add_url;
 	$template_args{PREV_URL}=$prev_url;
 	$template_args{NEXT_URL}=$next_url;
 	print Template(\%template_args);
-
-	# footer
-	GUI_Footer(\%template_args);
 }
 
-sub GUI_ListRep($$$)
+sub GUI_List($$$)
 {
-	my $s = shift;
+	my ($s, $user, $dbh) = @_;
 	my $q = $s->{cgi};
-	my $user = shift;
-	my $dbh = shift;
-	my $myurl = MyURL($q);
-	my $view = $q->url_param('table');
-	my $orderby = $q->url_param('orderby') || '';
-	my $descending = $q->url_param('descending') || '';
-	
+	my $table = $q->url_param('table');
+
 	my %template_args = (
 		USER => $user,
-		PAGE => 'listrep',
-		TITLE => $g{db_tables}{$view}{desc},
-		URL => $myurl,
-		TABLE => $view,
+		PAGE => 'list',
+		URL => $s->{url},
+		TABLE => $table,
+		TITLE => "$g{db_tables}{$table}{desc}",
 	);
-	
-	if(not defined $g{db_fields_list}{$view}) {
-		GUI_InitTemplateArgs($q, \%template_args);
-		GUI_Header($s, \%template_args);
-		print "<P>Can't find table $view\n";
-		GUI_Footer(\%template_args);
-		return;
-	}
-	my @fields_list = @{$g{db_fields_list}{$view}};
-	my $fields = $g{db_fields}{$view};
 
 	# header
 	GUI_InitTemplateArgs($q, \%template_args);
 	GUI_Header($s, \%template_args);
 
-	# filterfirst
-	my ($filterfirst_field, $filterfirst_value) =  GUI_FilterFirst($s, $dbh, $view, \%template_args);
+	# build list-spec
+	my %spec = (
+		table => $table,
+		view => defined $g{db_tables}{"${table}_list"} ?
+			"${table}_list" : $table,
+		offset => $q->url_param('offset') || 0,
+		limit => $q->url_param('list_rows') || $g{conf}{list_rows},
+		orderby => $q->url_param('orderby') || '',
+		descending => $q->url_param('descending') || 0,
+	);
 
-	# search
-	my ($search_field, $search_value) = GUI_Search($s, $view, \%template_args);
+	# fetch list
+	my $list = DB_FetchList($s, \%spec);
+	
+	# top buttons
+	GUI_ListButtons($s, $list, 'list', 'top');
 
-	# orderby
-	if($orderby eq '') {
-		if(not defined $g{db_tables}{$view}{meta_sort}) {
-			$orderby = $fields_list[0];
-		}
-	}
-	$template_args{ORDERBY}=$orderby;
+	# display table
+	GUI_ListTable($s, $list, 'list');
 
-	# header / column names
-	$template_args{ELEMENT}='table';
-	print Template(\%template_args);
-	$template_args{ELEMENT}='tr';
-	$template_args{HEADER}=1;
-	print Template(\%template_args);
-	my $f;
-	foreach $f (@fields_list) {
-		my $sort_url;
-		if($orderby eq $f) {
-			if($descending) {
-				$sort_url = MakeURL($myurl, { descending=>'' });
-			}
-			else {
-				$sort_url = MakeURL($myurl, { descending=>1 });
-			}
-		}
-		else {
-			$sort_url = MakeURL($myurl, { orderby=>"$f", descending=>'' });
-		}
-		$template_args{ELEMENT}='th';
-		$template_args{DATA}=$fields->{$f}{desc};
-		$template_args{FIELD}=$f;
-		$template_args{SORT_URL}=$sort_url;
-		print Template(\%template_args);
-		delete $template_args{SORT_URL};
-		delete $template_args{DATA};
-	}
-	delete $template_args{HEADER};
-
-	# data
-	my $offset = $q->url_param('offset') || 0;
-	my $fetch_state=0;
-	my $data;
-	my $fetched = 0;
-	my $fetchamount = $q->url_param('listrep_rows') || $q->url_param('list_rows') || $g{conf}{list_rows};
-	while(defined ($data = DB_FetchList(\$fetch_state,$dbh,$view,
-		-descending => $descending,
-		-orderby => $orderby,
-		-limit => $fetchamount+1,
-		-offset => $offset,
-		-search_field => $search_field,
-		-search_value => $search_value,
-		-filter_field => $filterfirst_field,
-		-filter_value => $filterfirst_value)))
-	{
-		$fetched++;
-		if($fetched>$fetchamount) { next; }
-
-		if($fetched%2) { $template_args{EVENROW}=1; }
-		else           { $template_args{ODDROW}=1; }
-
-		my @data = @{$data};
-		$template_args{ELEMENT}='tr';
-		print Template(\%template_args);
-
-		my $i=0;
-		$template_args{ELEMENT}='td';
-		my $d;
-		foreach $d (@data) {
-			my $field_name = $g{db_fields_list}{$view}[$i];
-			$template_args{FIELDNAME}=$field_name;
-			my $field_type = $g{db_fields}{$view}{$field_name}{type};
-			$template_args{FIELDTYPE}=$field_type;
-			$template_args{DATA}=GUI_DB2HTML($d, $field_type);
-			print Template(\%template_args);
-			delete $template_args{DATA};
-			$i++;
-		}
-		delete $template_args{FIELDTYPE};
-
-		$template_args{ELEMENT}='xtr';
-		print Template(\%template_args);
-
-		if($fetched%2) { delete $template_args{EVENROW}; }
-		else           { delete $template_args{ODDROW}; }
-	}
-
-	$template_args{ELEMENT}='xtable';
-	print Template(\%template_args);
-
-	# buttons
-	my $nextoffset = $fetched == $fetchamount+1 ? $offset+$fetchamount : $offset;
-	my $prevoffset = $offset-$fetchamount; if($prevoffset<=0) { $prevoffset=''; }
-	my $prev_url = $offset != 0 ? MakeURL($myurl, { offset => $prevoffset }) : undef;
-	my $next_url = $fetched == $fetchamount+1 ? MakeURL($myurl, { offset => $nextoffset }) : undef;
-
-	$template_args{ELEMENT}='buttons';
-	$template_args{PREV_URL}=$prev_url;
-	$template_args{NEXT_URL}=$next_url;
-	print Template(\%template_args);
+	# bottom buttons
+	GUI_ListButtons($s, $list, 'list', 'bottom');
 
 	# footer
 	GUI_Footer(\%template_args);
@@ -791,7 +442,7 @@ sub GUI_ListRep($$$)
 # of '%'.
 sub GUI_URL_Encode($)
 {
-	$str = shift;
+	my ($str) = @_;
 	defined $str or $str = '';
 	$str =~ s/!/gedafe_PROTECTED_eXclamatiOn/g;
 	$str =~ s/\W/'!'.sprintf('%2X',ord($&))/eg;
@@ -801,41 +452,55 @@ sub GUI_URL_Encode($)
 
 sub GUI_URL_Decode($)
 {
-	$_ = shift;
-	s/!([0-9a-fA-F]{2})/pack("c",hex($1))/ge;
-	return $_;
+	my ($str) = @_;
+	$str =~ s/!([0-9a-fA-F]{2})/pack("c",hex($1))/ge;
+	return $str;
 }
 
 sub GUI_Hash2Str($)
 {
-	my $record = shift;
+	my ($record) = @_;
 	my @data = ();
-
-	foreach(keys %$record) {
-		my $d = GUI_URL_Encode($record->{$_});
-		push @data, "$_:$d";
+	for my $f (keys %$record) {
+		my $d = GUI_URL_Encode($record->{$f});
+		push @data, "$f:$d";
 	}
-	return join(',',@data);
+	return join(',', @data);
 }
 
-sub GUI_Str2Hash($$)
+sub GUI_Str2Hash($)
 {
-	my $str = shift;
-	my $hash = shift;
-
-	foreach my $s (split(/,/, $str)) {
+	my ($str) = @_;
+	my %hash = ();
+	for my $s (split(/,/, $str)) {
 		if($s =~ /^(.*?):(.*)$/) {
-			$hash->{$1} = GUI_URL_Decode($2);
+			$hash{$1} = GUI_URL_Decode($2);
+		}
+	}
+	return \%hash;
+}
+
+sub GUI_WidgetRead($$)
+{
+	my ($s, $f) = @_;
+	my $q = $s->{cgi};
+	my $dbh = $s->{dbh};
+	my $field = $f->{field};
+	my $w = $f->{widget_type};
+
+	my $value = $q->param("field_$field");
+
+	if($w eq 'hid' or $w eq 'hidcombo') {
+		if(defined $value and $value !~ /^\s*$/) {
+			$value=DB_HID2ID($dbh,$f->{widget_args}{'ref'},$value);
 		}
 	}
 }
 
 sub GUI_PostEdit($$$)
 {
-	my $s = shift;
+	my ($s, $user, $dbh) = @_;
 	my $q = $s->{cgi};
-	my $user = shift;
-	my $dbh = shift;
 
 	my $action = $q->param('post_action');
 	if(not defined $action) { return; }
@@ -902,10 +567,8 @@ sub GUI_PostEdit($$$)
 
 sub GUI_Edit($$$)
 {
-	my $s = shift;
+	my ($s, $user, $dbh) = @_;
 	my $q = $s->{cgi};
-	my $user = shift;
-	my $dbh = shift;
 	my $action = $q->url_param('action');
 	my $table = $q->url_param('table');
 	my $id = $q->url_param('id');
@@ -932,8 +595,8 @@ sub GUI_Edit($$$)
 		ID => $id,
 		REEDIT => $reedit,
 	);
-	
-	my $form_url = MakeURL(MyURL($q), { refresh => NextRefresh() });
+
+	my $form_url = MakeURL($s->{url}, { refresh => NextRefresh() });
 	my $next_url;
 	my $cancel_url = MakeURL($form_url, {
 		action => 'list',
@@ -1029,11 +692,7 @@ sub GUI_Edit($$$)
 
 sub GUI_MakeCombo($$$$$)
 {
-	my $dbh = shift;
-	my $table = shift;
-	my $field = shift;
-	my $name = shift;
-	my $value = shift;
+	my ($dbh, $table, $field, $name, $value) = @_;
 
 	$value =~ s/^\s+//;
 	$value =~ s/\s+$//;
@@ -1067,17 +726,11 @@ sub GUI_MakeCombo($$$$$)
 
 sub GUI_EditField($$$$)
 {
-	my $s = shift;
-	my $dbh = shift;
-	my $table = shift;
-	my $field = shift;
-	my $value = shift;
+	my ($dbh, $table, $field, $value) = @_;
 
-	my $meta = $g{db_fields}{$table}{$field};
-	my $type = $meta->{type};
-        my $length = $meta->{atttypmod}-4;
- 	my $widget = $meta->{widget} || '';
+	my $f = $g{db_fields}{$table}{$field};
 
+	# get default from DB
 	if(not defined $value or $value eq '') {
 		$value = DB_GetDefault($dbh,$table,$field);
 		if(not defined $value) {
@@ -1143,13 +796,11 @@ sub GUI_EditField($$$$)
 
 sub GUI_Delete($$$)
 {
-	my $s = shift;
+	my ($s, $user, $dbh) = @_;
 	my $q = $s->{cgi};
-	my $user = shift;
-	my $dbh = shift;
 	my $table = $q->url_param('table');
 	my $id = $q->url_param('id');
-	my $next_url = MakeURL(MyURL($q), { action=>'list', id=>'' });
+	my $next_url = MakeURL($s->{url}, { action=>'list', id=>'' });
 
 	my %template_args = (
 		PAGE => 'delete',

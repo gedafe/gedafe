@@ -1,6 +1,6 @@
 # Gedafe, the Generic Database Frontend
-# copyright (c) 2000,2001 ETH Zurich
-# see http://isg.ee.ethz.ch/tools/gedafe
+# copyright (c) 2000-2002 ETH Zurich
+# see http://isg.ee.ethz.ch/tools/gedafe/
 
 # released under the GNU General Public License
 

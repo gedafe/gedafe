@@ -1,6 +1,6 @@
 # Gedafe, the Generic Database Frontend
-# copyright (c) 2000,2001 ETH Zurich
-# see http://isg.ee.ethz.ch/tools/gedafe
+# copyright (c) 2000-2002 ETH Zurich
+# see http://isg.ee.ethz.ch/tools/gedafe/
 
 # released under the GNU General Public License
 
@@ -29,52 +29,53 @@ require Exporter;
 );
 
 sub DB_ReadDatabase($);
-sub DB_ReadTables($);
+sub DB_ReadTables($$);
 sub DB_ReadTableAcls($$);
-sub DB_ReadFields($$);
+sub DB_ReadFields($$$);
+
+my %type_widget_map = (
+	'date'      => 'text(size=10)',
+	'time'      => 'text(size=10)',
+	'timestamp' => 'text(size=22)',
+	'int4'      => 'text(size=10)',
+	'int8'      => 'text(size=10)',
+	'numeric'   => 'text(size=10)',
+	'float8'    => 'text(size=10)',
+	'bpchar'    => 'text(size=40)',
+	'text'      => 'text',
+	'name'      => 'text(size=20)',
+	'bool'      => 'checkbox',
+);
 
 sub DB_Init($$)
 {
-	my $user = shift;
-	my $pass = shift;
-	my $dbh = DBI->connect_cached("$g{conf}{db_datasource}", $user, $pass) or return undef;
-	my $sth;
-
-	my ($table, $field);
+	my ($user, $pass) = @_;
+	my $dbh = DBI->connect_cached("$g{conf}{db_datasource}", $user, $pass) or
+		return undef;
 
 	# read database
 	$g{db_database} = DB_ReadDatabase($dbh);
 
 	# read tables
-	$g{db_tables} = DB_ReadTables($dbh);
-	$g{db_editable_tables_list} = [];
-	$g{db_report_views} = [];
-	for $table (sort { $g{db_tables}{$a}{desc} cmp
-		$g{db_tables}{$b}{desc} } keys %{$g{db_tables}})
-	{
-		if($g{db_tables}{$table}{editable}) {
-			push @{$g{db_editable_tables_list}}, $table;
-		}
-		if($g{db_tables}{$table}{report}) {
-			push @{$g{db_report_views}}, $table;
-		}
-	}
+	$g{db_tables} = DB_ReadTables($dbh, $g{db_database});
+	defined $g{db_tables} or return undef;
+	# order tables
+	$g{db_tables_list} = [ sort { $g{db_tables}{$a}{desc} cmp
+		$g{db_tables}{$b}{desc} } keys %{$g{db_tables}} ];
 
-	# table acls
-	DB_ReadTableAcls($dbh, $g{db_tables});
+	# read table acls
+	DB_ReadTableAcls($dbh, $g{db_tables}) or return undef;
 
 	# read fields
-	$g{db_fields} = DB_ReadFields($dbh, $g{db_tables});
-
+	$g{db_fields} = DB_ReadFields($dbh, $g{db_database}, $g{db_tables});
+	defined $g{db_fields} or return undef;
 	# order fields
-	for $table (keys %{$g{db_tables}}) {
-		for $field (
-			sort { $g{db_fields}{$table}{$a}{order} <=>
-				$g{db_fields}{$table}{$b}{order}}
-			keys %{$g{db_fields}{$table}} )
-		{
-			push @{$g{db_fields_list}{$table}}, $field;
-		}
+	for my $table (@{$g{db_tables_list}}) {
+		$g{db_fields_list}{$table} =
+			[ sort { $g{db_fields}{$table}{$a}{order} <=>
+				$g{db_fields}{$table}{$b}{order} }
+				keys %{$g{db_fields}{$table}}
+			];
 	}
 
 	return 1;
@@ -86,13 +87,20 @@ sub DB_ReadDatabase($)
 	my ($sth, $query, $data);
 	my %database = ();
 
-	# version
-	$query = "SELECT version()";
+	# PostgreSQL version
+	$query = "SELECT VERSION()";
 	$sth = $dbh->prepare($query);
-	$sth->execute() or die $sth->errstr;
-	$data = $sth->fetchrow_arrayref() or die $sth->errstr;
-	$data->[0] =~ /PostgreSQL (7\.\d+\.\d+)/ or die "unknown database version: $data->[0]\n";
-	$database{version}=$1;
+	$sth->execute() or return undef;
+	$data = $sth->fetchrow_arrayref();
+	$sth->finish;
+	if($data->[0] =~ /^PostgreSQL (\d+\.\d+)/) {
+		$database{version} = $1;
+	}
+	else {
+		# we don't support versions older than 7.0
+		# if VERSION() doesn't exist, assume 7.0
+		$database{version} = '7.0';
+	}
 
 	# database oid
 	my $oid;
@@ -103,7 +111,7 @@ sub DB_ReadDatabase($)
 	$oid = $data->[0];
 	$sth->finish;
 
-	# read table comments as descriptions
+	# read database name from database comment
 	$query = "SELECT description FROM pg_description WHERE objoid = $oid";
 	$sth = $dbh->prepare($query);
 	$sth->execute() or die $sth->errstr;
@@ -114,12 +122,11 @@ sub DB_ReadDatabase($)
 	return \%database;
 }
 
-sub DB_ReadTables($)
+sub DB_ReadTables($$)
 {
-	my $dbh = shift;
+	my ($dbh, $database) = @_;
 	my %tables = ();
-
-	my ($query, $sth, $data, $table);
+	my ($query, $sth, $data);
 
 	# combo
 	# 7.0: views have relkind 'r'
@@ -132,39 +139,54 @@ FROM pg_class c
 WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND c.relname !~ '^pg_'
 END
-	$sth = $dbh->prepare($query) or die $dbh->errstr;
-	$sth->execute() or die $sth->errstr;
+	$sth = $dbh->prepare($query) or return undef;
+	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
 		$tables{$data->[0]} = { };
-		next if $data->[0] =~ /(^meta_|(_combo|_list)$)/;
+		if($data->[0] =~ /^meta|(_list|_combo)$/) {
+			$tables{$data->[0]}{hide} = 1;
+		}
 		if($data->[0] =~ /_rep$/) {
 			$tables{$data->[0]}{report} = 1;
-		}
-		else {
-			$tables{$data->[0]}{editable} = 1;
 		}
 	}
 	$sth->finish;
 
+	# find out combo boxes
+	for my $table (keys %tables) {
+		if($table =~ /^(.*)_combo$/ and defined $tables{$1}) {
+			$tables{$1}{combo}=1;
+		}
+	}
+
 	# read table comments as descriptions
-	$query = <<'END';
+	if($database->{version} >= 7.2) {
+		$query = <<'END';
+SELECT c.relname, obj_description(c.oid, 'pg_class')
+FROM pg_class c
+WHERE (c.relkind = 'r' OR c.relkind = 'v')
+AND c.relname !~ '^pg_'
+END
+	}
+	else {
+		$query = <<'END';
 SELECT c.relname, d.description 
 FROM pg_class c, pg_description d
 WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND c.relname !~ '^pg_'
-AND c.relname !~ '(^meta_|_combo$)'
 AND c.oid = d.objoid
-ORDER BY d.description
 END
-	$sth = $dbh->prepare($query) or die $dbh->errstr;
-	$sth->execute() or die $sth->errstr;
+	}
+	$sth = $dbh->prepare($query) or return undef;
+	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
+		next unless defined $tables{$data->[0]};
 		$tables{$data->[0]}{desc} = $data->[1];
 	}
 	$sth->finish;
 
 	# set not-defined table descriptions
-	for $table (keys %tables) {
+	for my $table (keys %tables) {
 		next if defined $tables{$table}{desc};
 		if(exists $tables{"${table}_list"} and defined
 			$tables{"${table}_list"}{desc})
@@ -181,22 +203,12 @@ END
 	$sth = $dbh->prepare($query) or die $dbh->errstr;
 	$sth->execute() or die $sth->errstr;
 	while ($data = $sth->fetchrow_arrayref()) {
-		my $table = lc($data->[0]);
-		next if not defined $tables{$table};
+		next unless defined $tables{$data->[0]};
 		my $attr = lc($data->[1]);
 		$tables{$table}{meta}{$attr}=$data->[2];
 		if($attr eq 'hide' and $data->[2]) {
-			delete $tables{$table}{editable};
+			$tables{$data->[0]}{hide}=1;
 		}
-	}
-	$sth->finish;
-	
-	$query = "SELECT 1 FROM pg_class c WHERE (c.relkind = 'r' OR c.relkind='v') AND c.relname = ?";
-	$sth = $dbh->prepare($query);
-	for $table (keys %tables) {
-		$sth->execute("${table}_combo");
-		if($sth->rows==0) { next; }
-		$tables{$table}{combo}=1;
 	}
 	$sth->finish;
 
@@ -205,8 +217,8 @@ END
 
 sub DB_MergeAcls($$)
 {
-	my $a = shift;
-	my $b = shift;
+	my ($a, $b) = @_;
+
 	$a = '' unless defined $a;
 	$b = '' unless defined $a;
 	my %acls = ();
@@ -221,10 +233,9 @@ sub DB_MergeAcls($$)
 
 sub DB_ReadTableAcls($$)
 {
-	my $dbh = shift;
-	my $tables = shift;
+	my ($dbh, $tables) = @_;
 
-	my ($query, $sth, $data, $table);
+	my ($query, $sth, $data);
 
 	# users
 	my %db_users;
@@ -292,12 +303,76 @@ sub DB_ReadTableAcls($$)
 	return 1;
 }
 
-sub DB_ReadFields($$)
+# DB_Widget: determine widget from type if not explicitely defined
+sub DB_Widget($$)
 {
-	my $dbh = shift;
-	my $tables = shift;
+	my ($fields, $f) = @_;
 
-	my ($query, $sth, $data, $table, $field);
+	return $f->{widget} if defined $f->{widget};
+
+	# HID and combo-boxes
+	if($f->{type} eq 'int4' or $f->{type} eq 'int8') {
+		if(defined $f->{reference}) {
+			my $r  = $f->{reference};
+			my $rt = $g{db_tables}{$r};
+			defined $rt or die "table $f->{reference}, referenced from $f->{table}:$f->{field}, not found.\n";
+			if(defined($rt->{combo})) {
+				if(defined $fields->{$r}{"${r}_hid"}) {
+					# Combo with HID
+					return "hidcombo(ref=$r)";
+				}
+				return "idcombo(ref=$r)";
+			}
+			return "hid(ref=$r)";
+		}
+		return $type_widget_map{$f->{type}};
+	}
+	elsif($f->{type} eq 'varchar') {
+		my $len = $f->{atttypmod}-4;
+		return "text(size=$len,maxlength=$len)";
+	}
+	else {
+		my $w = $type_widget_map{$f->{type}};
+		defined $w or die "unknown widget for type $f->{type} ($f->{table}:$f->{field}).\n";
+		return $w;
+	}
+}
+
+# Parse widget specification, split args, verify if it is a valid widget
+sub DB_ParseWidget($$)
+{
+	my $fields = shift;
+	my $widget = shift;
+	$widget =~ /^(\w+)(\((.*)\))?$/ or die "syntax error for widget: $widget";
+	my ($type, $args_str) = ($1, $3);
+	my %args=();
+	if(defined $args_str) {
+		for my $w (split('\s*,\s*',$args_str)) {
+			$w =~ s/^\s+//;
+			$w =~ s/\s+$//;
+			$w =~ /^(\w+)\s*=\s*(.*)$/ or die "syntax error in $type-widget argument: $w";
+			$args{$1}=$2;
+		}
+	}
+
+	# verify
+	if($type eq 'idcombo' or $type eq 'hidcombo') {
+		my $r = $args{'ref'};
+		defined $r or die "widget $widget: mandatory argument 'ref' not defined";
+		defined $g{db_tables}{$r} or die "widget $widget: no such table: $r";
+		if($type eq 'hidcombo') {
+			defined $fields->{$r}{"${r}_hid"} or
+				die "widget $widget: table $r has no HID";
+		}
+	}
+
+	return ($type, \%args);
+}
+
+sub DB_ReadFields($$$)
+{
+	my ($dbh, $database, $tables) = @_;
+	my ($query, $sth, $data);
 	my %fields = ();
 
 	# fields
@@ -309,7 +384,7 @@ AND a.attrelid = c.oid AND a.atttypid = t.oid
 ORDER BY a.attnum
 END
 	$sth = $dbh->prepare($query);
-	for $table (keys %$tables) {
+	for my $table (keys %$tables) {
 		$sth->execute($table) or die $sth->errstr;
 		my $order = 1;
 		while ($data = $sth->fetchrow_arrayref()) {
@@ -332,17 +407,29 @@ END
 	my %field_descs = ();
 
 	# read field comments as descriptions
-	$query = <<'END';
+	if($database->{version} >= 7.2) {
+		$query = <<'END';
+SELECT a.attname, col_description(a.attrelid, a.attnum)
+FROM pg_class c, pg_attribute a
+WHERE c.relname = ? AND a.attnum > 0
+AND a.attrelid = c.oid
+END
+	}
+	else {
+		$query = <<'END';
 SELECT a.attname, d.description
 FROM pg_class c, pg_attribute a, pg_description d
-WHERE c.relname = ? AND a.attnum > 0
+WHERE c.relname = 'product' AND a.attnum > 0
 AND a.attrelid = c.oid
 AND a.oid = d.objoid
 END
-	$sth = $dbh->prepare($query) or die $dbh->errstr;
-	for $table (keys %$tables) {
+	}
+
+	$sth = $dbh->prepare($query);
+	for my $table (keys %$tables) {
 		$sth->execute($table) or die $sth->errstr;
 		while ($data = $sth->fetchrow_arrayref()) {
+			defined $data->[1] and $data->[1] !~ /^\s*$/ or next;
 			$fields{$table}{$data->[0]}{desc}=$data->[1];
 			$field_descs{$data->[0]} = $data->[1];
 		}
@@ -350,8 +437,8 @@ END
 	$sth->finish;
 
 	# set not-defined field descriptions
-	for $table (keys %$tables) {
-		for $field (keys %{$fields{$table}}) {
+	for my $table (keys %$tables) {
+		for my $field (keys %{$fields{$table}}) {
 			my $f = $fields{$table}{$field};
 			if(not defined $f->{desc}) {
 				if(defined $field_descs{$field}) {
@@ -370,8 +457,8 @@ SELECT d.adsrc FROM pg_attrdef d, pg_class c WHERE
 c.relname = ? AND c.oid = d.adrelid AND d.adnum = ?;
 END
 	$sth = $dbh->prepare($query) or die $dbh->errstr;
-	for $table (keys %$tables) {
-		for $field (keys %{$fields{$table}}) {
+	for my $table (keys %$tables) {
+		for my $field (keys %{$fields{$table}}) {
 			if(! $fields{$table}{$field}{atthasdef}) { next; }
 			$sth->execute($table, $fields{$table}{$field}{attnum}) or die $sth->errstr;
 			my $d = $sth->fetchrow_arrayref();
@@ -410,8 +497,9 @@ END
 	# go through every table and field and fill-in:
 	# - table information in reference fields
 	# - meta information from meta_fields
-	table: for $table (keys %$tables) {
-		field: for $field (keys %{$fields{$table}}) {
+	# - widget from type (if not specified)
+	table: for my $table (keys %$tables) {
+		field: for my $field (keys %{$fields{$table}}) {
 			my $f = $fields{$table}{$field};
 			my $m = undef;
 			if(defined $meta_fields{$table}) {
@@ -483,107 +571,150 @@ sub DB_GetDefault($$$)
 	return $default;
 }
 
-sub DB_FetchList($$$;%)
+sub DB_DB2HTML($$)
 {
-	my $sth = shift;
+	my $str = shift;
+	my $type = shift;
+
+	# undef -> ''
+	$str = '' unless defined $str;
+
+	# trim space
+	$str =~ s/^\s+//;
+	$str =~ s/\s+$//;
+
+	if($type eq 'bool') {
+		$str = ($str ? 'yes' : 'no');
+	}
+	if($type eq 'text' and $str !~ /<[^>]+>/) { #make sure the text does not contain html
+		$str =~ s/\n/<BR>/g;
+	}
+	if($str eq '') {
+		$str = '&nbsp;';
+	}
+
+	return $str;
+}
+
+sub DB_FetchListSelect($$) {
 	my $dbh = shift;
-	my $table = shift;
-	my %otherargs = @_;
+	my $spec = shift;
+	my $v = $spec->{view};
 
-	my $orderby = $otherargs{'-orderby'};
-	my $descending = $otherargs{'-descending'};
-	my $limit = $otherargs{'-limit'};
-	my $offset = $otherargs{'-offset'};
-	my $search_field = $otherargs{'-search_field'};
-	my $search_value = $otherargs{'-search_value'};
-	my $filter_field = $otherargs{'-filter_field'};
-	my $filter_value = $otherargs{'-filter_value'};
-	my $fieldsref = $otherargs{'-fields'};
+	# does the view/table exist?
+	if(not defined $g{db_fields_list}{$v}) {
+		die "no such table: $v\n";
+	}
 
-	my @fields;
-	if(defined $fieldsref) {
-		@fields = @$fieldsref;
+	my @fields = @{$g{db_fields_list}{$v}};
+
+	my $query = "SELECT ";
+	$query .= join(', ',@fields);
+	$query .= " FROM $v";
+	my $searching=0;
+	if(defined $spec->{search_field} and defined $spec->{search_value}
+		and $spec->{search_field} ne '' and $spec->{search_value} ne '')
+	{
+		my $type = $g{db_fields}{$v}{$spec->{search_field}}{type};
+		if($type eq 'date') {
+			$query .= " WHERE $spec->{search_field} = '$spec->{search_value}'";
+		}
+		elsif($type eq 'bool') {
+			$query .= " WHERE $spec->{search_field} = '$spec->{search_value}'";
+		}
+		else {
+			$query .= " WHERE $spec->{search_field} ~* '.*$spec->{search_value}.*'";
+		}
+		$searching=1;
+	}
+	if(defined $spec->{filter_field} and defined $spec->{filter_value}) {
+		if($searching) {
+			$query .= ' AND';
+		}
+		else {
+			$query .= ' WHERE';
+		}
+		$query .= " $spec->{filter_field} = '$spec->{filter_value}'";
+	}
+	if(defined $spec->{orderby} and $spec->{orderby} ne '') {
+		if(defined $g{db_fields}{$v}{$spec->{orderby}}{sortfunc}) {
+			my $f = $g{db_fields}{$v}{$spec->{orderby}}{sortfunc};
+			$query .= " ORDER BY $f($spec->{orderby})";
+		}
+		else {
+			$query .= " ORDER BY $spec->{orderby}";
+		}
+		if($spec->{descending}) {
+			$query .= " DESC";
+		}
+		if(defined $g{db_tables}{$v}{meta_sort}) {
+			$query .= ", $v.meta_sort";
+		}
+	}
+	elsif(defined $g{db_tables}{$v}{meta_sort}) {
+		$query .= " ORDER BY $v.meta_sort";
+	}
+	if(defined $spec->{limit}) {
+		$query .= " LIMIT $spec->{limit}";
+	}
+	if(defined $spec->{offset}) {
+		$query .= " OFFSET $spec->{offset}";
+	}
+	print "\n<!-- $query -->\n";
+	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
+	$sth->execute() or die $sth->errstr;
+	return (\@fields, $sth);
+}
+
+sub DB_FetchList($$)
+{
+	my $s = shift;
+	my $spec = shift;
+
+	my $dbh = $s->{dbh};
+	my $user = $s->{user};
+	my $v = $spec->{view};
+
+	# can the user edit this view?
+	my $acl = defined $g{db_tables}{$v}{acls}{$user} ?
+		$g{db_tables}{$v}{acls}{$user} : '';
+	my $can_edit = ($acl =~ /w/);
+	
+	# fetch one row more than necessary, so that we
+	# can find out when we are at the end
+	$spec->{limit}++;
+
+	my %list;
+	$list{spec} = $spec;
+	$list{acl} = $acl;
+	my $sth;
+	($list{fields}, $sth) = DB_FetchListSelect($dbh, $spec);
+
+	while(my $data = $sth->fetchrow_arrayref()) {
+		my $col;
+		my @row;
+		for($col=0; $col<=$#$data; $col++) {
+			my $name = $list{fields}[$col];
+			my $type = $g{db_fields}{$v}{$name}{type};
+			push @row, DB_DB2HTML($data->[$col], $type);
+		}
+
+		my $id = $data->[0] if $can_edit;
+
+		push @{$list{data}}, [ $id, \@row ];
+	}
+	die $sth->errstr if $sth->err;
+
+	# are we at the end?
+	if(scalar @{$list{data}} != $spec->{limit}) {
+		$list{end} = 1
 	}
 	else {
-		@fields = @{$g{db_fields_list}{$table}};
+		$list{end} = 0;
+		pop @{$list{data}}; # we did get one more than requested
 	}
 
-	# construct statement handle
-	if(! $$sth) {
-		my $query = "SELECT ";
-		$query .= join(', ',@fields);
-		$query .= " FROM $table";
-		my $searching=0;
-		if(defined $search_field and defined $search_value
-			and $search_field ne '' and $search_value ne '')
-		{
-			my $type = $g{db_fields}{$table}{$search_field}{type};
-			if($type eq 'date') {
-				$query .= " WHERE $search_field = '$search_value'";
-			}
-			elsif($type eq 'bool') {
-				$query .= " WHERE $search_field = '$search_value'";
-			}
-			else {
-				$query .= " WHERE $search_field ~* '.*$search_value.*'";
-			}
-			$searching=1;
-		}
-		if(defined $filter_field and defined $filter_value) {
-			if($searching) {
-				$query .= ' AND';
-			}
-			else {
-				$query .= ' WHERE';
-			}
-			$query .= " $filter_field = '$filter_value'";
-		}
-		if(defined $orderby and $orderby ne '') {
-			if(defined $g{db_fields}{$table}{$orderby}{sortfunc}) {
-				my $f = $g{db_fields}{$table}{$orderby}{sortfunc};
-				$query .= " ORDER BY $f($orderby)";
-			}
-			else {
-				$query .= " ORDER BY $orderby";
-			}
-			if(defined $descending and $descending) {
-				$query .= " DESC";
-			}
-			if(defined $g{db_tables}{$table}{meta_sort}) {
-				$query .= ", $table.meta_sort";
-			}
-		}
-		elsif(defined $g{db_tables}{$table}{meta_sort}) {
-			$query .= " ORDER BY $table.meta_sort";
-		}
-		if(defined $limit) {
-			$query .= " LIMIT $limit";
-		}
-		if(defined $offset) {
-			$query .= " OFFSET $offset";
-		}
-		$$sth = $dbh->prepare_cached($query) or die $dbh->errstr;
-		print "<!-- Executing: $query -->\n";
-		$$sth->execute() or die $$sth->errstr;
-	}
-
-	my $data = $$sth->fetchrow_arrayref();
-	if(! defined $data) {
-		die $$sth->errstr if $$sth->err;
-		return undef;
-	}
-
-	my @html_data;
-	my $f;
-	my $i=0;
-	for $f (@fields) {
-		my $type = $g{db_fields}{$table}{$f}{type};
-		push @html_data, $data->[$i];
-		$i++;
-	}
-
-	$g{db_error}=undef;
-	return \@html_data;
+	return \%list;
 }
 
 sub DB_GetRecord($$$$)
@@ -598,7 +729,7 @@ sub DB_GetRecord($$$$)
 	# fetch raw data
 	my $data;
 	my $query = "SELECT ";
-	$query .= join(', ', @fields_list);
+	$query .= join(', ', @{$g{db_fields_list}{$table}});
 	$query .= " FROM $table WHERE ${table}_id = $id";
 	my $sth;
 	$sth = $dbh->prepare_cached($query) or die $dbh->errstr;
