@@ -53,27 +53,6 @@ Example:
    customer_age INT,
    customer_address TEXT);
 
-=head2 ID 2 HID and Back
-
-If a table has a B<hid> you must provide functions for converting
-B<hid> to B<id> and back. The functions must be called
-I<table>B<_is2hid> and I<table>B<_his2id>. Each must take one argument
-and return the other.
-
-Example:
- 
- CREATE FUNCTION gender_hid2id(CHAR(5)) returns int4
-    AS 'SELECT gender_id 
-        FROM gender 
-        WHERE gender_hid = $1' 
- LANGUAGE 'sql';
-
- CREATE FUNCTION gender_id2hid(INT4) returns CHAR(5)
-    AS 'SELECT gender_hid 
-        FROM gender 
-        WHERE gender_id = $1'
- LANGUAGE 'sql';
-
 =head2 Table and Field Naming
 
 For the benefit of a friendly presentation, each field and table in

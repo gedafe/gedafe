@@ -1,3 +1,7 @@
+2000-11-18
+----------
+* the hid2id and id2hid functions must not be specified anymore
+
 2000-11-16
 ----------
 * reimplement (0,1) -> (no,yes) conversion for boolean types
