@@ -1,31 +1,34 @@
 =head1 NAME
 
-gedafe-user - the Generic Database Frontend (Gedafe) User-Manual
+gedafe-user - the Generic Database Front-End (GeDaFE) User-Manual
 
 =head1 DESCRIPTION
 
-Gedafe (the Generic Database Frontend) is a web-based database frontend
+GeDaFE (the Generic Database Front-End) is a web-based database front-end
 that is database-application independent. That means that the (perl) code
 doesn't contain any information about what tables are present in the
 database or how the data is organized.
 
 This is only possible if a fullfeatured SQL dB server like PostgreSQL
 is used as backend. PostgreSQL permits to define not only the format
-of the various tables and fields but also how tables are related to
+of the various tables and fields, but also how tables are related to
 each other. It is even possible to write powerful functions inside the
-database which get executed as new data is accessed or modified.
+database which get executed as new data is accessed or
+modified. Together, these features allow the implementation of data
+integrity constraints inside the database itself.
 
 The effect of this is, that the database server guarantees the
-integrity of the database independently from the software used to
-access the database.  The frontend can read all the integrity
+integrity of the database, independently from the software used to
+access the database. A front-end can read all the integrity
 constraints directly off the database and enforce them itself in order
 to provide faster response to the user, but at the end of the day the
-database server will only accept data which fits its own rules.
+database server will only accept data which follow the rules defined
+by the database programmer.
 
-Overall, this approach makes the creation and maintenance of Database
+Overall, this approach makes the creation and maintenance of database
 applications much simpler. New databases can be created on the
 database server alone, using the language which is best suited for
-this task: SQL. The frontend then comes almost for free.
+this task: SQL. The front-end then comes almost for free.
 
 =head2 Features
 
@@ -40,27 +43,30 @@ about the structure or contents of the database it is working with.
 
 =item * 
 
-I<Authentication> is done at the database-level. And it is URL
-transparent.  This means you can directly go to the URL of the page
-you want to look at, if necessary, the login screen will pop up and
-after successful login you will be transported to the page you
-initially requested. 
+I<Authentication> is done at the database-level. 
 
 =item *
 
-Almost no HTML is used in the frontend code. External template files
+It is URL transparent.  This means, you can directly access the URL of
+the page you want to look at. If necessary, the login screen will pop
+up and after a successful login you will be presented the page you
+initially requested.
+
+=item *
+
+Almost no HTML is used in the front-end code. External template files
 define the look and feel of pages.
 
 =item *
 
 POST is used only for data that modifies the database. Every page has
-a distinc URL, which makes them storable as bookmarks (Deep Linking).
+a distinct URL, which makes them storable as bookmarks (Deep Linking).
 
 =item *
 
-I<Double form protection>. It is not possible to accidently submit the
-same form twice. Because in each form comes with a unique serial
-number.
+I<Double form protection>. The front-end prevents accidental repeated
+submission of the same form. This is implemented using a unique serial
+number for each form.
 
 =back
 
@@ -69,19 +75,19 @@ number.
 The structure of the Gedafe distribution is as follows:
 
  .
- |-- bin/              binaries (gedafed daemon)
- |-- doc/              documentation
+ |-- bin/             binaries (gedafed daemon)
+ |-- doc/             documentation
  |-- lib/              
  |   `-- perl/
- |       `-- Gedafe/    gedafed main source
+ |       `-- Gedafe/  gedafed main source
  `-- example
-     |-- templates/    HTML templates
+     |-- templates/   HTML templates
      |-- demo.cgi     demo-application  script
      `-- demo.sql     PostgreSQL script to initialize the
                       demo-application database
 
-In order to start using gedafe you have to ensure that F<lib/perl> of
-the Gedafe distribution is found by F<perl> and start the F<gedafed>
+In order to start using gedafe you must ensure that F<lib/perl> of the
+Gedafe distribution is found by F<perl> and start the F<gedafed>
 daemon (you can use the script gedafed-ctl to start it with
 SYSV-init).
 
@@ -110,11 +116,15 @@ as follows:
 
 Gedafe gathers information about the database structure when it is
 started.  This process can take a lot of time, it is therefor strongly
-suggested that you use a persistent perl instance with for example
+suggested that you use a persistent perl instance, for example
 I<speedy>. I<mod_perl> works also great, but you have to be careful if
 you run multiple database applications, since if the same persistent
 perl is used, the cached data of the applications will go in the same
-global variable, which is certainly not what you want.
+global variables, which is certainly not what you want.
+
+Of course, you must specify the correct path name to your perl
+interpreter in the first line of the script (unless you use a
+webserver perl module).
 
 Very important in this script is the first 'use' statement. It should
 point to where you have stored F<lib/perl> of the
@@ -143,12 +153,13 @@ Default number of rows to show.
 =item admin_user
 
 Name of the administrator user. A tag is passed to the html templates
-when the user is this one to for example change the background color.
+when the logged in user matches this username. This tag can, for
+example, be used to change the background color.
 
 =item templates
 
-Directory where the html templates are stored (copy as a basis
-F<example/templates>)
+The directory where the html templates are stored (you can use a copy
+F<example/templates> as a basis for you local modifications).
 
 =item documentation_url
 
@@ -159,9 +170,10 @@ application is stored.
 
 =head2 The gedafed Daemon
 
-Gedafe uses an external process to manage session data called
-gedafed. This daemon must be running to make Gedafe work. You can
-start it in the init phase using the bin/gedafed-ctl script.
+Gedafe uses an external process called gedafed to manage session
+data. This daemon must be running to make Gedafe work. You can start
+it during the boot process of your server using the bin/gedafed-ctl
+script.
 
 =head2 The Database
 
@@ -173,37 +185,40 @@ Gedafe.
 =head2 Authentication
 
 Authentication is done with the help of gedafed. This daemon stores
-user/password pairs using a random-generated "ticket", which is stored in a
-cookie on the client side. To make these tickets more secure gedafed manages an
-expiration on these tickets. Every time that ticket is used, it's expiration
-is prolonged by a certain amount (configured in the script) of seconds. The
-result is that if the database isn't accessed for a certain amount of time,
-the ticket isn't anymore valid and login must be made.
+user/password pairs using a random-generated "ticket", which is stored
+in a cookie on the client side. To make these tickets more secure
+gedafed manages an expiration on these tickets. Every time that ticket
+is used, it's expiration is prolonged by a certain amount of seconds
+(configured in the script).  If the database isn't accessed for a
+certain amount of time, the ticket is expired and a new login must be
+made.
 
-The login screen is transparent to the page accessed: whenever a login is
-needed, the login screen is first presented, after which the requested page is
-shown.
+The login screen is transparent to the page accessed: whenever a login
+is needed, the login screen is first presented, after which the
+requested page is shown.
 
-Warning: Gedafe will not work with blank passwords. If you want to do anonymous
-logins, you may put the user in the url (as an additional parameter,
-user=xxx&...) and the password sent to the database will be 'anonymous'.
+Warning: Gedafe will not work with blank passwords. If you want to do
+anonymous logins, you may put the user in the url (as an additional
+parameter, user=xxx&...) and the password sent to the database will be
+'anonymous'.
 
 =head2 Forms and Navigation
 
 The navigation and general use of Gedafe should be straightforward. At the
 beginning, you are presented with the "Entry" page that contains links to every
-table to edit and every available report.
+table to edit and to every available report.
 
-For forms, the guiding principle while designing Gedafe was 'POST is evil, use
-it the less possible'. The reason for it is that if a generated page depends on
-POST data, that page can't be stored in a bookmark and the browsers have
-problems handling the reloading of pages obtained with a POST request. For that
-reason, POST was used only for database-modifying actions that needed to
-transfer large amounts of data.
+For forms, the guiding principle while designing Gedafe was 'POST is
+evil, use it the least possible'. The reason for it is that if a
+generated page depends on POST data, that page can't be stored in a
+bookmark and the browsers have problems handling the reloading of
+pages obtained with a POST request. For that reason, POST was used
+only for database-modifying actions where large amounts of data must
+be transferred.
 
 =head2 HTML Layout
 
-Almost no HTML is present in the perl code. The HTML is generated with the help
+Almost no HTML is used in the perl code. The HTML is generated with the help
 of Text::CPPTemplate, a very simple C-preprocessor-style templating system
 included in the Gedafe distribution. The templates are taken from a directory
 specified in the startup script with the 'templates' parameter.
@@ -225,7 +240,7 @@ Name of the element (for example I<header> or I<td>).
 
 =back
 
-In addition to these, element-specific data such as I<DATA> for the I<td>
+In addition, element-specific data such as I<DATA> for the I<td>
 element must be defined. Text::CPPTemplate will then search for an appropriate
 template to use and generate the HTML code. See L<Text::CPPTemplate(3)> for a
 description of the syntax and how the templates are stored in files. See also
@@ -248,8 +263,8 @@ subdirectory of the templates directory)
 
 =item *
 
-In the URL: C<reload=1> reset all the cached data. This is useful if you for
-example change a template file or the structure of the database.
+In the URL: C<reload=1> reset all the cached data. This is useful, for
+example, if you changed a template file or the structure of the database.
 
 =item *
 
@@ -265,19 +280,20 @@ be multiplied by 100/60 and added to C<hh>.
 
 =head2 Caching and Bookmarks
 
-A difficulty that we encountered while developing Gedafe was the caching of
-pages by the browser.  We have to control precisely when a page can be cached
-and when not. The implementation is made with the C<refresh> URL parameter:
-when it is set, the expiration of the page is set to some positive value,
-meaning that the page can be cached, and when not available, the expiration is
-negative, meaning that the page should not be cached. The value of C<refresh>
-is a random number, that we can change to force a reload of the page.
+A difficulty that we encountered while developing Gedafe was the
+caching of pages by the browser.  We have to control precisely when a
+page can be cached and when not. The implementation is made with the
+C<refresh> URL parameter: when it is set, the expiration of the page
+is set to some positive value, meaning that the page can be cached. If
+C<refresh> is not available, the expiration is negative, meaning that
+the page should not be cached. The value of C<refresh> is a random
+number, that can be changed to force a reload of the page.
 
 A side-effect of this technique is that pages with C<refresh> in the URL are
 not suitable to be stored as bookmarks, since you would then get always the
 same cached version. For that reason, bookmarks should be always saved without
 the C<refresh> parameter, such that a new version of the page is always
-requested to the server. There is a link on every page, that you can drag to
+requested from the server. There is a link on every page, that you can drag to
 store the currently viewed page.
 
 =head1 FUTURE WORK
@@ -286,24 +302,24 @@ store the currently viewed page.
 
 =item *
 
-Ports to other databases such as Ingres and Oracle.
+Ports to other databases such as Ingres or Oracle.
 
 =item *
 
-We will probably change completely or improve the templating system, since it is very
-primitive right now. A possibility is Template::Toolkit.
+We will probably completely rework and improve the templating system,
+since it is very primitive right now. A possibility is the usage of
+Template::Toolkit.
 
 =item *
 
-We will integrate PearlReports (by Tobias Oetiker <oetiker@ee.ethz.ch>, not yet
-released) into Gedafe to allow generating with the HTML interface real reports
-in HTML and perhaps also directly in PDF.
+We will integrate PearlReports (by Tobias Oetiker
+<oetiker@ee.ethz.ch>, not yet released) into Gedafe to allow more
+powerful report generation in HTML and perhaps also in PDF directly
+from the HTML interface.
 
 =item *
 
-Internal code cleanup. We are evaluating if now that we have experience on how
-to do such an application right from the beginning, a better implementation
-could be gained through a rewrite.
+Internal code cleanup and possibly code rewrite.
 
 =back
 
