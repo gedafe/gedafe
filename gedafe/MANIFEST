@@ -8,6 +8,7 @@ bin/daemon-ctl
 bin/gedafed
 bin/gedafed-ctl
 doc/cpptemplate.txt
+doc/gedafe-pearls.pod
 doc/gedafe-sql.pod
 doc/gedafe-sql.txt
 doc/gedafe-templates.txt
@@ -21,6 +22,7 @@ example/images/delete.gif
 example/images/edit.gif
 example/images/gedafe-button.gif
 example/java/isearch.jar
+example/mypearls/demo.pm
 example/templates/auth_error.html
 example/templates/compact/header2.html
 example/templates/compact/header_table.html
@@ -36,6 +38,7 @@ example/templates/editfield.html
 example/templates/editform_footer.html
 example/templates/editform_header.html
 example/templates/entry_entrytable.html
+example/templates/entry_pearls_list_header.html
 example/templates/entry_reports_list_header.html
 example/templates/entry_tables_list_header.html
 example/templates/error.html
@@ -60,10 +63,12 @@ example/templates/tr.html
 example/templates/xtable.html
 example/templates/xtr.html
 example/useful-functions.sql
+lib/perl/DBIx/PearlReports.pm
 lib/perl/Gedafe/Auth.pm
 lib/perl/Gedafe/DB.pm
 lib/perl/Gedafe/GUI.pm
 lib/perl/Gedafe/Global.pm
+lib/perl/Gedafe/Pearl.pm
 lib/perl/Gedafe/Start.pm
 lib/perl/Gedafe/Util.pm
 lib/perl/Text/CPPTemplate.pm
