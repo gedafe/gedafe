@@ -125,7 +125,7 @@ sub MakeURL($$;$)
 		if(defined $params{$_} and $params{$_} ne ''){
 			if($deletekeys){
 				foreach my $del (@$deletekeys){
-					if ($_ =~ /^$del$/){
+					if ($_ =~ /$del/){
 						delete $params{$_};
 					}
 				}
