@@ -66,7 +66,9 @@ COMMENT ON COLUMN customer.customer_last_modified_by IS 'Last modified by';
 -- meta information
 INSERT INTO meta_fields VALUES (DEFAULT,'customer', 'customer_address', 'widget', 'area');
 INSERT INTO meta_fields VALUES (DEFAULT,'customer', 'customer_email', 'markup', 1);
+
 INSERT INTO meta_tables VALUES (DEFAULT,'customer', 'longcomment','Our lovely Customers');
+INSERT INTO meta_tables VALUES ('customer','editmask','mask_customer.html');
 
 -- combo-box
 DROP VIEW customer_combo;

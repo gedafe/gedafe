@@ -4,10 +4,20 @@
 
 (arrows indicate actions that you should make when upgrading)
 ------------------------------------------------------------------
+HEAD    (2004-03-22)
+	You can now supply a hand-crafted edit mask template
+
+	This makes it possible to make edit masks more user friendly, 
+	to use Java Script for input control, etc.
+	A very ugly example "customer" template is supplied for the 
+	"customer" table.
+		Johannes
+------------------------------------------------------------------
 HEAD    (2004-03-19)
 	You can move the Edit/Clone/Delete buttons in the list
 	view to the left. Supply the new parameter edit_buttons_left
 	and set it to 1 in the Start() function
+		Johannes
 ------------------------------------------------------------------
 HEAD    (2004-03-12)
 	Long comments 
