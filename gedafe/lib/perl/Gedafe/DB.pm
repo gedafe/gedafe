@@ -364,19 +364,18 @@ sub DB_GetDefault($$$)
 	my $query = $g{db_fields}{$table}{$field}{default};
 	return undef unless defined $query;
 
-	if($g{db_fields}{$table}{$field}{ref_hid}) {
-		my $ref = $g{db_fields}{$table}{$field}{reference};
-		$query = DB_ID2HID($dbh, $ref, $query);
-	}
-
 	$query = "SELECT ".$query;
-
 	my $sth = $dbh->prepare_cached($query) or return undef;
 	print "<!-- Executing: $query -->\n";
 	$sth->execute() or return undef;
 	my $d = $sth->fetchrow_arrayref();
 	my $default = $d->[0];
 	$sth->finish or return undef;
+
+	if($g{db_fields}{$table}{$field}{ref_hid}) {
+		my $ref = $g{db_fields}{$table}{$field}{reference};
+		$default = DB_ID2HID($dbh, $ref, $default);
+	}
 
 	return $default;
 }
