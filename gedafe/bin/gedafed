@@ -160,7 +160,7 @@ while(defined (my $conn = $socket->accept)) {
 			myprint $conn, "FAIL\n";
 		}
 	}
-	elsif(/^FILE ([\w-]+) (\S+) ([\w\/]+) (\d+)$/) {
+	elsif(/^FILE ([\w-]+) (\S+) ([-\w\/]+) (\d+)$/) {
 	        my $id     = $1;
 	        my $name   = $2;
 	        my $type   = $3;
