@@ -344,31 +344,33 @@ sub GUI_Entry($$$)
 		print Template(\%template_args);
 	}
 
-	$template_args{ELEMENT}='pearls_list_header';
-	print Template(\%template_args);
-
-	$template_args{ELEMENT}='entrytable';
-	foreach my $t (sort {$a cmp $b} keys %{$g{pearls}}) {
-		if (ref $g{pearls}{$t}) {
-			@template_args{qw(TABLE_DESC TABLE_INFO)}=($g{pearls}{$t}->info);
-			$template_args{TABLE_URL}= MakeURL($s->{url}, {
-								       action => 'configpearl',
-								       pearl=> $t,
-								       table  => undef,
-								       refresh => $refresh,
-								      });
-		} else {
-			$template_args{REPORT}=1;
-			@template_args{qw(TABLE_DESC TABLE_INFO)}=($t,$g{pearls}{$t});
-			$template_args{TABLE_URL}= MakeURL($s->{url}, {
-								       action => 'entry',
-								       pearl=> $t,
-								       table  => undef,
-								       refresh => $refresh,
-								      });
-			$template_args{REPORT}=1;
-		}
+	if(defined $g{pearls} and scalar %{$g{pearls}}) {
+		$template_args{ELEMENT}='pearls_list_header';
 		print Template(\%template_args);
+
+		$template_args{ELEMENT}='entrytable';
+		foreach my $t (sort {$a cmp $b} keys %{$g{pearls}}) {
+			if (ref $g{pearls}{$t}) {
+				@template_args{qw(TABLE_DESC TABLE_INFO)}=($g{pearls}{$t}->info);
+				$template_args{TABLE_URL}= MakeURL($s->{url}, {
+					action => 'configpearl',
+					pearl=> $t,
+					table  => undef,
+					refresh => $refresh,
+				});
+			} else {
+				$template_args{REPORT}=1;
+				@template_args{qw(TABLE_DESC TABLE_INFO)}=($t,$g{pearls}{$t});
+				$template_args{TABLE_URL}= MakeURL($s->{url}, {
+					action => 'entry',
+					pearl=> $t,
+					table  => undef,
+					refresh => $refresh,
+				});
+				$template_args{REPORT}=1;
+			}
+			print Template(\%template_args);
+		}
 	}
 
 	GUI_Footer(\%template_args);
