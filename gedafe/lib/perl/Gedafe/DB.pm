@@ -304,6 +304,72 @@ sub DB_ReadTableAcls($$)
 	return 1;
 }
 
+# DB_Widget: determine widget from type if not explicitely defined
+sub DB_Widget($$)
+{
+	my $fields = shift;
+	my $f = shift;
+	return $f->{widget} if defined $f->{widget};
+
+	# HID and combo-boxes
+	if($f->{type} eq 'int4') {
+		if(defined $f->{reference}) {
+			my $r  = $f->{reference};
+			my $rt = $g{db_tables}{$r};
+			defined $rt or die "table $f->{reference}, referenced from $f->{table}:$f->{field}, not found.\n";
+			if(defined($rt->{combo})) {
+				if(defined $fields->{$r}{"${r}_hid"}) {
+					# Combo with HID
+					return "hidcombo(ref=$r)";
+				}
+				return "idcombo(ref=$r)";
+			}
+			return "hid(ref=$r)";
+		}
+		return $type_widget_map{$f->{type}};
+	}
+	elsif($f->{type} eq 'varchar') {
+		my $len = $f->{atttypmod}-4;
+		return "text(size=$len,maxlength=$len)";
+	}
+	else {
+		my $w = $type_widget_map{$f->{type}};
+		defined $w or die "unknown widget for type $f->{type} ($f->{table}:$f->{field}).\n";
+		return $w;
+	}
+}
+
+# Parse widget specification, split args, verify if it is a valid widget
+sub DB_ParseWidget($$)
+{
+	my $fields = shift;
+	my $widget = shift;
+	$widget =~ /^(\w+)(\((.*)\))?$/ or die "syntax error for widget: $widget";
+	my ($type, $args_str) = ($1, $3);
+	my %args=();
+	if(defined $args_str) {
+		for my $w (split('\s*,\s*',$args_str)) {
+			$w =~ s/^\s+//;
+			$w =~ s/\s+$//;
+			$w =~ /^(\w+)\s*=\s*(.*)$/ or die "syntax error in $type-widget argument: $w";
+			$args{$1}=$2;
+		}
+	}
+
+	# verify
+	if($type eq 'idcombo' or $type eq 'hidcombo') {
+		my $r = $args{'ref'};
+		defined $r or die "widget $widget: mandatory argument 'ref' not defined";
+		defined $g{db_tables}{$r} or die "widget $widget: no such table: $r";
+		if($type eq 'hidcombo') {
+			defined $fields->{$r}{"${r}_hid"} or
+				die "widget $widget: table $r has no HID";
+		}
+	}
+
+	return ($type, \%args);
+}
+
 sub DB_ReadFields($$)
 {
 	my $dbh = shift;
@@ -425,6 +491,8 @@ END
 	table: for $table (keys %$tables) {
 		field: for $field (keys %{$fields{$table}}) {
 			my $f = $fields{$table}{$field};
+			$f->{table} = $table;
+			$f->{field} = $field;
 			my $m = undef;
 			if(defined $meta_fields{$table}) {
 				$m = $meta_fields{$table}{$field};
@@ -435,40 +503,9 @@ END
 				$f->{copy}      = $m->{copy}      if exists $m->{copy};
 				$f->{sortfunc}  = $m->{sortfunc}  if exists $m->{sortfunc};
 			}
-			next if defined $f->{widget};
-
-			# determine widget from type:
-
-			# HID and combo-boxes
-			if($f->{type} eq 'int4') {
-				if(defined $f->{reference}) {
-					my $r  = $f->{reference};
-					my $rt = $tables->{$f->{reference}};
-					defined $rt or die "table $f->{reference}, referenced from $table:$field, not found.\n";
-					if(defined($rt->{combo})) {
-						if(defined $fields{$r}{"${r}_hid"}) {
-							# Combo with HID
-							$f->{widget}="hidcombo(ref=$r)";
-						}
-						else {
-							$f->{widget}="idcombo(ref=$r)";
-						}
-						next field;
-					}
-					else {
-						$f->{widget}="hid(ref=$r)";
-					}
-				}
-			}
-			if($f->{type} eq 'varchar') {
-				my $len = $f->{atttypmod}-4;
-				$f->{widget} = "text(size=$len,maxlength=$len)";
-				next field;
-			}
-
-			my $w = $type_widget_map{$f->{type}};
-			defined $w or die "unknown widget for type $f->{type} ($table:$field).\n";
-			$f->{widget} = $w;
+			$f->{widget} = DB_Widget(\%fields, $f);
+			($f->{widget_type}, $f->{widget_args}) =
+				DB_ParseWidget(\%fields, $f->{widget});
 		}
 	}
 
@@ -646,6 +683,7 @@ sub DB_ID2HID($$$)
 	my $id = shift;
 
 	return unless defined $id and $id ne '';
+	#return $id unless defined $g{db_fields}{$table}{"${table}_hid"};
 	my $q = "SELECT ${table}_hid FROM ${table} WHERE ${table}_id = '$id'";
 	my $sth = $dbh->prepare_cached($q) or die $dbh->errstr;
 	$sth->execute or die $sth->errstr;
