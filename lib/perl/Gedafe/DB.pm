@@ -29,16 +29,9 @@ require Exporter;
 );
 
 sub DB_ReadDatabase($);
-sub DB_ReadTables($$);
+sub DB_ReadTables($);
 sub DB_ReadTableAcls($$);
-sub DB_ReadFields($$$);
-
-sub _debug_dump($)
-{
-	my $str = shift;
-	$str =~ s/-->/-- >/;
-	print "<!-- DEBUG: $str -->\n";
-}
+sub DB_ReadFields($$);
 
 sub DB_Init($$)
 {
@@ -53,8 +46,7 @@ sub DB_Init($$)
 	$g{db_database} = DB_ReadDatabase($dbh);
 
 	# read tables
-	$g{db_tables} = DB_ReadTables($dbh, $g{db_database});
-	defined $g{db_tables} or return undef;
+	$g{db_tables} = DB_ReadTables($dbh);
 	$g{db_editable_tables_list} = [];
 	$g{db_report_views} = [];
 	for $table (sort { $g{db_tables}{$a}{desc} cmp
@@ -69,11 +61,11 @@ sub DB_Init($$)
 	}
 
 	# table acls
-	DB_ReadTableAcls($dbh, $g{db_tables}) or return undef;
+	DB_ReadTableAcls($dbh, $g{db_tables});
 
 	# read fields
-	$g{db_fields} = DB_ReadFields($dbh, $g{db_database}, $g{db_tables});
-	defined $g{db_fields} or return undef;
+	$g{db_fields} = DB_ReadFields($dbh, $g{db_tables});
+
 	# order fields
 	for $table (keys %{$g{db_tables}}) {
 		for $field (
@@ -94,49 +86,37 @@ sub DB_ReadDatabase($)
 	my ($sth, $query, $data);
 	my %database = ();
 
-	# PostgreSQL version
-	$query = "SELECT VERSION()";
+	# version
+	$query = "SELECT version()";
 	$sth = $dbh->prepare($query);
-	$sth->execute() or return undef;
-	$data = $sth->fetchrow_arrayref();
-	$sth->finish;
-	if($data->[0] =~ /^PostgreSQL (\d+\.\d+)/) {
-		$database{version} = $1;
-	}
-	else {
-		# we don't support versions older than 7.0
-		# if VERSION() doesn't exist, assume 7.0
-		$database{version} = '7.0';
-	}
+	$sth->execute() or die $sth->errstr;
+	$data = $sth->fetchrow_arrayref() or die $sth->errstr;
+	$data->[0] =~ /PostgreSQL (7\.\d+\.\d+)/ or die "unknown database version: $data->[0]\n";
+	$database{version}=$1;
 
 	# database oid
 	my $oid;
 	$query = "SELECT oid FROM pg_database WHERE datname = '$dbh->{Name}'";
 	$sth = $dbh->prepare($query);
-	$sth->execute() or return undef;
-	$data = $sth->fetchrow_arrayref();
+	$sth->execute() or die $sth->errstr;
+	$data = $sth->fetchrow_arrayref() or die $sth->errstr;
 	$oid = $data->[0];
 	$sth->finish;
 
-	# read database name from database comment
+	# read table comments as descriptions
 	$query = "SELECT description FROM pg_description WHERE objoid = $oid";
 	$sth = $dbh->prepare($query);
-	$sth->execute() or return undef;
-	$data = $sth->fetchrow_arrayref();
-	if($data) {
-		$database{desc} = $data->[0];
-	}
-	else {
-		$database{desc} = $dbh->{Name};
-	}
+	$sth->execute() or die $sth->errstr;
+	$data = $sth->fetchrow_arrayref() or die $sth->errstr;
+	$database{desc} = $data ? $data->[0] : $dbh->{Name};
 	$sth->finish;
 
 	return \%database;
 }
 
-sub DB_ReadTables($$)
+sub DB_ReadTables($)
 {
-	my ($dbh, $database) = @_;
+	my $dbh = shift;
 	my %tables = ();
 
 	my ($query, $sth, $data, $table);
@@ -152,8 +132,8 @@ FROM pg_class c
 WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND c.relname !~ '^pg_'
 END
-	$sth = $dbh->prepare($query) or return undef;
-	$sth->execute() or return undef;
+	$sth = $dbh->prepare($query) or die $dbh->errstr;
+	$sth->execute() or die $sth->errstr;
 	while ($data = $sth->fetchrow_arrayref()) {
 		$tables{$data->[0]} = { };
 		next if $data->[0] =~ /(^meta_|(_combo|_list)$)/;
@@ -167,28 +147,17 @@ END
 	$sth->finish;
 
 	# read table comments as descriptions
-	if($database->{version} >= 7.2) {
-		$query = <<'END';
-SELECT c.relname, obj_description(c.oid, 'pg_class')
-FROM pg_class c
-WHERE (c.relkind = 'r' OR c.relkind = 'v')
-AND c.relname !~ '^pg_'
-AND c.relname !~ '(^meta_|_combo$)'
-END
-	}
-	else {
-		$query = <<'END';
+	$query = <<'END';
 SELECT c.relname, d.description 
 FROM pg_class c, pg_description d
 WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND c.relname !~ '^pg_'
 AND c.relname !~ '(^meta_|_combo$)'
 AND c.oid = d.objoid
+ORDER BY d.description
 END
-	}
-
-	$sth = $dbh->prepare($query) or return undef;
-	$sth->execute() or return undef;
+	$sth = $dbh->prepare($query) or die $dbh->errstr;
+	$sth->execute() or die $sth->errstr;
 	while ($data = $sth->fetchrow_arrayref()) {
 		$tables{$data->[0]}{desc} = $data->[1];
 	}
@@ -209,10 +178,10 @@ END
 
 	# meta_tables
 	$query = 'SELECT meta_tables_table, meta_tables_attribute, meta_tables_value FROM meta_tables';
-	$sth = $dbh->prepare($query) or return undef;
-	$sth->execute() or return undef;
+	$sth = $dbh->prepare($query) or die $dbh->errstr;
+	$sth->execute() or die $sth->errstr;
 	while ($data = $sth->fetchrow_arrayref()) {
-		my $table = $data->[0];
+		my $table = lc($data->[0]);
 		next if not defined $tables{$table};
 		my $attr = lc($data->[1]);
 		$tables{$table}{meta}{$attr}=$data->[2];
@@ -260,8 +229,8 @@ sub DB_ReadTableAcls($$)
 	# users
 	my %db_users;
 	$query = 'SELECT usename, usesysid FROM pg_user';
-	$sth = $dbh->prepare($query) or return undef;
-	$sth->execute() or return undef;
+	$sth = $dbh->prepare($query) or die $dbh->errstr;
+	$sth->execute() or die $sth->errstr;
 	while ($data = $sth->fetchrow_arrayref()) {
 		$db_users{$data->[1]} = $data->[0];
 	}
@@ -270,8 +239,8 @@ sub DB_ReadTableAcls($$)
 	# groups
 	my %db_groups;
 	$query = 'SELECT groname, grolist FROM pg_group';
-	$sth = $dbh->prepare($query) or return undef;
-	$sth->execute() or return undef;
+	$sth = $dbh->prepare($query) or die $dbh->errstr;
+	$sth->execute() or die $sth->errstr;
 	while ($data = $sth->fetchrow_arrayref()) {
 		my $group = $data->[1];
 		if(defined $group) {
@@ -286,9 +255,9 @@ sub DB_ReadTableAcls($$)
 	$sth->finish;
 
 	# acls
-	$query = "SELECT relname, relacl FROM pg_class WHERE relkind = 'r' AND relname !~ '^pg_'";
-	$sth = $dbh->prepare($query) or return undef;
-	$sth->execute() or return undef;
+	$query = "SELECT c.relname, c.relacl FROM pg_class c WHERE (c.relkind = 'r' OR c.relkind='v') AND relname !~ '^pg_'";
+	$sth = $dbh->prepare($query) or die $dbh->errstr;
+	$sth->execute() or die $sth->errstr;
 	while ($data = $sth->fetchrow_arrayref()) {
 		next unless defined $data->[0];
 		next unless defined $data->[1];
@@ -323,9 +292,10 @@ sub DB_ReadTableAcls($$)
 	return 1;
 }
 
-sub DB_ReadFields($$$)
+sub DB_ReadFields($$)
 {
-	my ($dbh,$database,$tables) = @_;
+	my $dbh = shift;
+	my $tables = shift;
 
 	my ($query, $sth, $data, $table, $field);
 	my %fields = ();
@@ -340,7 +310,7 @@ ORDER BY a.attnum
 END
 	$sth = $dbh->prepare($query);
 	for $table (keys %$tables) {
-		$sth->execute($table) or return undef;
+		$sth->execute($table) or die $sth->errstr;
 		my $order = 1;
 		while ($data = $sth->fetchrow_arrayref()) {
 			if($data->[0] eq 'meta_sort') {
@@ -362,29 +332,17 @@ END
 	my %field_descs = ();
 
 	# read field comments as descriptions
-	if($database->{version} >= 7.2) {
-		$query = <<'END';
-SELECT a.attname, col_description(a.attrelid, a.attnum)
-FROM pg_class c, pg_attribute a
-WHERE c.relname = ? AND a.attnum > 0
-AND a.attrelid = c.oid
-END
-	}
-	else {
-		$query = <<'END';
+	$query = <<'END';
 SELECT a.attname, d.description
 FROM pg_class c, pg_attribute a, pg_description d
 WHERE c.relname = ? AND a.attnum > 0
 AND a.attrelid = c.oid
 AND a.oid = d.objoid
 END
-	}
-
-	$sth = $dbh->prepare($query);
+	$sth = $dbh->prepare($query) or die $dbh->errstr;
 	for $table (keys %$tables) {
-		$sth->execute($table) or return undef;
+		$sth->execute($table) or die $sth->errstr;
 		while ($data = $sth->fetchrow_arrayref()) {
-			defined $data->[1] and $data->[1] !~ /^\s*$/ or next;
 			$fields{$table}{$data->[0]}{desc}=$data->[1];
 			$field_descs{$data->[0]} = $data->[1];
 		}
@@ -411,11 +369,11 @@ END
 SELECT d.adsrc FROM pg_attrdef d, pg_class c WHERE
 c.relname = ? AND c.oid = d.adrelid AND d.adnum = ?;
 END
-	$sth = $dbh->prepare($query);
+	$sth = $dbh->prepare($query) or die $dbh->errstr;
 	for $table (keys %$tables) {
 		for $field (keys %{$fields{$table}}) {
 			if(! $fields{$table}{$field}{atthasdef}) { next; }
-			$sth->execute($table, $fields{$table}{$field}{attnum}) or return undef;
+			$sth->execute($table, $fields{$table}{$field}{attnum}) or die $sth->errstr;
 			my $d = $sth->fetchrow_arrayref();
 			$fields{$table}{$field}{default} = $d->[0];
 			$sth->finish;
@@ -428,8 +386,8 @@ END
 SELECT meta_fields_table, meta_fields_field, meta_fields_attribute,
 meta_fields_value FROM meta_fields
 END
-	$sth = $dbh->prepare($query) or return undef;
-	$sth->execute() or return undef;
+	$sth = $dbh->prepare($query) or die $dbh->errstr;
+	$sth->execute() or die $sth->errstr;
 	while ($data = $sth->fetchrow_arrayref()) {
 		$meta_fields{lc($data->[0])}{lc($data->[1])}{lc($data->[2])} =
 			$data->[3];
@@ -441,8 +399,8 @@ END
 SELECT tgargs from pg_trigger, pg_proc where pg_trigger.tgfoid=pg_proc.oid AND pg_trigger.tgname
 LIKE 'RI_ConstraintTrigger%' AND pg_proc.proname = 'RI_FKey_check_ins'
 END
-	$sth = $dbh->prepare($query);
-	$sth->execute() or return undef;
+	$sth = $dbh->prepare($query) or die $dbh->errstr;
+	$sth->execute() or die $sth->errstr;
 	while ($data = $sth->fetchrow_arrayref()) {
 		my @d = split(/(?:\000|\\000)/,$$data[0]); # DBD::Pg 0.95: \\000, DBD::Pg 0.98: \000
 		$meta_fields{$d[1]}{$d[4]}{reference} = $d[2];
@@ -510,12 +468,12 @@ sub DB_GetDefault($$$)
 	return undef unless defined $query;
 
 	$query = "SELECT ".$query;
-	my $sth = $dbh->prepare_cached($query) or return undef;
-	_debug_dump $query;
-	$sth->execute() or return undef;
+	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
+	print "<!-- Executing: $query -->\n";
+	$sth->execute() or die $sth->errstr;
 	my $d = $sth->fetchrow_arrayref();
 	my $default = $d->[0];
-	$sth->finish or return undef;
+	$sth->finish;
 
 	if($g{db_fields}{$table}{$field}{ref_hid}) {
 		my $ref = $g{db_fields}{$table}{$field}{reference};
@@ -525,12 +483,11 @@ sub DB_GetDefault($$$)
 	return $default;
 }
 
-sub DB_FetchList($$$$;%)
+sub DB_FetchList($$$;%)
 {
 	my $sth = shift;
 	my $dbh = shift;
 	my $table = shift;
-	my $errorref = shift;
 	my %otherargs = @_;
 
 	my $orderby = $otherargs{'-orderby'};
@@ -602,17 +559,17 @@ sub DB_FetchList($$$$;%)
 		if(defined $limit) {
 			$query .= " LIMIT $limit";
 		}
-		if(defined $offset and $offset > 0) {
+		if(defined $offset) {
 			$query .= " OFFSET $offset";
 		}
-		$$sth = $dbh->prepare_cached($query) or goto ERROR;
-		#_debug_dump $query;
-		$$sth->execute() or goto ERROR;
+		$$sth = $dbh->prepare_cached($query) or die $dbh->errstr;
+		print "<!-- Executing: $query -->\n";
+		$$sth->execute() or die $$sth->errstr;
 	}
 
 	my $data = $$sth->fetchrow_arrayref();
 	if(! defined $data) {
-		#$$sth->finish or goto ERROR;
+		die $$sth->errstr if $$sth->err;
 		return undef;
 	}
 
@@ -625,11 +582,8 @@ sub DB_FetchList($$$$;%)
 		$i++;
 	}
 
+	$g{db_error}=undef;
 	return \@html_data;
-
-ERROR:
-	$$errorref=$dbh->errstr;
-	return undef;
 }
 
 sub DB_GetRecord($$$$)
@@ -647,10 +601,10 @@ sub DB_GetRecord($$$$)
 	$query .= join(', ', @fields_list);
 	$query .= " FROM $table WHERE ${table}_id = $id";
 	my $sth;
-	$sth = $dbh->prepare_cached($query) or return undef;
-	$sth->execute() or return undef;
-	$data = $sth->fetchrow_arrayref() or return undef;
-	$sth->finish or return undef;
+	$sth = $dbh->prepare_cached($query) or die $dbh->errstr;
+	$sth->execute() or die $sth->errstr;
+	$data = $sth->fetchrow_arrayref() or
+		die ($sth->err ? $sth->errstr : "Record not found ($query)\n");
 
 	# transorm raw data into record
 	my %dbdata = ();
@@ -659,7 +613,7 @@ sub DB_GetRecord($$$$)
 		$dbdata{$_} = $data->[$i];
 		$i++;
 	}
-	DB_DB2Record($dbh, $table, \%dbdata, $record) or return undef;
+	DB_DB2Record($dbh, $table, \%dbdata, $record);
 	
 	return 1;
 }
@@ -672,10 +626,10 @@ sub DB_ID2HID($$$)
 
 	return unless defined $id and $id ne '';
 	my $q = "SELECT ${table}_hid FROM ${table} WHERE ${table}_id = '$id'";
-	my $sth = $dbh->prepare_cached($q) or return undef;
-	$sth->execute or return undef;
+	my $sth = $dbh->prepare_cached($q) or die $dbh->errstr;
+	$sth->execute or die $sth->errstr;
 	my $d = $sth->fetchrow_arrayref();
-	$sth->finish;
+	die $sth->errstr if $sth->err;
 
 	return $d->[0];
 }
@@ -688,10 +642,10 @@ sub DB_HID2ID($$$)
 
 	return unless defined $hid and $hid ne '';
 	my $q = "SELECT ${table}_id FROM ${table} WHERE ${table}_hid = '$hid'";
-	my $sth = $dbh->prepare_cached($q) or return undef;
-	$sth->execute or return undef;
+	my $sth = $dbh->prepare_cached($q) or die $dbh->errstr;
+	$sth->execute or die $sth->errstr;
 	my $d = $sth->fetchrow_arrayref();
-	$sth->finish;
+	die $sth->errstr if $sth->err;
 
 	return $d->[0];
 }
@@ -751,7 +705,6 @@ sub DB_DB2Record($$$$)
 
 		$record->{$f} = $data;
 	}
-	return 1;
 }
 
 sub DB_Record2DB($$$$)
@@ -777,16 +730,13 @@ sub DB_Record2DB($$$$)
 
 		$dbdata->{$f} = $data;
 	}
-
-	return 1;
 }
 
-sub DB_AddRecord($$$$)
+sub DB_AddRecord($$$)
 {
 	my $dbh = shift;
 	my $table = shift;
 	my $record = shift;
-	my $err = shift;
 
 	my $fields = $g{db_fields}{$table};
 	my @fields_list = grep !/${table}_id/, @{$g{db_fields_list}{$table}};
@@ -795,10 +745,7 @@ sub DB_AddRecord($$$$)
 	@fields_list = grep { not defined $g{db_fields}{$table}{$_}{widget} or $g{db_fields}{$table}{$_}{widget} ne 'readonly' } @fields_list;
 
 	my %dbdata = ();
-	DB_Record2DB($dbh, $table, $record, \%dbdata) or do {
-		$$err=$dbh->errstr;
-		return undef;
-	};
+	DB_Record2DB($dbh, $table, $record, \%dbdata);
 
 	my $query = "INSERT INTO $table (";
 	$query   .= join(', ',@fields_list);
@@ -820,46 +767,31 @@ sub DB_AddRecord($$$$)
 	}
 	$query   .= ")";
 
-	_debug_dump $query;
-	my $sth = $dbh->prepare($query) or do {
-		$$err=$dbh->errstr;
-		return undef;
+	print "<!-- Executing: $query -->\n";
+	my $sth = $dbh->prepare($query) or die $dbh->errstr;
+	my $res = $sth->execute() or do {
+		# report nicely the error
+		$g{db_error}=$sth->errstr; return undef;
 	};
-	my $res = $sth->execute();
-	if(not defined $res) {
-		$$err=$dbh->errstr;
-		return undef;
-	}
-	if($res != 1) {
-		$$err = "Number of rows affected is not 1! ($res)";
-		return undef;
-	}
-	$sth->finish or do {
-		$$err=$dbh->errstr;
-		return undef;
-	};
+	$res == 1 or die "Number of rows affected is not 1! ($res)";
 
 	return 1;
 }
 
-sub DB_UpdateRecord($$$$)
+sub DB_UpdateRecord($$$)
 {
 	my $dbh = shift;
 	my $table = shift;
 	my $record = shift;
-	my $err = shift;
 
 	my $fields = $g{db_fields}{$table};
 	my @fields_list = @{$g{db_fields_list}{$table}};
 
 	# filter-out readonly fields
-	@fields_list = grep { not defined $g{db_fields}{$table}{$_}{widget} or $g{db_fields}{$table}{$_}{widget} ne 'readonly' } @fields_list;
+	@fields_list = grep { $g{db_fields}{$table}{$_}{widget} ne 'readonly' } @fields_list;
 
 	my %dbdata = ();
-	DB_Record2DB($dbh, $table, $record, \%dbdata) or do {
-		$$err = $dbh->errstr;
-		return undef;
-	};
+	DB_Record2DB($dbh, $table, $record, \%dbdata);
 
 	my @updates;
 	my $query = "UPDATE $table SET ";
@@ -876,24 +808,13 @@ sub DB_UpdateRecord($$$$)
 	$query .= join(', ',@updates);
 	$query .= " WHERE ${table}_id = $record->{id}";
 
-	_debug_dump $query;
-	my $sth = $dbh->prepare($query) or do {
-		$$err = $dbh->errstr;
-		return undef;
+	print "<!-- Executing: $query -->\n";
+	my $sth = $dbh->prepare($query) or die $dbh->errstr;
+	my $res = $sth->execute() or do {
+		# report nicely the error
+		$g{db_error}=$sth->errstr; return undef;
 	};
-	my $res = $sth->execute();
-	if(not defined $res) {
-		$$err = $dbh->errstr;
-		return undef;
-	}
-	if($res != 1) {
-		$$err = "Number of rows affected is not 1! ($res)";
-		return undef;
-	}
-	$sth->finish or do {
-		$$err = $dbh->errstr;
-		return undef;
-	};
+	$res == 1 or die "Number of rows affected is not 1! ($res)";
 
 	return 1;
 }
@@ -912,13 +833,16 @@ sub DB_GetCombo($$$)
 	else {
 		$query .= " ORDER BY id";
 	}
-	my $sth = $dbh->prepare_cached($query) or return undef;
-	$sth->execute() or return undef;
+	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
+	$sth->execute() or die $sth->errstr;
 	my $data;
 	while($data = $sth->fetchrow_arrayref()) {
+		$data->[0]='' unless defined $data->[0];
+		$data->[1]='' unless defined $data->[1];
 		push @$combo, [$data->[0], $data->[1]];
 	}
-	#$sth->finish;
+	die $sth->errstr if $sth->err;
+
 	return 1;
 }
 
@@ -930,10 +854,12 @@ sub DB_DeleteRecord($$$)
 
 	my $query = "DELETE FROM $table WHERE ${table}_id = $id";
 
-	_debug_dump $query;
-	my $sth = $dbh->prepare($query) or return undef;
-	$sth->execute() or return undef;
-	#$sth->finish or return undef;
+	print "<!-- Executing: $query -->\n";
+	my $sth = $dbh->prepare($query) or die $dbh->errstr;
+	$sth->execute() or do {
+		# report nicely the error
+		$g{db_error}=$sth->errstr; return undef;
+	};
 
 	return 1;
 }
