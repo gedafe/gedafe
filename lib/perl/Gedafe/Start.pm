@@ -1,5 +1,5 @@
 # Gedafe, the Generic Database Frontend
-# copyright (c) 2000, ETH Zurich
+# copyright (c) 2000, 2001 ETH Zurich
 # see http://isg.ee.ethz.ch/tools/gedafe
 
 # released under the GNU General Public License
@@ -15,20 +15,19 @@ require Exporter;
 use CGI 2.00 qw(-compile :cgi);
 
 use Gedafe::Auth;
-use Gedafe::Global qw(%g %s *u Global_InitSession Global_InitUser);
+use Gedafe::Global qw(%g *u Global_InitUser);
 use Gedafe::GUI;
-use Gedafe::Util;
-
+use Gedafe::Util qw(MakeURL MyURL InitTemplate Template Error NextRefresh);
 
 sub Start(%)
 {
 	my %conf = @_;
 
-	Global_InitSession();
-
 	my $q = new CGI;
 	my $user = '';
 	my $cookie;
+
+	my %s = ( cgi => $q);
 
 	if(defined $q->url_param('reload')) {
 		%g = ();
@@ -64,7 +63,7 @@ sub Start(%)
 	InitTemplate("$g{conf}{templates}",".html");
 
 	if(defined $q->url_param('reload')) {
-		my $next_refresh=GUI_NextRefresh();
+		my $next_refresh=NextRefresh();
 		print $q->header(-expires=>'-1d');
 		print Template({
 			PAGE => 'reload',
@@ -76,20 +75,13 @@ sub Start(%)
 	}
 
 	if($q->url() !~ "^$g{conf}{app_url}") {
-		print $q->header(-expires=>$expires);
-		print Template({
-			PAGE => 'wrong_url',
-			ELEMENT => 'wrong_url',
-			CORRECTURL => "$g{conf}{app_url}",
-		});
-		exit;
+		Error(\%s, "You accessed the wrong URL. Go <A href=$g{conf}{app_url}>here</>.");
 	}
 
-	GUI_CheckFormID($user, $q);
+	GUI_CheckFormID(\%s, $user);
 
-	my $dbh = AuthConnect($q, \$user, \$cookie) or do {
-		print "\nCouldn't connect to database or database error.\n";
-		exit;
+	my $dbh = AuthConnect(\%s, \$user, \$cookie) or do {
+		Error(\%s, "Couldn't connect to database or database error.");
 	};
 
 	Global_InitUser($user);
@@ -111,25 +103,25 @@ sub Start(%)
 	} else {
 		print $q->header(-expires=>$expires,-cookie=>$cookie);
 	}
+	$s{http_header_sent}=1;
 
-	GUI_PostEdit($q, $user, $dbh);
+	GUI_PostEdit(\%s, $user, $dbh);
 
 	if($action eq 'list') {
-		GUI_List($q, $user, $dbh);
+		GUI_List(\%s, $user, $dbh);
 	}
 	elsif($action eq 'listrep') {
-		GUI_ListRep($q, $user, $dbh);
+		GUI_ListRep(\%s, $user, $dbh);
 	}
 	elsif($action eq 'edit' or $action eq 'add' or $action eq 'reedit') {
-		GUI_Edit($q, $user, $dbh);
+		GUI_Edit(\%s, $user, $dbh);
 	}
 	elsif($action eq 'delete') {
-		GUI_Delete($q, $user, $dbh);
+		GUI_Delete(\%s, $user, $dbh);
 	}
 	else {
-		GUI_Entry($q, $user, $dbh);
+		GUI_Entry(\%s, $user, $dbh);
 	}
-
 
 	$dbh->disconnect;
 }
