@@ -4,8 +4,9 @@ Bugs
 
 Documentation
 -------------
-- put a hint of possible gedafed problem when "Premature end of script"
-  appears in the logs. This is a common error.
+- add troobleshooting section to gedafe-user.pod
+  - hint of possible gedafed problem when "Premature end of script"
+    appears in the logs. This is a common error.
 
 Small features
 --------------
@@ -15,7 +16,6 @@ Small features
 - improve README (put what additional software is needed)
 - TUTORIAL ?
 - meta_fields: combo
-- add troobleshooting section to gedafe-user.pod
 - meta_database, default_hide
 
 Big features
