@@ -682,6 +682,7 @@ sub GUI_ReadSearchSpec($$){
 				$op = '=';
 			}
 			
+			$operand =~ s/^\s*//; $operand =~ s/\s*$//;
 			my @ors = split / or /i,$operand;
 			for(@ors){
 				my @ands = split / and | /i,$_;

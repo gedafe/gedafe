@@ -875,7 +875,12 @@ sub DB_FetchListSelect($$)
 			my $fields = $g{db_fields}{$spec->{view}};
 			foreach(@{$g{db_fields_list}{$spec->{view}}}) {
 			    next if($g{db_fields}{$spec->{view}}{$_}{type} eq 'bytea');
-			    push @fieldlist,$_;
+			    if($g{db_fields}{$spec->{view}}{$_}{type} eq 'bool'){
+				push @fieldlist,"(CASE WHEN $_ THEN ' true ' ELSE ' false ' END)";
+			    }else{
+				push @fieldlist,$_;
+}
+
 			}
 			$field = join("||' '||",@fieldlist);
 		    }
