@@ -652,7 +652,7 @@ sub GUI_ReadSearchSpec($$){
 			# op  is the operator, like is default
 			# except when we are following a reference link
 
-			$op = 'like';
+			$op = 'ilike';
 			
 			$operand = $value;
 			# print STDERR "$operand\n";
@@ -670,7 +670,7 @@ sub GUI_ReadSearchSpec($$){
 				$op = '>';
 			}elsif($value =~ /^not /){
 				$operand = substr $value,4;
-				$op = 'not like';
+				$op = 'not ilike';
 			}elsif($value =~ /^=\~/){
 				$operand = substr $value,2;
 				$op = '=~';
