@@ -10,4 +10,5 @@ Start(
     db_datasource  => 'dbi:Pg:dbname=demo1',
     list_rows      => 15,
     templates      => '/usr/local/gedafe/example/templates',
+    show_row_count => 0,
 );

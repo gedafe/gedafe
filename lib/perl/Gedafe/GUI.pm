@@ -11,6 +11,7 @@ use Data::Dumper;
 
 use Gedafe::Global qw(%g);
 use Gedafe::DB qw(
+	DB_GetNumRecords
 	DB_FetchList
 	DB_GetRecord
 	DB_AddRecord
@@ -307,6 +308,11 @@ sub GUI_ListTable($$$)
 
 	# <TABLE>
 	$template_args{ELEMENT}='table';
+
+	# total number of records in result set
+	$template_args{NUM_RECORDS} = $list->{totalrecords}
+	  if $g{conf}{show_row_count};
+
 	print Template(\%template_args);
 	$s->{in_table}=1; # die will put a </TABLE>
 
@@ -396,7 +402,7 @@ sub GUI_ListButtons($$$$)
 
 	my $nextoffset = $list->{spec}{offset}+$list->{spec}{limit};
 	my $prevoffset = $list->{spec}{offset}-$list->{spec}{limit};
-	$prevoffset >= 0 or $prevoffset = 0;
+	$prevoffset > 0 or $prevoffset = '';
 
 	my $can_add = ($list->{acl} =~ /a/);
 	my $add_url  = $can_add ? MakeURL($s->{url}, {
@@ -413,6 +419,31 @@ sub GUI_ListButtons($$$$)
 	$template_args{ADD_URL}=$add_url;
 	$template_args{PREV_URL}=$prev_url;
 	$template_args{NEXT_URL}=$next_url;
+
+	if ($g{conf}{show_row_count}) {
+		my $totalrecs = $template_args{NUM_RECORDS} = $list->{totalrecords};
+		my $lastoffset =
+		  ($totalrecs % $list->{spec}{limit} == 0
+		   ? $totalrecs - $list->{spec}{limit}
+		   : $totalrecs - ($totalrecs % $list->{spec}{limit}));
+		my $first_url =
+		   ($prev_url && $prevoffset ne ''
+		    ? MakeURL($s->{url}, { offset => '' }) : undef);
+		my $last_url =
+		  ($next_url && $nextoffset != $lastoffset
+		   ? MakeURL($s->{url}, { offset => $lastoffset }) : undef);
+		$template_args{START_RECNUM}=
+		  ($list->{spec}{offset}+1 > $totalrecs
+		   ? $totalrecs
+		   : $list->{spec}{offset}+1);
+		$template_args{END_RECNUM}=
+		  ($list->{spec}{offset}+$#{$list->{data}}+1 > $totalrecs
+		   ? $totalrecs
+		   : $list->{spec}{offset}+$#{$list->{data}}+1);
+		$template_args{FIRST_URL}=$first_url;
+		$template_args{LAST_URL}=$last_url;
+	}
+
 	print Template(\%template_args);
 }
 
@@ -447,6 +478,10 @@ sub GUI_List($$$)
 
 	# fetch list
 	my $list = DB_FetchList($s, \%spec);
+
+	# get total number of records for this search set
+	$list->{totalrecords} = DB_GetNumRecords($s, \%spec)
+	  if $g{conf}{show_row_count};
 	
 	# top buttons
 	GUI_ListButtons($s, $list, $g{db_tables}{$table}{report} ? 'listrep' : 'list', 'top');

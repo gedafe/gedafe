@@ -1,6 +1,22 @@
 <P>
-<TABLE BGCOLOR="#a0a0a0" BORDER="0" ALIGN="CENTER" CELLPADDING="0" CELLSPACING="0"><TR><TD>
+<TABLE BGCOLOR="#a0a0a0" BORDER="0" ALIGN="CENTER" CELLPADDING="0" CELLSPACING="0">
+#ifdef NUM_RECORDS
+<TR><TD BGCOLOR="#ffffff" ALIGN=center>
+Displaying records <B>##START_RECNUM## - ##END_RECNUM##</B> of <B>##NUM_RECORDS##</B>
+</TD></TR>
+#endif
+<TR><TD>
 <TABLE BORDER="0" CELLPADDING="5" CELLSPACING="1"><TR>
+
+#ifdef NUM_RECORDS
+<TD BGCOLOR="#ffffff" WIDTH=100 ALIGN=center>
+#ifdef FIRST_URL
+<A href="##FIRST_URL##">|&lt;- First</A>
+#else
+&nbsp;
+#endif
+</TD>
+#endif
 <TD BGCOLOR="#ffffff" WIDTH=100 ALIGN="CENTER">
 #ifdef PREV_URL
 <A href="##PREV_URL##">&lt;-- Prev</A>
@@ -14,8 +30,18 @@
 #else
 &nbsp;
 #endif
-</TD></TR>
-</TABLE>
+</TD>
+#ifdef NUM_RECORDS
+<TD BGCOLOR="#ffffff" WIDTH=100 ALIGN=center>
+#ifdef LAST_URL
+<A href="##LAST_URL##">Last -&gt;|</A>
+#else
+&nbsp;
+#endif
+</TD>
+#endif
+
+</TR></TABLE>
 </TD></TR>
 </TABLE>
 </P>
