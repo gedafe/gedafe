@@ -1726,6 +1726,10 @@ sub DB_Format($$$$) {
 	};
 	my $d = $sth->fetchrow_arrayref();
 	die $sth->errstr if $sth->err;
+	my $formatted = $d->[0];
+	# trim spaces
+	$formatted =~ s/^\s+//;
+	$formatted =~ s/\s+$//;
 	return $d->[0];
 }
 
