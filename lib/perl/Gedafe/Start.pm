@@ -66,7 +66,6 @@ sub Start(%)
 	
 	$q->url(-absolute=>1) =~ /(.*)\/([^\/]*)/;
 	$s{url} = $q->url();
-	print STDERR "url = $s{url}\n";
 	$s{path} = $1; $s{script} = $2;
 	$s{ticket_name} = "Ticket_$2"; $s{ticket_name} =~ s/\./_/g;
 
