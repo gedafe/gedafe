@@ -1351,6 +1351,45 @@ sub GUI_MakeCombo($$$$)
 	return $str;
 }
 
+sub GUI_MakeRadio($$$$$$)
+{
+	my ($dbh, $combo_view, $name, $value,$shownull, $nulltext) = @_;
+
+	$value =~ s/^\s+//;
+	$value =~ s/\s+$//;
+
+	my $str;
+
+	my @combo;
+	#die "GUI_MakeRadio vor DB_GetCombo, $dbh , $combo_view, \@combo)";
+	if(not defined DB_GetCombo($dbh,$combo_view,\@combo)) {
+		return undef;
+	}
+
+	if ( $shownull == 1 ){
+	    print STDERR "shownull = $shownull, nulltext = $nulltext\n";
+	    #$nulltext = " " unless defined $nulltext;
+	    $str .= "<input type=\"radio\" name=\"$name\" value=\"\" ";
+
+	    if( $value eq "" ) {
+	                  $str .= " checked=\"checked\" ";
+	          }
+	      $str .= ">$nulltext &nbsp";
+	}
+
+	foreach(@combo) {
+		my $id = $_->[0];
+		$id=~s/^\s+//; $id=~s/\s+$//;
+		my $text = $_->[1];
+		$str .= "<input type=\"radio\" name=\"$name\" value=\"$id\" ";;
+		if($value eq $id) {
+			$str .= " checked=\"checked\" ";
+		}
+		$str .= ">$text&nbsp\n";
+	}
+	return $str;
+}
+
 sub GUI_MakeISearch($$$$$$)
 {
 	my $ref_target = shift;
@@ -1587,6 +1626,18 @@ sub GUI_WidgetWrite($$$$)
 	}
 	elsif($w eq 'combo') {
 		return GUI_MakeCombo($dbh, $warg->{'combo'}, "${input_name}_combo", $value);
+	}
+	elsif($w eq 'radio' ) {
+		# Do NOT support old HID Behaviour
+		my ($radio);
+		$radio = GUI_MakeRadio($dbh, $warg->{'combo'}, 
+			"${input_name}",
+			$value,$warg->{'shownull'},$warg->{'nulltext'});
+
+		return $radio;
+
+
+
 	}
 	elsif($w eq 'file'){
 		my $filename = $value ne ''  ? $value : "(none)";

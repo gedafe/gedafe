@@ -5,6 +5,15 @@
 (arrows indicate actions that you should make when upgrading)
 
 ------------------------------------------------------------------
+HEAD    (2004-02-13)
+
+* Added widget radio button
+
+  MODIFIED FILES:
+	/usr/cvs/gedafe/gedafe/doc/gedafe-sql.pod,v
+	/usr/cvs/gedafe/gedafe/lib/perl/Gedafe/GUI.pm,v
+ (Johannes)
+------------------------------------------------------------------
 HEAD    (2004-02-12)
 * Made 2 column edit/add layout configurable
 
