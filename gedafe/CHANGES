@@ -1,0 +1,48 @@
+2000-11-25
+----------
+* if a comment is not defined for a field, take the comment for a
+  field with the same name
+* if a comment is not defined for a xy_list view, take it from the xy table
+
+2000-11-23
+----------
+* released version 0.9.13
+* show only selectable tables and views in the entry page
+* use relative url for images
+
+2000-11-18
+----------
+* released version 0.9.12
+* the hid2id and id2hid functions must not be specified anymore
+
+2000-11-16
+----------
+* reimplement (0,1) -> (no,yes) conversion for boolean types
+* released version 0.9.11
+* convert multiple '\n' to <BR>
+* removed old commmented-out code
+
+2000-11-15
+----------
+* released version 0.9.10
+* small documentation fixes
+* cleaned up html<->db conversion
+* added conversion from \n to <BR> in list and listrep pages
+* combo-boxes now only show 'text' instead of 'id -- text'
+
+2000-11-14
+----------
+* released version 0.9.9
+* removed misleading Makefile in distribution
+* added missing example/README
+
+2000-11-03
+----------
+* released version 0.9.8
+* documentation fixes
+* add $|=1 to demo1.cgi
+
+2000-10-23
+----------
+* released version 0.9.7
+* started the CHANGES file

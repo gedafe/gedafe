@@ -1,0 +1,18 @@
+Bugs
+----
+- none known :-)
+
+Small features
+--------------
+- add a widget for referencing fields where only
+  the combo-box is wanted
+- url in templates
+- add meta_fields_align
+
+Big features
+------------
+- integrate PearlReports
+  - export to CSV (excel)
+- multi-language
+- make nicer templates
+- multi-level combos
