@@ -94,6 +94,7 @@ my %numeric_types = (
 	int4      => 1,
 	int8      => 1,
 	numeric   => 1,
+	float4    => 1,
 	float8    => 1,
 );
 
@@ -1412,10 +1413,10 @@ sub GUI_WidgetWrite_Date($$$)
 	
 	for my $y (($warg->{from})..($warg->{to})) {
 		if ($y == $value_y) {
-			$yearselect .= "<option selected>$_</option>\n";
+			$yearselect .= "<option selected>$y</option>\n";
 		}
 		else {
-			$yearselect .= "<option>$_</option>\n";
+			$yearselect .= "<option>$y</option>\n";
 		}
 	}
 	for my $m (0..11) {
@@ -1428,10 +1429,10 @@ sub GUI_WidgetWrite_Date($$$)
 	}
 	for my $d (1..31) {
 		if ($d == $value_d) {
-			$dayselect .= "<option selected>$_</option>\n";
+			$dayselect .= "<option selected>$d</option>\n";
 		}
 		else {
-			$dayselect .= "<option>$_</option>\n";
+			$dayselect .= "<option>$d</option>\n";
 		}
 	}
 	

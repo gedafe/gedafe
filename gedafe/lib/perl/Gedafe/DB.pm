@@ -74,6 +74,7 @@ my %type_widget_map = (
 	'int4'      => 'text(size=12)',
 	'int8'      => 'text(size=12)',
 	'numeric'   => 'text(size=12)',
+	'float4'    => 'text(size=12)',
 	'float8'    => 'text(size=12)',
 	'bpchar'    => 'text(size=40)',
 	'text'      => 'text',
@@ -170,12 +171,23 @@ sub DB_ReadTables($$)
 	# 7.1: views have relkind 'v'
 
 	# tables
-	$query = <<'END';
+	if($database->{version} >= 7.3) {
+	$query = <<END;
+SELECT c.relname
+FROM pg_class c, pg_namespace n
+WHERE (c.relkind = 'r' OR c.relkind = 'v')
+AND   (c.relname !~ '^pg_')
+AND   (c.relnamespace = n.oid) 
+AND   (n.nspname != 'information_schema')
+END
+	} else {
+	$query = <<END;
 SELECT c.relname
 FROM pg_class c
 WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND c.relname !~ '^pg_'
 END
+	}
 	$sth = $dbh->prepare($query) or return undef;
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
@@ -302,6 +314,7 @@ sub DB_ReadTableAcls($$)
 	while ($data = $sth->fetchrow_arrayref()) {
 		next unless defined $data->[0];
 		next unless defined $data->[1];
+		next unless defined $tables->{$data->[0]};
 		my $acldef = $data->[1];
 		$acldef =~ s/^{(.*)}$/$1/;
 		my @acldef = split(',', $acldef);
@@ -988,24 +1001,6 @@ sub DB_ExecQuery($$$$$)
 	my $data = shift;
 	my $fields = shift;
 	
-	my @stringtypes = qw(
-		date
-		time
-		timestamp
-		int2
-		int4
-		int8
-		numeric
-		float8
-		bpchar
-		text
-		name
-		bool
-	);
-	my @binarytypes = ('bytea');
-	
-	
-	
 	my %datatypes = ();
 	for(@$fields){
 		$datatypes{$_} = $g{db_fields}{$table}{$_}{type};
@@ -1019,12 +1014,12 @@ sub DB_ExecQuery($$$$$)
 	for(@$fields){
 		my $type = $datatypes{$_};
 		my $data = $data->{$_};
-		if(grep (/^$type$/,@stringtypes)){
-			$sth->bind_param($paramnumber,$data);
-		}
-		if(grep (/^$type$/,@binarytypes)){
+		if($type eq "bytea") {
 			#note the reference to the large blob
 			$sth->bind_param($paramnumber,$$data,{ pg_type => DBD::Pg::PG_BYTEA });
+		}
+		else {
+			$sth->bind_param($paramnumber,$data);
 		}
 		$paramnumber++;
 	}
