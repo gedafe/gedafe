@@ -357,7 +357,12 @@ sub DB_Widget($$)
 	}
 	elsif($f->{type} eq 'varchar') {
 		my $len = $f->{atttypmod}-4;
-		return "text(size=$len,maxlength=$len)";
+		if($len <= 0) {
+			return 'text';
+		}
+		else {
+			return "text(size=$len,maxlength=$len)";
+		}
 	}
 	else {
 		my $w = $type_widget_map{$f->{type}};
