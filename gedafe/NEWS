@@ -4,6 +4,23 @@
 
 (arrows indicate actions that you should make when upgrading)
 ------------------------------------------------------------------
+HEAD    (2004-07-23)
+        
+	There are no more naming conventions for gedafe with this
+	branch. There are a few remaining database requirements:
+
+	- each table should have one or more primary key columns
+	- those should not contain insanely large values 
+	  (like bytea files or very long strings)
+	- when a table has more than one primary key those same
+	  columns with the same names should be present in any
+	  referencing *_combo views.
+
+	Other things that changed are:
+	
+	- isearch is deprecated in favor of jsisearch
+
+------------------------------------------------------------------
 HEAD    (2004-07-05)
         
 	Control the line background colour in list views. One column of
