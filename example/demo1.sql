@@ -91,7 +91,7 @@ INSERT INTO meta_fields VALUES ('product', 'product_description', 'widget', 'are
 -- combo-box
 DROP VIEW product_combo;
 CREATE VIEW product_combo AS
-	SELECT product_id AS id,
+	SELECT product_hid AS id,
 		product_hid || ' -- ' || product_description AS text
 	FROM product;
 GRANT SELECT ON product_combo TO PUBLIC ;
@@ -105,8 +105,8 @@ DROP SEQUENCE orders_orders_id_seq;
 CREATE TABLE orders (
 	orders_id		SERIAL	NOT NULL PRIMARY KEY,
 	orders_date		DATE	NOT NULL DEFAULT CURRENT_DATE,
-	orders_customer		INT4	REFERENCES customer,
-	orders_product		INT4	REFERENCES product,
+	orders_customer		INT4	NOT NULL REFERENCES customer,
+	orders_product		INT4	NOT NULL REFERENCES product,
 	orders_qty		INT4,
 	orders_shipped		BOOLEAN
 );
