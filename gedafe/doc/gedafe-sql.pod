@@ -331,6 +331,14 @@ do.  To manage access rights more easily, it is sensible to grant rights to
 groups and add users to the groups according to the rights you want them to
 have.
 
+=head1 BINARY LARGE OBJECTS
+
+Columns of the BYTEA type get a special treatment in Gedafe. These columns
+are used to store files in the database. Users can upload and download the 
+file with their browser. To use these files in other software please keep
+in mind that the perl BYTEA encoding is not standard. The directory src/bytea
+provides information for using this data with Perl and PHP.
+
 =head1 COPYRIGHT
 
 Copyright (c) 2000,2001 ISG / D-ELEK / ETH Zurich, All rights reserved.

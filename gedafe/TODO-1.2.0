@@ -15,7 +15,7 @@ $Id$
    [ ] b. selectable widgets (david)
    [x] c. interactive search (freek)
    [x] d. pull-down date widget (freek)
-   [ ] e. binary files upload with blobs/bytea fields (freek)
+   [x] e. binary files upload with blobs/bytea fields (freek)
    [ ] f. html markup (adi)
    [ ] g. first/last navigation links (adi)
    [ ] h. csv/tsv export (adi)
