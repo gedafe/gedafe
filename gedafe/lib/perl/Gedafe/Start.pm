@@ -25,6 +25,7 @@ use Gedafe::GUI qw(
 	GUI_Delete
 	GUI_Export
 	GUI_DumpTable
+        GUI_Pearl
 );
 use Gedafe::DB qw(
 	DB_GetBlobType
@@ -32,7 +33,14 @@ use Gedafe::DB qw(
 	DB_DumpBlob
 );
 
-use Gedafe::Util qw(Die MakeURL MyURL InitTemplate Template NextRefresh);
+use Gedafe::Util qw(
+        Die
+        MakeURL
+        MyURL
+	InitTemplate
+	Template
+	NextRefresh
+	InitPearls);
 
 sub Start(%)
 {
@@ -51,11 +59,10 @@ sub Start(%)
 	$g{s}=\%s;
 
 	# install Gedafe's die handler
-	$SIG{__DIE__}=\&Die;
-
-	if(defined $q->url_param('reload')) {
-		%g = ();
-	}
+	$SIG{__DIE__}=\&Die; #}}
+	  if(defined $q->url_param('reload')) {
+	    %g = ();
+	  }
 
 	# configuration
 	if(not exists $g{conf}) {
@@ -88,6 +95,8 @@ sub Start(%)
 	my $expires = defined $q->url_param('refresh') ? '+5m' : '-1d';
 
 	InitTemplate("$g{conf}{templates}",".html");
+
+	InitPearls($g{conf}{pearl_dir}) if defined $g{conf}{pearl_dir};
 
 	if(defined $q->url_param('reload')) {
 		my $next_refresh=NextRefresh();
@@ -149,6 +158,23 @@ sub Start(%)
 		$headers{-type}='text/plain';
 	}
 
+	if ($action eq 'runpearl')  {
+		my $pearl = $q->url_param('pearl');
+		Die "No Pearl named $pearl available" unless
+		    defined $g{pearls}{$pearl} and ref $g{pearls}{$pearl};
+		my($h,$b) =$g{pearls}{$pearl}->run(\%s);
+		die "Sorry. The Pearl '$pearl' did not return any data.".
+		    "<br>You can use the BACK button!\n"
+		    if  $b =~ /^\s*$/;
+		$headers{-type}=$h;
+		$headers{-length} = length $b;
+		print $q->header(%headers);
+		print $b;
+		$dbh->disconnect;
+		return;
+	}
+
+
 	print $q->header(%headers);
 	$s{http_header_sent}=1;
 	
@@ -159,6 +185,9 @@ sub Start(%)
 	}
 	elsif($action eq 'edit' or $action eq 'add' or $action eq 'reedit') {
 		GUI_Edit(\%s, $user, $dbh);
+	}
+	elsif($action eq 'configpearl') {
+		GUI_Pearl(\%s);
 	}
 	elsif($action eq 'delete') {
 		GUI_Delete(\%s, $user, $dbh);
@@ -180,4 +209,17 @@ sub Start(%)
 	$dbh->disconnect;
 }
 
+
 1;
+
+# Emacs Configuration
+#
+# Local Variables:
+# mode: cperl
+# eval: (cperl-set-style "BSD")
+# cperl-indent-level: 8
+# mode: flyspell
+# mode: flyspell-prog
+# End:
+#
+

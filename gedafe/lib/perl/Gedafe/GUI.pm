@@ -32,7 +32,9 @@ use Gedafe::Util qw(
 	Template
 	DropUnique
 	UniqueFormStart
+        FormStart
 	UniqueFormEnd
+	FormEnd
 	NextRefresh
 );
 
@@ -50,6 +52,8 @@ require Exporter;
 	GUI_Delete
 	GUI_Export
 	GUI_DumpTable
+        GUI_Pearl
+        GUI_WidgetRead
 );
 
 sub GUI_AppletParam($$);
@@ -174,6 +178,7 @@ sub GUI_InitTemplateArgs($$)
 				search_value => '',
 				reedit_action => '',
 				reedit_data => '',
+				pearl=>'',
 			});
 	$args->{ENTRY_URL}=$entry_url;
 	$args->{REFRESH_ENTRY_URL}=MakeURL($entry_url, {
@@ -188,13 +193,12 @@ sub GUI_Header($$)
 	$args->{ELEMENT}='header';
 	print Template($args);
 
-	my $t;
 	$args->{ELEMENT}='header_table';
 	my $user = $args->{USER};
 
 	my $save_table = $args->{TABLE};
 
-	foreach $t (@{$g{db_tables_list}}) {
+	foreach my $t (@{$g{db_tables_list}}) {
 		next if $g{db_tables}{$t}{hide};
 		next if $g{db_tables}{$t}{report};
 		if(defined $g{db_tables}{$t}{acls}{$user} and
@@ -300,9 +304,8 @@ sub GUI_Entry($$$)
 	$template_args{ELEMENT}='tables_list_header',
 	print Template(\%template_args);
 
-	my $t;
 	$template_args{ELEMENT}='entrytable';
-	foreach $t (@{$g{db_tables_list}}) {
+	foreach my $t (@{$g{db_tables_list}}) {
 		next if $g{db_tables}{$t}{hide};
 		next if $g{db_tables}{$t}{report};
 		if(defined $g{db_tables}{$t}{acls}{$user} and
@@ -324,7 +327,7 @@ sub GUI_Entry($$$)
 	print Template(\%template_args);
 
 	$template_args{ELEMENT}='entrytable';
-	foreach $t (@{$g{db_tables_list}}) {
+	foreach my $t (@{$g{db_tables_list}}) {
 		next if     $g{db_tables}{$t}{hide};
 		next unless $g{db_tables}{$t}{report};
 		if(defined $g{db_tables}{$t}{acls}{$user} and
@@ -338,6 +341,33 @@ sub GUI_Entry($$$)
 					refresh => $refresh,
 				});
 		$template_args{REPORT}=1;
+		print Template(\%template_args);
+	}
+
+	$template_args{ELEMENT}='pearls_list_header';
+	print Template(\%template_args);
+
+	$template_args{ELEMENT}='entrytable';
+	foreach my $t (sort {$a cmp $b} keys %{$g{pearls}}) {
+		if (ref $g{pearls}{$t}) {
+			@template_args{qw(TABLE_DESC TABLE_INFO)}=($g{pearls}{$t}->info);
+			$template_args{TABLE_URL}= MakeURL($s->{url}, {
+								       action => 'configpearl',
+								       pearl=> $t,
+								       table  => undef,
+								       refresh => $refresh,
+								      });
+		} else {
+			$template_args{REPORT}=1;
+			@template_args{qw(TABLE_DESC TABLE_INFO)}=($t,$g{pearls}{$t});
+			$template_args{TABLE_URL}= MakeURL($s->{url}, {
+								       action => 'entry',
+								       pearl=> $t,
+								       table  => undef,
+								       refresh => $refresh,
+								      });
+			$template_args{REPORT}=1;
+		}
 		print Template(\%template_args);
 	}
 
@@ -1115,6 +1145,77 @@ sub GUI_Edit($$$)
 	UniqueFormEnd($s, $form_url, $next_url);
 	GUI_Footer(\%template_args);
 }
+	
+sub GUI_Pearl($)
+{
+	my $s = shift;
+	my $dbh = $s->{dbh};
+	my $user = $s->{user};
+	my $q = $s->{cgi};
+	my $pearl = $q->url_param('pearl');
+
+	if(not exists $g{pearls}{$pearl}) {
+		die "Error: pearl named $pearl is known";
+	}
+	my $p = $g{pearls}{$pearl};
+
+	my $title = ($p->info())[0];
+	my %template_args = (
+		USER => $user,
+		PAGE => 'edit',
+		TABLE => '',
+		TITLE => "Configure $title",
+		BUTTON_LABEL => 'Run Report',
+	);
+
+	my $form_url = MakeURL(MyURL($q),{});
+	my $cancel_url = MakeURL($form_url, {
+		action => 'entry'});
+
+	my $next_url = 	$form_url;
+
+        
+	GUI_InitTemplateArgs($s, \%template_args);
+	GUI_Header($s, \%template_args);
+
+	# FORM
+	FormStart($s, $next_url);
+	print "<INPUT TYPE=\"hidden\" NAME=\"action\" VALUE=\"runpearl\">\n";
+	print "<INPUT TYPE=\"hidden\" NAME=\"pearl\" VALUE=\"$pearl\">\n";
+	# Fields
+	$template_args{ELEMENT} = 'editform_header';
+	print Template(\%template_args);
+
+	my $field;
+	my $n;
+	for (@{$g{pearls}{$pearl}->template()}){
+		my ($field,$label,$widget,$value,$test) = @$_;
+		my $inputelem = GUI_WidgetWrite($s,"field_$field",$widget,$value);
+
+		$template_args{ELEMENT} = 'editfield';
+		$template_args{FIELD} = $field;
+		$template_args{LABEL} = $label;
+		$template_args{INPUT} = $inputelem,
+		$template_args{TWOCOL} = $n%2;
+		print Template(\%template_args);
+		$n++;
+	}
+	delete $template_args{FIELD};
+	delete $template_args{LABEL};
+	delete $template_args{INPUT};
+	
+	# Fields
+	$template_args{ELEMENT} = 'editform_footer';
+	print Template(\%template_args);
+
+	# Buttons
+	$template_args{ELEMENT} = 'buttons';
+	$template_args{CANCEL_URL} = $cancel_url;
+	print Template(\%template_args);
+
+	FormEnd($s);
+	GUI_Footer(\%template_args);
+}
 
 sub GUI_MakeCombo($$$$)
 {
@@ -1462,5 +1563,15 @@ sub GUI_DumpTable($$$){
 }
 
 1;
+# Emacs Configuration
+#
+# Local Variables:
+# mode: cperl
+# eval: (cperl-set-style "BSD")
+# cperl-indent-level: 8
+# mode: flyspell
+# mode: flyspell-prog
+# End:
+#
 
 # vi: tw=0 sw=8
