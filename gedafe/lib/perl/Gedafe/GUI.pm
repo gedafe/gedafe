@@ -130,7 +130,7 @@ sub GUI_Header($$)
 	my $user = $args->{USER};
 
 	my $save_table = $args->{TABLE};
-	
+
 	foreach $t (@{$g{db_editable_tables_list}}) {
 		if(defined $g{db_tables}{$t}{acls}{$user} and
 			$g{db_tables}{$t}{acls}{$user} !~ /r/) { next; }
@@ -295,6 +295,7 @@ sub GUI_FilterFirst($$$$)
 	my $filterfirst_value = $q->url_param('filterfirst') || $q->url_param('combo_filterfirst') || '';
 
 	# filterfirst
+	# FIXME: port to widgets
 	if(defined $filterfirst_field)
 	{
 		if(not defined $g{db_fields}{$view}{$filterfirst_field}{ref_combo}) {
@@ -428,7 +429,7 @@ sub GUI_List($$$)
 		TABLE => $table,
 		TITLE => "$g{db_tables}{$table}{desc}",
 	);
-	
+
 	my @fields_list = @{$g{db_fields_list}{$view}};
 	my $fields = $g{db_fields}{$view};
 
@@ -561,7 +562,7 @@ sub GUI_List($$$)
 					action=>'edit',
 					id=>$id,
 					refresh=>$next_refresh,
-				}); 
+				});
 			}
 			else {
 				# not a real entry (virtual row, outer join): fill in fields
@@ -652,7 +653,7 @@ sub GUI_ListRep($$$)
 	my $view = $q->url_param('table');
 	my $orderby = $q->url_param('orderby') || '';
 	my $descending = $q->url_param('descending') || '';
-	
+
 	my %template_args = (
 		USER => $user,
 		PAGE => 'listrep',
@@ -660,7 +661,7 @@ sub GUI_ListRep($$$)
 		URL => $myurl,
 		TABLE => $view,
 	);
-	
+
 	if(not defined $g{db_fields_list}{$view}) {
 		GUI_InitTemplateArgs($q, \%template_args);
 		GUI_Header($s, \%template_args);
@@ -791,7 +792,7 @@ sub GUI_ListRep($$$)
 # of '%'.
 sub GUI_URL_Encode($)
 {
-	$str = shift;
+	my $str = shift;
 	defined $str or $str = '';
 	$str =~ s/!/gedafe_PROTECTED_eXclamatiOn/g;
 	$str =~ s/\W/'!'.sprintf('%2X',ord($&))/eg;
@@ -818,16 +819,17 @@ sub GUI_Hash2Str($)
 	return join(',',@data);
 }
 
-sub GUI_Str2Hash($$)
+sub GUI_Str2Hash($)
 {
 	my $str = shift;
-	my $hash = shift;
+	my %hash = ();
 
 	foreach my $s (split(/,/, $str)) {
 		if($s =~ /^(.*?):(.*)$/) {
-			$hash->{$1} = GUI_URL_Decode($2);
+			$hash{$1} = GUI_URL_Decode($2);
 		}
 	}
+	return \%hash;
 }
 
 sub GUI_PostEdit($$$)
@@ -855,7 +857,7 @@ sub GUI_PostEdit($$$)
 			GUI_InitTemplateArgs($q, \%template_args);
 			GUI_Header($s, \%template_args);
 			GUI_DB_Error($g{db_error}, MyURL($q));
-			
+
 			$template_args{ELEMENT}='db_error';
 			$template_args{ERROR}=$g{db_error};
 			$template_args{NEXT_URL}=MyURL($q);
@@ -932,7 +934,7 @@ sub GUI_Edit($$$)
 		ID => $id,
 		REEDIT => $reedit,
 	);
-	
+
 	my $form_url = MakeURL(MyURL($q), { refresh => NextRefresh() });
 	my $next_url;
 	my $cancel_url = MakeURL($form_url, {
@@ -962,29 +964,27 @@ sub GUI_Edit($$$)
 	# Initialise values
 	my $fields = $g{db_fields}{$table};
 	my @fields_list = @{$g{db_fields_list}{$table}};
-	my %values = ();
+	my $values;
 	if($reedit) {
-		GUI_Str2Hash($q->param('reedit_data'), \%values);
+		$values = GUI_Str2Hash($q->param('reedit_data'));
 	}
 	elsif($action eq 'edit') {
-		my %record = ();
-		DB_GetRecord($dbh,$table,$id,\%values);
+		$values = DB_GetRecord($dbh,$table,$id);
 	}
 	elsif($action eq 'add') {
+		$values = {};
+
 		# take filterfirst value if set
 		my $ff_field = $g{db_tables}{$table}{meta}{filterfirst};
 		my $ff_value = $q->url_param('filterfirst') || $q->url_param('combo_filterfirst') || '';
-		if(defined $ff_value and defined $ff_field) {
-			if(defined $g{db_fields}{$table}{$ff_field}{ref_hid}) {
-				# convert ID reference to HID
-				$values{$ff_field} = DB_ID2HID($dbh, $g{db_fields}{$table}{$ff_field}{reference}, $ff_value);
-			}
+		if(defined $ff_value and $ff_field != '') {
+			$values = { $ff_field => $ff_value };
 		}
 		# copy fields from previous add form
 		foreach(@fields_list) {
 			my $v = $q->param("field_$_") || $q->param("combo_$_");
 			if(defined $v and $g{db_fields}{$table}{$_}{copy}) {
-				$values{$_} = $v;
+				$values->{$_} = $v;
 			}
 		}
 	}
@@ -1001,8 +1001,8 @@ sub GUI_Edit($$$)
 	foreach $field (@fields_list) {
 		if($field eq "${table}_id") { next; }
 
-		my $value = exists $values{$field} ? $values{$field} : '';
-		my $inputelem = GUI_EditField($s,$dbh,$table,$field,$value);
+		my $value = exists $values->{$field} ? $values->{$field} : '';
+		my $inputelem = GUI_WidgetCreate($dbh,$table,$field,$value);
 
 		$template_args{ELEMENT} = 'editfield';
 		$template_args{FIELD} = $field;
@@ -1013,7 +1013,7 @@ sub GUI_Edit($$$)
 	delete $template_args{FIELD};
 	delete $template_args{LABEL};
 	delete $template_args{INPUT};
-	
+
 	# Fields
 	$template_args{ELEMENT} = 'editform_footer';
 	print Template(\%template_args);
@@ -1041,43 +1041,38 @@ sub GUI_MakeCombo($$$$$)
 	my $str;
 
 	my $meta = $g{db_fields}{$table}{$field};
-	if(exists $meta->{ref_combo}) {
-		my @combo;
-		if(not defined DB_GetCombo($dbh,$meta->{reference},\@combo)) {
-			return undef;
-		}
-		$str = "<SELECT SIZE=\"1\" name=\"$name\">\n";
-                # the empty option must not be empty! else the MORE ... disapears off screen
-		$str .= "<OPTION VALUE=\"\">Make your Choice ...</OPTION>\n";
-		foreach(@combo) {
-			my $id = $_->[0];
-			$id=~s/^\s+//; $id=~s/\s+$//;
-			#my $text = "$_->[0] -- $_->[1]";
-			my $text = $_->[1];
-			if($value eq $id) {
-				$str .= "<OPTION SELECTED VALUE=\"$id\">$text</OPTION>\n";
-			}
-			else {
-				$str .= "<OPTION VALUE=\"$id\">$text</OPTION>\n";
-			}
-		}
-		$str .= "</SELECT>\n";
+	my @combo;
+	if(not defined DB_GetCombo($dbh,$meta->{reference},\@combo)) {
+		return undef;
 	}
+	$str = "<SELECT SIZE=\"1\" name=\"$name\">\n";
+# the empty option must not be empty! else the MORE ... disapears off screen
+	$str .= "<OPTION VALUE=\"\">Make your Choice ...</OPTION>\n";
+	foreach(@combo) {
+		my $id = $_->[0];
+		$id=~s/^\s+//; $id=~s/\s+$//;
+#my $text = "$_->[0] -- $_->[1]";
+		my $text = $_->[1];
+		if($value eq $id) {
+			$str .= "<OPTION SELECTED VALUE=\"$id\">$text</OPTION>\n";
+		}
+		else {
+			$str .= "<OPTION VALUE=\"$id\">$text</OPTION>\n";
+		}
+	}
+	$str .= "</SELECT>\n";
 }
 
-sub GUI_EditField($$$$)
+sub GUI_WidgetCreate($$$$)
 {
-	my $s = shift;
 	my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
 	my $value = shift;
 
 	my $meta = $g{db_fields}{$table}{$field};
-	my $type = $meta->{type};
-        my $length = $meta->{atttypmod}-4;
- 	my $widget = $meta->{widget} || '';
 
+	# get default from DB
 	if(not defined $value or $value eq '') {
 		$value = DB_GetDefault($dbh,$table,$field);
 		if(not defined $value) {
@@ -1085,51 +1080,40 @@ sub GUI_EditField($$$$)
 		}
 	}
 
+	$meta->{widget} =~ /^(\w+)(\((.*)\))?$/;
+	my ($widget, $warg) = ($1, $3);
+	my %warg;
+	if(defined $warg) {
+		for my $w (split('\s*,\s*',$warg)) {
+			$w =~ s/^\s+//;
+			$w =~ s/\s+$//;
+			$w =~ /^(\w+)\s*=\s*(.*)$/ or die "syntax error in $widget-widget argument: $w";
+			$warg{$1}=$2;
+		}
+	}
+	else {
+		%warg = ();
+	}
+
+
 	if($widget eq 'readonly') {
 		return $value || '&nbsp;';
 	}
-
+	if($widget eq 'text') {
+		my $size = defined $warg{size} ? $warg{size} : '20';
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"$size\" VALUE=\"".$value."\">";
+	}
 	if($widget eq 'area') {
-		return "<TEXTAREA NAME=\"field_$field\" ROWS=\"4\" COLS=\"60\" WRAP=\"virtual\">".
-			$value."</TEXTAREA>";
+		my $rows = defined $warg{rows} ? $warg{rows} : '4';
+		my $cols = defined $warg{cols} ? $warg{cols} : '60';
+		return "<TEXTAREA NAME=\"field_$field\" ROWS=\"$rows\" COLS=\"$cols\" WRAP=\"virtual\">".$value."</TEXTAREA>";
 	}
-	if($type eq 'date') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
-	}
-	if($type eq 'time') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
-	}
-	if($type eq 'timestamp') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"22\" VALUE=\"".$value."\">";
-	}
-	if($type eq 'int4') {
-		my $out;
-		if(exists $meta->{ref_combo}) {
-			$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10>";
-		}
-		else {
-			$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=\"$value\">";
-		}
-		$out .= GUI_MakeCombo($dbh, $table, $field, "combo_$field", $value);
-		return $out;
-	}
-	if($type eq 'numeric' or $type eq 'float8') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"$value\">";
-	}
-	if($type eq 'bpchar') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"30\" VALUE=\"$value\">";
-	}
-	if($type eq 'text') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"40\" VALUE=\"$value\">";
-	}
-        if($type eq 'varchar') {                                                                                            
-                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" MAXLENGTH=\"$length\" VALUE=\"$value\">";        
-        }                                                                                                                   
-
-	if($type eq 'name') {
-		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"20\" VALUE=\"$value\">";
-	}
-	if($type eq 'bool') {
+        if($widget eq 'varchar') {
+		my $size = defined $warg{size} ? $warg{size} : '20';
+		my $maxlength = defined $warg{maxlength} ? $warg{maxlength} : '100';
+                return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"$size\" MAXLENGTH=\"$maxlength\" VALUE=\"$value\">";
+        }
+	if($widget eq 'checkbox') {
 		if($value) {
 			return "<INPUT TYPE=\"checkbox\" NAME=\"field_$field\" VALUE=\"1\" CHECKED>";
 		}
@@ -1137,8 +1121,19 @@ sub GUI_EditField($$$$)
 			return "<INPUT TYPE=\"checkbox\" NAME=\"field_$field\" VALUE=\"1\">";
 		}
 	}
+	if($widget eq 'hid') {
+		return "<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=\"10\" VALUE=\"".$value."\">";
+	}
+	if($widget eq 'idcombo' or $widget eq 'hidcombo') {
+		my $out;
+		# FIXME: search for that ID, if found, use the combo, if not,
+		# use the text.
+		$out.="<INPUT TYPE=\"text\" NAME=\"field_$field\" SIZE=10 VALUE=\"$value\">";
+		$out .= GUI_MakeCombo($dbh, $table, $field, "combo_$field", $value);
+		return $out;
+	}
 
-	return "Unknown type: $type";
+	return "Unknown widget: $widget";
 }
 
 sub GUI_Delete($$$)
