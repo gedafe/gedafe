@@ -1705,17 +1705,18 @@ sub DB_filenameSql($){
 }
 
 my %DB_Format_functions = (
-	'number_to_char'    => 'to_char',
-	'timestamp_to_char' => 'to_char',
-	'date_to_char'      => 'to_char',
-	'char_to_number'    => 'to_number',
-	'char_to_timestamp' => 'to_timestamp',
-	'char_to_date'      => 'to_date',
+	'number_to_char'    => [ 'to_char', 'int' ]
+	'timestamp_to_char' => [ 'to_char', 'timestamp' ]
+	'date_to_char'      => [ 'to_char', 'date' ]
+	'char_to_number'    => [ 'to_number', 'char' ]
+	'char_to_timestamp' => [ 'to_timestamp', 'char' ]
+	'char_to_date'      => [ 'to_date', 'char' ]
 );
 sub DB_Format($$$$) {
 	my ($dbh,$function,$template,$data) = @_;
-	my $f = $DB_Format_functions{$function} or die;
-	my $q = "SELECT $f(?,?)";
+	my $func = $DB_Format_functions{$function}[0] or die;
+	my $type = $DB_Format_functions{$function}[1] or die;
+	my $q = "SELECT $func(cast (? as $type),?)";
 	my $sth = $dbh->prepare_cached($q) or die $dbh->errstr;
 	$sth->execute($data,$template) or die $sth->errstr;
 	my $d = $sth->fetchrow_arrayref();
