@@ -1270,9 +1270,9 @@ sub GUI_WidgetWrite($$$$$$$)
 	}
 
 	if($w eq 'date') {
-	  my $y;
-	  my $m;
-	  my $d;
+	  my $y = 0;
+	  my $m = 0;
+	  my $d = 0;
 
 	  my %monthhash = (1, "Januari", 2, "Februari", 3, "March", 4, "April", 5, "May", 6, "June", 7, "July", 8, "August", 9, "September", 10, "October", 11, "November", 12, "December");
 
@@ -1322,70 +1322,68 @@ sub GUI_WidgetWrite($$$$$$$)
 	      $dayselect .= "<option> $_ </option>\n";
 	    }
 	  }
+	  
+	  my $yearinput = $input_name.'_1';
+	  my $monthinput = $input_name.'_2';
+	  my $dayinput = $input_name.'_3';
+	  my $functionname = $input_name.'_validate';
+	  my $out =<<end;
+<SCRIPT LANGUAGE="JavaScript">
+<!--
+  function $functionname(){
+    var leap = 0;
+    
+    //get variables from form
+    var year = $warg->{from} + document.editform.$yearinput.selectedIndex;
+    var month = document.editform.$monthinput.selectedIndex + 1;
+    var day = document.editform.$dayinput.selectedIndex + 1;
 
-	  my $out =
-	        "<SCRIPT LANGUAGE=\"JavaScript\">
-                <!--
-                function validate()
-		{
-		  var leap = 0;
-		  var err = 0;
-		  var year = document.editform.${input_name}_1.selectedIndex + ".($warg->{from}).";
-		  var month = document.editform.${input_name}_2.selectedIndex + 1;
-		  var day = document.editform.${input_name}_3.selectedIndex + 1;
+    // is this a leap year?
+    if ((year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0))){ 
+      leap = 1;
+    }
+    
 
-                  if(month < 10)
-                  {
-                    var date = year + \"-0\" + month + \"-\" + day;
-	          }
-                  else
-                  {
-                    var date = year + \"-\" + month + \"-\" + day;
-                  }
+    //update form to reflect corrctions on date
+    if ((month == 2) && (leap == 1) && (day > 29)){ 
+      document.editform.$dayinput.selectedIndex = 28;
+      day = 29;
+    }
+    
+    if ((month == 2) && (leap != 1) && (day > 28)){
+      document.editform.$dayinput.selectedIndex = 27;
+      day = 28;
+    }
 
-		  if ((year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0))) 
-		  {
-		    leap = 1;
-		  }
+    if ((day > 30) && ((month == 4) || (month == 6) || (month == 9) || (month == 11))){
+      document.editform.$dayinput.selectedIndex = 29;
+      day = 30;
+    }
 
-		  if ((month == 2) && (leap == 1) && (day > 29)) 
-		  {
-                    document.editform.${input_name}_3.selectedIndex = 28;
-		  }
 
-		  if ((month == 2) && (leap != 1) && (day > 28)) 
-		  {
-                    document.editform.${input_name}_3.selectedIndex = 27;
-		  }
+    var date = year + "-" + month + "-" + day;
 
-		  if ((day > 30) && ((month == 4) || (month == 6) || (month == 9) || (month == 11)))
-		  {
-                    document.editform.${input_name}_3.selectedIndex = 29;
-		  }
+    
+    document.editform.$input_name.value = date;
+  }
+//  -->
+</script>
 
-		  if (err == 0)
-		  {
-                    document.editform.${input_name}.value = date;
-                  }
-		}
-	    //  -->
-	    </script>
+<select NAME="$yearinput" onChange="$functionname()">
+  $yearselect
+</select>
 
-      <select NAME=\"${input_name}_1\" onChange=\"validate()\">
-	".$yearselect."
-      </select>
+<select NAME="$monthinput" onChange="$functionname()">
+  $monthselect
+</select>
 
-      <select NAME=\"${input_name}_2\" onChange=\"validate()\">
-        ".$monthselect."
-      </select>
+<select NAME="$dayinput" onChange="$functionname()">
+  $dayselect
+</select>
 
-      <select NAME=\"${input_name}_3\" onChange=\"validate()\">
-        ".$dayselect."
-      </select>
-
-      <input TYPE=\"hidden\" NAME=\"$input_name\" VALUE=\"".$escval."\">";
-
-	return $out;
+<input TYPE="hidden" NAME="$input_name" VALUE="$escval">
+end
+	  return $out;
 	}
 
 
