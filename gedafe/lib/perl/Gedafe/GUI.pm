@@ -160,6 +160,32 @@ sub GUI_InitTemplateArgs($$)
 				search_button => '',
                                 copyfromid   => '',
 			});
+	# Define screen format as list_rows <= $g{conf}{list_rows}
+	# and    print  format as list_rows >  $g{conf}{list_rows}
+
+	my $list_rows_urlval = $q->url_param('list_rows');
+	$list_rows_urlval    = 0 unless defined $list_rows_urlval;
+
+	my $list_rows_def = $g{conf}{list_rows};
+	$list_rows_def = 15 unless defined $list_rows_def;
+
+	my $list_rows_print_flag = $list_rows_urlval>$list_rows_def;
+	$list_rows_print_flag = 0 unless ($list_rows_print_flag == 1);
+
+	print STDERR 
+	"#$list_rows_urlval#, #$list_rows_def#,#$list_rows_print_flag# \n";
+
+	if ( $list_rows_print_flag ){
+		$args->{PRINT_TOGGLE_URL}=MakeURL($s->{url}, {
+					  list_rows => $list_rows_def,
+					  });
+	} else {
+		$args->{PRINT_TOGGLE_URL}=MakeURL($s->{url}, {
+                                          list_rows =>'99999',
+					  });
+	}
+	$args->{PRINT_TOGGLE_FLAG} = $list_rows_print_flag;
+
 	$args->{BOOKMARK_URL}=MakeURL($stripped_url, {
 				refresh => '',
 	});
