@@ -1,5 +1,6 @@
 2000-11-18
 ----------
+* released version 0.9.12
 * the hid2id and id2hid functions must not be specified anymore
 
 2000-11-16
