@@ -1609,6 +1609,7 @@ end
 	    	    $template_args{FIELD} = $field;
 		    $template_args{LABEL} = $fields->{$field}{desc};
 		    $template_args{INPUT} = $inputelem;
+		    $template_args{NOTNULL} = $fields->{$field}{attnotnull} ? 1 : undef;
 			if ( defined $g{db_tables}{$table}{meta}{twocols} 
 			     and  $g{db_tables}{$table}{meta}{twocols}== 1 ){
 			   $template_args{TWOCOL} = $n%2 ;
