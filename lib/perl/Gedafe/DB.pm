@@ -557,11 +557,12 @@ END
 	$sth->finish;
 
 	# if there is a HID field, then hide the ID field
-	for my $table (keys %$tables) {
-		if(defined $fields{$table}{"${table}_hid"} and
-		   defined $fields{$table}{"${table}_id"})
+	for my $view (keys %$tables) {
+		my $table = $view; $table =~ /^(.*)_list$/ and $table = $1; 
+		if(defined $fields{$view}{"${table}_hid"} and
+		   defined $fields{$view}{"${table}_id"})
 	   	{
-			$fields{$table}{"${table}_id"}{hide_list}=1;
+			$fields{$view}{"${table}_id"}{hide_list}=1;
 		}
 	}
 
