@@ -1112,8 +1112,8 @@ sub DB_GetBlobName($$$$){
 	my $idcolumn = "${table}_id";
 	if($table =~ /\w+_list/){
 	  #tables that end with _list are actualy views and have their
-	  # id column as 'id' instead of table_list_id
-	  $idcolumn = "id";
+	  # id column as the first column of the view
+	  $idcolumn = $g{db_fields_list}{$table}[0];
 	}
 
 	my $query = "Select substring($field,1,position(' '::bytea in $field)-1) from $table where $idcolumn=$id";
@@ -1132,8 +1132,8 @@ sub DB_GetBlobType($$$$){
 	my $idcolumn = "${table}_id";
 	if($table =~ /\w+_list/){
 	  #tables that end with _list are actualy views and have their
-	  # id column as 'id' instead of table_list_id
-	  $idcolumn = "id";
+	  # id column as the first column of the view
+	  $idcolumn = $g{db_fields_list}{$table}[0];
 	}
 
 	my $query = "Select substring($field,position(' '::bytea in $field)+1,position('#'::bytea in $field)-(position(' '::bytea in $field)+1)) from $table where $idcolumn=$id";
@@ -1152,8 +1152,8 @@ sub DB_DumpBlob($$$$){
 	my $idcolumn = "${table}_id";
 	if($table =~ /\w+_list/){
 	  #tables that end with _list are actualy views and have their
-	  # id column as 'id' instead of table_list_id
-	  $idcolumn = "id";
+	  # id column as the first column of the view. 
+	  $idcolumn = $g{db_fields_list}{$table}[0];
 	}
 	
 
