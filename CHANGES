@@ -1,3 +1,7 @@
+2002-03-17
+----------
+* implemented PostgreSQL 7.2 compatibility
+
 2002-02-27
 ----------
 * table and field names in meta tables are now case insensitive (SQL semantics)

@@ -29,9 +29,9 @@ require Exporter;
 );
 
 sub DB_ReadDatabase($);
-sub DB_ReadTables($);
+sub DB_ReadTables($$);
 sub DB_ReadTableAcls($$);
-sub DB_ReadFields($$);
+sub DB_ReadFields($$$);
 
 sub _debug_dump($)
 {
@@ -53,7 +53,7 @@ sub DB_Init($$)
 	$g{db_database} = DB_ReadDatabase($dbh);
 
 	# read tables
-	$g{db_tables} = DB_ReadTables($dbh);
+	$g{db_tables} = DB_ReadTables($dbh, $g{db_database});
 	defined $g{db_tables} or return undef;
 	$g{db_editable_tables_list} = [];
 	$g{db_report_views} = [];
@@ -72,7 +72,7 @@ sub DB_Init($$)
 	DB_ReadTableAcls($dbh, $g{db_tables}) or return undef;
 
 	# read fields
-	$g{db_fields} = DB_ReadFields($dbh, $g{db_tables});
+	$g{db_fields} = DB_ReadFields($dbh, $g{db_database}, $g{db_tables});
 	defined $g{db_fields} or return undef;
 	# order fields
 	for $table (keys %{$g{db_tables}}) {
@@ -94,6 +94,21 @@ sub DB_ReadDatabase($)
 	my ($sth, $query, $data);
 	my %database = ();
 
+	# PostgreSQL version
+	$query = "SELECT VERSION()";
+	$sth = $dbh->prepare($query);
+	$sth->execute() or return undef;
+	$data = $sth->fetchrow_arrayref();
+	$sth->finish;
+	if($data->[0] =~ /^PostgreSQL (\d+\.\d+) /) {
+		$database{version} = $1;
+	}
+	else {
+		# we don't support versions older than 7.0
+		# if VERSION() doesn't exist, assume 7.0
+		$database{version} = '7.0';
+	}
+
 	# database oid
 	my $oid;
 	$query = "SELECT oid FROM pg_database WHERE datname = '$dbh->{Name}'";
@@ -103,7 +118,7 @@ sub DB_ReadDatabase($)
 	$oid = $data->[0];
 	$sth->finish;
 
-	# read table comments as descriptions
+	# read database name from database comment
 	$query = "SELECT description FROM pg_description WHERE objoid = $oid";
 	$sth = $dbh->prepare($query);
 	$sth->execute() or return undef;
@@ -119,9 +134,9 @@ sub DB_ReadDatabase($)
 	return \%database;
 }
 
-sub DB_ReadTables($)
+sub DB_ReadTables($$)
 {
-	my $dbh = shift;
+	my ($dbh, $database) = @_;
 	my %tables = ();
 
 	my ($query, $sth, $data, $table);
@@ -152,15 +167,26 @@ END
 	$sth->finish;
 
 	# read table comments as descriptions
-	$query = <<'END';
+	if($database->{version} >= 7.2) {
+		$query = <<'END';
+SELECT c.relname, obj_description(c.oid, 'pg_class')
+FROM pg_class c
+WHERE (c.relkind = 'r' OR c.relkind = 'v')
+AND c.relname !~ '^pg_'
+AND c.relname !~ '(^meta_|_combo$)'
+END
+	}
+	else {
+		$query = <<'END';
 SELECT c.relname, d.description 
 FROM pg_class c, pg_description d
 WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND c.relname !~ '^pg_'
 AND c.relname !~ '(^meta_|_combo$)'
 AND c.oid = d.objoid
-ORDER BY d.description
 END
+	}
+
 	$sth = $dbh->prepare($query) or return undef;
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
@@ -297,10 +323,9 @@ sub DB_ReadTableAcls($$)
 	return 1;
 }
 
-sub DB_ReadFields($$)
+sub DB_ReadFields($$$)
 {
-	my $dbh = shift;
-	my $tables = shift;
+	my ($dbh,$database,$tables) = @_;
 
 	my ($query, $sth, $data, $table, $field);
 	my %fields = ();
@@ -337,17 +362,29 @@ END
 	my %field_descs = ();
 
 	# read field comments as descriptions
-	$query = <<'END';
+	if($database->{version} >= 7.2) {
+		$query = <<'END';
+SELECT a.attname, col_description(a.attrelid, a.attnum)
+FROM pg_class c, pg_attribute a
+WHERE c.relname = ? AND a.attnum > 0
+AND a.attrelid = c.oid
+END
+	}
+	else {
+		$query = <<'END';
 SELECT a.attname, d.description
 FROM pg_class c, pg_attribute a, pg_description d
 WHERE c.relname = ? AND a.attnum > 0
 AND a.attrelid = c.oid
 AND a.oid = d.objoid
 END
+	}
+
 	$sth = $dbh->prepare($query);
 	for $table (keys %$tables) {
 		$sth->execute($table) or return undef;
 		while ($data = $sth->fetchrow_arrayref()) {
+			$data->[1] !~ /^\s*$/ or next;
 			$fields{$table}{$data->[0]}{desc}=$data->[1];
 			$field_descs{$data->[0]} = $data->[1];
 		}
