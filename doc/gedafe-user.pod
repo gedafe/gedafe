@@ -283,7 +283,7 @@ variables.
 
 =item *
 
-In the URL: C<listrows=nn> override the number-of-displayed-rows specified in
+In the URL: C<list_rows=nn> override the number-of-displayed-rows specified in
 the startup script.
 
 =item *
