@@ -4,7 +4,7 @@ SHELL=/bin/sh
 
 MAJOR  = 1
 MINOR  = 0
-MMINOR = 0
+MMINOR = 1
 VERSION = $(MAJOR).$(MINOR).$(MMINOR)
 
 TAR = gedafe-$(VERSION).tar.gz

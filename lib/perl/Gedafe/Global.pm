@@ -10,8 +10,6 @@ use strict;
 
 use vars qw(@ISA @EXPORT_OK %g %s);
 
-use Data::Dumper;
-
 # %g  -> global data
 # %u  -> user data
 # %s  -> session data
