@@ -98,10 +98,11 @@ sub ConnectToTicketsDaemon($) {
 	return $socket;
 }
 
-sub MakeURL($$)
+sub MakeURL($$;$)
 {
 	my $prev = shift;
 	my $new_params = shift;
+	my $deletekeys = shift;
 	my %params = ();
 	my $url;
 
@@ -118,15 +119,31 @@ sub MakeURL($$)
 		$url = $prev;
 	}
 
+
+	# delete entries that match deletekeys
+	foreach(keys %params) {
+		if(defined $params{$_} and $params{$_} ne ''){
+			if($deletekeys){
+				foreach my $del (@$deletekeys){
+					if ($_ =~ /^$del$/){
+						delete $params{$_};
+					}
+				}
+			}
+		}
+	}
+
 	# merge
 	foreach(keys %$new_params) {
 		$params{$_} = $new_params->{$_};
 	}
 
-	# delete empty values
+
 	foreach(keys %params) {
-		delete $params{$_} unless defined $params{$_} and $params{$_} ne '';
+		delete $params{$_} unless (defined $params{$_} and $params{$_} ne '');
+
 	}
+
 
 	# prepare key=value pairs
 	my @params_list = ();
@@ -436,7 +453,7 @@ sub DataUnTree($){
 }
 
 sub StripJavascript($){
-	my $suspicious = shift;
+	my $suspicious = shift || '';
 
 	#remove all data-url things except images
 	$suspicious =~ s/data:image/gedafeProtected_DATAURL_IMG/gsi;
