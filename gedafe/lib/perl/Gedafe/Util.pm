@@ -12,6 +12,8 @@ use Text::CPPTemplate;
 
 use IO::Socket;
 
+use Carp;
+
 use vars qw(@ISA @EXPORT_OK);
 require Exporter;
 @ISA       = qw(Exporter);
@@ -37,7 +39,12 @@ require Exporter;
 	DataUnTree
 	Gedafe_URL_Decode
 	Gedafe_URL_Encode
+	CGI_URL_Encode
 	StripJavascript
+	IdentifyRow
+	URLRow
+	FindReferer
+	MergeForeignColumns
 );
 
 sub DataTree($);
@@ -85,7 +92,12 @@ sub Die($) {
 
 	$t{ELEMENT}='footer';
 	print Template(\%t);
-
+	if(1){
+		print STDERR "\n\n******************* Start Gedafe Error ************************\n";
+		print STDERR "ERROR: $error_text\n\n";
+		print STDERR Carp::longmess("");
+		print STDERR "\n################### Start Gedafe Error ########################\n";
+	}
 #	die "GEDAFE ERROR: $error_text";
 	exit 1;
 }
@@ -125,7 +137,7 @@ sub MakeURL($$;$)
 		if(defined $params{$_} and $params{$_} ne ''){
 			if($deletekeys){
 				foreach my $del (@$deletekeys){
-					if ($_ =~ /^$del$/){
+					if ($_ =~ /$del/){
 						delete $params{$_};
 					}
 				}
@@ -494,6 +506,139 @@ sub StripJavascript($){
 	return $mostly_harmless;
 }
 
+sub IdentifyRow($$){
+	#augments a linkarg hash with data to identify a row.
+	#used to match primary keys to rows.
+	my $row = shift;
+	my $linkargs = shift;
+	my $keycounter = 0;
+	for(keys %{$row->[0]}){
+
+		$linkargs->{"pri_name$keycounter"} = $_;
+		$linkargs->{"pri_value$keycounter"} = 
+		    $row->[0]{$_};
+		$keycounter++;
+	}
+}
+
+sub URLRow($){
+	#reads primary keys and values from url for row identification
+	my $q = shift;
+	my $i =0;
+	my %keys = ();
+	my $key;
+	while($key = $q->param("pri_name$i")){
+		
+		$keys{$key} = $q->param("pri_value$i");
+		# print STDERR "found key: $key and value $keys{$key}\n";
+		$i++;
+	}
+	return \%keys;
+}
+
+sub CGI_URL_Encode($){
+	#cheap url encode
+	my $hidden = $g{'s'}{cgi}->hidden('none',shift || '');
+	$hidden =~ /value="(.*)"/;
+	return $1
+}
+
+sub FindReferer($$$){
+	my($table,$constraint,$tcol) = @_;
+	my @rcol = grep 
+	{
+		$g{db_tables}{$table}{foreign_pairs}{$_} eq $tcol
+	} @{$g{db_tables}{$table}{foreign}{$constraint}}; 
+	return $rcol[0];
+}
+
+sub MergeForeignColumns($$;$){
+	my $fields_list = shift;
+	my $fields = shift;
+	my $values = shift;
+
+	
+
+	#hack @fields_list and %values to merge spanning foreign keys into
+	#single combo's except when no combo,hidcombo,jsisearch is defined.
+	#When one column from a set that references has a widget, all will be replaced.
+	while(1){
+		my $alldone = 1;
+		my $constraint;
+		my $target;
+		my $widget;
+		my $desc;
+		my @desclist;
+		my @widgetlist = ();
+		my $counter = 0;
+		my $mergedvalues = {};
+		my $widgetkind;
+		my $referencecolums;
+		for(@$fields_list){
+			print STDERR "$_ w=: $fields->{$_}{widget}\n";
+			if($fields->{$_} 
+			   and $fields->{$_}{refconstraint}
+			  and $fields->{$_}{widget} =~ /combo|jsisearch/i){
+				print STDERR "considering field $_\n";
+				$alldone = 0;
+				$constraint = $fields->{$_}{refconstraint};
+				$target = $fields->{$_}{reference};
+				
+				#copy the widget from the first field that we find
+				$fields->{$_}{widget} =~ /^(.*)\((.*)\)$/;
+				$widget = $1;
+				push @widgetlist,$2;
+			}
+			$counter ++;
+		}
+		last if($alldone);
+
+		$desc = $g{db_tables}{$target}{desc}." : (";
+		
+
+		#insert placeholder field
+		splice @$fields_list,$counter,0,("meta_foreign_$constraint");
+		
+		my $copyfield = 0;
+
+		#remove fields that reference
+		my @new_fields_list = ();
+		my %refhash = ();
+		for(@$fields_list){
+			if($fields->{$_} and 
+			   $fields->{$_}{refconstraint} and 
+			   $fields->{$_}{refconstraint} == $constraint){
+				$mergedvalues->{$_} = $values->{$_};
+				$refhash{$_} = $fields->{$_}{targetcolumn};
+				if($fields->{$_}{copy}){
+					$copyfield = 1;
+				}
+				push @desclist, $fields->{$_}{desc};
+			}else{
+				push @new_fields_list,$_;
+			}
+			
+		}
+		#replace fields
+		splice(@$fields_list,0,scalar @$fields_list, @new_fields_list);
+		
+		$desc .= join(", ",@desclist).")";
+
+		
+		my $keycount = 0;
+		for(keys %refhash){
+			push @widgetlist,"refcol$keycount=$_,tarcol$keycount=$refhash{$_}";
+		}
+		$widget .= "(".join(',',@widgetlist).")";
+		$fields->{"meta_foreign_$constraint"} = {widget=>$widget,desc=>$desc,copy=>$copyfield};
+		if(scalar keys (%$mergedvalues) ==1){
+			($values->{"meta_foreign_$constraint"})= values(%$mergedvalues);
+		}else{
+			$values->{"meta_foreign_$constraint"} = $mergedvalues;
+		}
+	}
+	1;
+}
 
 1;
 

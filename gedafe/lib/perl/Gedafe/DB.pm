@@ -14,6 +14,13 @@ use Gedafe::Global qw(%g);
 use DBI;
 use DBD::Pg 1.20; # 1.20 has constants for data types
 
+
+use Gedafe::Util qw(
+	DataTree
+	DataUnTree
+);
+
+
 use vars qw(@ISA @EXPORT_OK);
 require Exporter;
 @ISA       = qw(Exporter);
@@ -37,6 +44,7 @@ require Exporter;
 	DB_DumpJSITable
 	DB_DumpTable
 	DB_FetchReferencedId
+	DB_FetchReferencedSearchValues
 	DB_ReadDatabase
 );
 
@@ -47,7 +55,7 @@ sub DB_DB2HTML($$);
 sub DB_DeleteRecord($$$);
 sub DB_DumpBlob($$$$);
 sub DB_DumpTable($$$);
-sub DB_ExecQuery($$$$$);
+sub DB_ExecQuery($$$$$;$);
 sub DB_FetchList($$);
 sub DB_FetchListSelect($$);
 sub DB_GetBlobName($$$$);
@@ -69,9 +77,10 @@ sub DB_ReadSchemapath($$$);
 sub DB_ReadTableAcls($$);
 sub DB_ReadTables($$);
 sub DB_Record2DB($$$$);
-sub DB_UpdateRecord($$$);
+sub DB_UpdateRecord($$$$);
 sub DB_Widget($$);
 sub DB_filenameSql($);
+sub DB_FetchReferencedSearchValues($$$$$);
 
 my %type_widget_map = (
 	'date'      => 'text(size=12)',
@@ -90,7 +99,6 @@ my %type_widget_map = (
 	'bool'      => 'checkbox',
 	'bytea'     => 'file',
 );
-
 
 sub DB_Init($$)
 {
@@ -232,7 +240,7 @@ sub DB_ReadTables($$)
 	# tables
 	if($database->{version} >= 7.3) {
 	$query = <<END;
-SELECT c.relname, n.nspname
+SELECT c.relname, n.nspname,c.relkind
 FROM pg_class c, pg_namespace n
 WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND   (c.relname !~ '^pg_')
@@ -271,6 +279,11 @@ END
 		    }
 	
 		} 
+		if($database->{version} >= 7.1 ){
+			if($data->[2] =~ /v/){
+				$tables{$data->[0]}{isview} = 1;
+			}
+		}
 		if($data->[0] =~ /_rep$/) {
 			$tables{$data->[0]}{report} = 1;
 		}
@@ -344,6 +357,56 @@ END
 	    }
 	}
 	$sth->finish;
+
+
+	#experiment with primary key finding
+	#
+	#first initialise the $tables structure with
+	#a default primary key that ensures backward compatibility on
+	#postgres <7.3: every $table has $table_id as primary key 
+	
+	for(keys(%tables)){
+		$tables{$_}{foreign} = {};
+		$tables{$_}{foreign_pairs} = {};
+	}
+
+	#now if we have a resonably new postgres, find the actual 
+	#primary keys
+	my ($subquery,$subdata,$substh);
+	
+	$query = <<'END';
+select relname,array_dims(conkey) from pg_constraint,pg_class where conrelid=pg_class.oid and contype = 'p';
+END
+	$sth = $dbh->prepare($query) or return undef;
+
+	$sth->execute() or return undef;
+	while ($data = $sth->fetchrow_arrayref()) {
+	    next unless defined $tables{$data->[0]};
+	    $tables{$data->[0]}{primary} = [];
+	    $data->[1] =~ /(\d+)\]/;
+	    for(1..$1){
+		$subquery = <<END;
+select attname from pg_attribute,pg_constraint,pg_class where conrelid=pg_class.oid and attrelid=pg_class.oid and pg_class.relname='$data->[0]' and attnum = conkey[$_] and contype='p' and not attisdropped;
+END
+		
+		$substh = $dbh->prepare($subquery) or return undef;
+		$substh->execute();
+		$subdata = $substh->fetchrow_arrayref();
+		push @{$tables{$data->[0]}{primary}},$subdata->[0];
+	    }
+	}
+	$sth->finish;
+
+	for(keys %tables){
+	    if(!$tables{$_}{hide} 
+	       and $_ !~ /^meta_/ 
+	       and !$tables{$_}{isview}){
+		print STDERR "testing: $_\n";
+		if(!$tables{$_}{primary} or scalar @{$tables{$_}{primary}}==0){
+		    die("Table \"$_\" seems to have no primary keys, Gedafe needs a primary key for every <I>visible</i> table to work properly<br>");
+		}
+	    }
+	}
 
 	return \%tables;
 }
@@ -445,16 +508,17 @@ sub DB_Widget($$)
 {
 	my ($fields, $f) = @_;
 
-	if(defined $f->{widget} and $f->{widget} eq 'isearch'){
-		my $r  = $f->{reference};
-		my $rt = $g{db_tables}{$r};
-		defined $rt or die "table $f->{reference}, referenced from $f->{table}:$f->{field}, not found.\n";
-		if(defined $fields->{$r}{"${r}_hid"}) {
-			# Combo with HID
-			return "hidisearch(ref=$r)";
-		}
-		return "isearch(ref=$r)";
-	}
+	# isearch has been deprecated
+	#if(defined $f->{widget} and $f->{widget} eq 'isearch'){
+	#	my $r  = $f->{reference};
+	#	my $rt = $g{db_tables}{$r};
+	#	defined $rt or die "table $f->{reference}, referenced from $f->{table}:$f->{field}, not found.\n";
+	#	if(defined $fields->{$r}{"${r}_hid"}) {
+	#		# Combo with HID
+	#		return "hidisearch(ref=$r)";
+	#	}
+	#	return "isearch(ref=$r)";
+	#}
 
 	if(defined $f->{widget} and $f->{widget} eq 'jsisearch'){
 		my $r  = $f->{reference};
@@ -469,30 +533,28 @@ sub DB_Widget($$)
 
 
 	return $f->{widget} if defined $f->{widget};
+	
 
 	# HID and combo-boxes
-	if($f->{type} eq 'int4' or $f->{type} eq 'int8') {
-		if(defined $f->{reference}) {
-			my $r  = $f->{reference};
-			my $rt = $g{db_tables}{$r};
-			defined $rt or die "table $f->{reference}, referenced from $f->{table}:$f->{field}, not found.\n";
-			my $combo = "${r}_combo";
-			if(defined $g{db_tables}{$combo}) {
-				if(defined $fields->{$r}{"${r}_hid"}) {
-					# Combo with HID
-					return "hidcombo(combo=$combo,ref=$r)";
-				}
-				return "idcombo(combo=$combo)";
-			}
-			if(defined $fields->{$r}{"${r}_hid"}) {
-				# Plain with HID
-				return "hid(ref=$r)";
-			}
-			return "text";
+	if(defined $f->{reference}) {
+	    my $r  = $f->{reference};
+	    my $rt = $g{db_tables}{$r};
+	    defined $rt or die "table $f->{reference}, referenced from $f->{table}:$f->{field}, not found.\n";
+	    my $combo = "${r}_combo";
+	    if(defined $g{db_tables}{$combo}) {
+		if(defined $fields->{$r}{"${r}_hid"}) {
+		    # Combo with HID
+		    return "hidcombo(combo=$combo,ref=$r)";
 		}
-		return $type_widget_map{$f->{type}};
+		return "idcombo(combo=$combo)";
+	    }
+	    if(defined $fields->{$r}{"${r}_hid"}) {
+		# Plain with HID
+		return "hid(ref=$r)";
+	    }
+	    return "text";
 	}
-	elsif($f->{type} eq 'varchar') {
+	if($f->{type} eq 'varchar') {
 		my $len = $f->{atttypmod}-4;
 		if($len <= 0) {
 			return 'text';
@@ -500,8 +562,7 @@ sub DB_Widget($$)
 		else {
 			return "text(size=$len,maxlength=$len)";
 		}
-	}
-	else {
+	} else {
 		my $w = $type_widget_map{$f->{type}};
 		defined $w or die "unknown widget for type $f->{type} ($f->{table}:$f->{field}).\n";
 		return $w;
@@ -628,7 +689,7 @@ END
 		}
 	}
 
-	# defaults
+	# defaults and serials
 	$query = <<'END';
 SELECT d.adsrc FROM pg_attrdef d, pg_class c WHERE
 c.relname = ? AND c.oid = d.adrelid AND d.adnum = ?;
@@ -640,6 +701,9 @@ END
 			$sth->execute($table, $fields{$table}{$field}{attnum}) or die $sth->errstr;
 			my $d = $sth->fetchrow_arrayref();
 			$fields{$table}{$field}{default} = $d->[0];
+			if($d->[0] =~ /^nextval\((.*)_seq'::text\)$/){
+			    $fields{$table}{$field}{serial} = 1;
+			}
 			$sth->finish;
 		}
 	}
@@ -658,16 +722,60 @@ END
 	}
 	$sth->finish;
 
+
+	
 	# foreign-key constraints (REFERENCES)
+	
+	# we need to save some stuff about what columns for a table contain
+	# foreign keys. We find that information out here.
+	# however we need to make sure that $g{db_tables} exits first
+	#
+	die('We need $g{db_tables} to store foreign key info.') unless $g{db_tables};
 	$query = <<'END';
-SELECT tgargs from pg_trigger, pg_proc where pg_trigger.tgfoid=pg_proc.oid AND pg_trigger.tgname
-LIKE 'RI_ConstraintTrigger%' AND pg_proc.proname = 'RI_FKey_check_ins'
+SELECT tgargs,pg_trigger.oid from pg_trigger, pg_proc where pg_trigger.tgfoid=pg_proc.oid AND pg_trigger.tgname LIKE 'RI_ConstraintTrigger%' AND pg_proc.proname = 'RI_FKey_check_ins'
 END
 	$sth = $dbh->prepare($query) or die $dbh->errstr;
 	$sth->execute() or die $sth->errstr;
 	while ($data = $sth->fetchrow_arrayref()) {
+		#next line doesn't work on foreign keys that span multiple columns
+		#$meta_fields{$d[1]}{$d[4]}{reference} = $d[2];
+		#here is how tgargs works:
+		#<argument name>\000<referer>\000<target>\000<UNSPECIFIED>\000rcol1\000tcol1\000rcol2\000tcol2...
+		
+		my ($constraint,$args,$target,$referer);
+		$constraint = $$data[1];
+		$args = $$data[0];
 		my @d = split(/(?:\000|\\000)/,$$data[0]); # DBD::Pg 0.95: \\000, DBD::Pg 0.98: \000
-		$meta_fields{$d[1]}{$d[4]}{reference} = $d[2];
+		$target = $d[2];
+		$referer = $d[1];
+		#splice first 4 elements, we already dealt with them
+		@d = splice @d,4;
+		#print STDERR "R: ".join(' ',@d)." ".scalar @d."\n"; 
+		
+		$g{db_tables}{$referer}{foreign}{$constraint} = [];
+		
+		while(scalar @d > 0){
+			#unshift pairs of columns
+			my $rcol = shift @d;
+			my $tcol = shift @d;
+			#not too usefull naming here... due to backwards compatibility
+			$meta_fields{$referer}{$rcol}{reference} = $target;
+			$meta_fields{$referer}{$rcol}{targetcolumn} = $tcol;
+			
+			#we save the constraint oid to group columns that belong to the
+			#same constraint later.
+			$meta_fields{$referer}{$rcol}{refconstraint} = $constraint;
+			
+			#also save this field in the tables foreign key constraint list.
+			push @{$g{db_tables}{$referer}{foreign}{$constraint}}, $rcol;	
+
+			#and save it in the hash of referencing fields
+			$g{db_tables}{$referer}{foreign_pairs}{$rcol} = $tcol;
+		}
+
+		
+		
+		
 	}
 	$sth->finish;
 
@@ -700,14 +808,16 @@ END
 				$m = $meta_fields{$table}{$field};
 			}
 			if(defined $m) {
-			        $f->{javascript}= $m->{javascript};
-				$f->{widget}    = $m->{widget};
-				$f->{reference} = $m->{reference};
-				$f->{copy}      = $m->{copy};
-				$f->{sortfunc}  = $m->{sortfunc};
-				$f->{markup}    = $m->{markup};
-				$f->{align}     = $m->{align};
-				$f->{hide_list} = $m->{hide_list};
+			        $f->{javascript}    = $m->{javascript};
+				$f->{widget}        = $m->{widget};
+				$f->{reference}     = $m->{reference};
+				$f->{targetcolumn}  = $m->{targetcolumn};
+				$f->{refconstraint} = $m->{refconstraint};
+				$f->{copy}          = $m->{copy};
+				$f->{sortfunc}      = $m->{sortfunc};
+				$f->{markup}        = $m->{markup};
+				$f->{align}         = $m->{align};
+				$f->{hide_list}     = $m->{hide_list};
 				if  ( defined $m->{bgcolor_field} 
 				      and $m->{bgcolor_field} == 1 ){
 				   # calculate nr of column 
@@ -833,6 +943,7 @@ sub DB_FetchListSelect($$)
 	
 	if(!$g{db_tables}{$spec->{table}}{report} 
 	   and !$spec->{export}
+	   and !$spec->{rowcount}
 	   and $g{db_tables}{$spec->{table}}{meta}{showref}){
 		#the list of tables that we want to find reference counts for
 		my @showrefs = split(/,/,
@@ -850,31 +961,68 @@ sub DB_FetchListSelect($$)
 				    and $g{db_tables}{$showref}{acls}{$spec->{user}}=~/r/);
 			
 			#now find the column that references us.
-			my $refcolumn = undef;
+			my $constraintnumber = 0;
+			my %refcolumns = ();
 			if (defined  $explicittarget ){
-				$refcolumn = $explicittarget;
-			} else { 
-			    for my $refcol (@{$g{db_fields_list}{$showref}}){
-				my $refcolref = $g{db_fields}{$showref}{$refcol}{reference};
-				next if(!defined $refcolref);
-				if( $refcolref eq 
-				    $spec->{table}){
-					$refcolumn = $refcol;
-					last; # End loop to make sure we
-					# find the first referencing col
+			    my @rcollist = split(',',$explicittarget);
+			    for my $constraint(keys %{$g{db_tables}{$showref}{foreign}}){
+				my @cfcols = ();
+				for(@{$g{db_tables}{$showref}{foreign}{$constraint}}){
+				    if($g{db_fields}{$showref}{$_}{reference} eq $spec->{table}){
+					push @cfcols,$_;
+				    }
 				}
+
+				#compare nr of ellements
+				next unless(@rcollist == @cfcols);
+				#thats a lot of trouble to go through to compare two arrays
+				next unless (join('|',sort(@rcollist)) eq join('|',sort(@cfcols)));
+				
+				#once we are here this is the first foreign key constraint that 
+				#matches
+				for(@{$g{db_tables}{$showref}{foreign}{$constraint}}){
+				    $constraintnumber = $g{db_fields}{$showref}{$_}{refconstraint};
+				    $refcolumns{$_} = $g{db_fields}{$showref}{$_}{targetcolumn};
+				}
+
+				#enough browsing through lists now
+				last;
+			    }
+			} else {
+			CONSTRAINT: for my $constraint (keys %{$g{db_tables}{$showref}{foreign}}){
+				for(@{$g{db_tables}{$showref}{foreign}{$constraint}}){
+				    my $target = $g{db_fields}{$showref}{$_}{targetcolumn};
+				    $constraintnumber = $g{db_fields}{$showref}{$_}{refconstraint};
+				    if($g{db_fields}{$showref}{$_}{reference} eq $spec->{table} &&
+				       grep(/^$target$/,@{$g{db_tables}{$spec->{table}}{primary}})){
+					$refcolumns{$_} = $g{db_fields}{$showref}{$_}{targetcolumn};
+				    }else{
+					#this constraint doesnt match... find a new one
+					%refcolumns = ();
+					next CONSTRAINT;
+				    }
+				}
+				#this constraint matches... no need to look any further..
+				last;
 			    }
 			}
-			die($spec->{table}." not referenced from $showref in meta_tables showref") if(!defined $refcolumn);
+			die("Although meta_tables suggests that we should 'showref' to table [$showref] from this table [$spec->{table}] it appears that there is no foreign key constraint that represents this relation.<p> Error occured ") 
+			    if(keys(%refcolumns)==0);
 			
-			push @select_fields,"(select count(*) from $showref as meta_rcsr where meta_rcsr.$refcolumn = $spec->{view}.$select_fields[0]) as meta_rc_${showref}";
+			my $countquery = "(select count(*) from $showref where ";
+			my @comparelist = ();
+			for(keys %refcolumns){
+			    push @comparelist," $showref.$_ = $spec->{table}.$refcolumns{$_} ";
+			}
+			$countquery .= join(' and ',@comparelist)." ) as meta_rc_$showref";
+			push @select_fields,$countquery;
 
-			push @fields,"meta_rc_$showref#$refcolumn";
+			push @fields,"meta_rc_$showref#$constraintnumber";
 		}
 	    
 	}
-	my @query_parameters = ();
-
+	my @query_parameters = ()
+;
 	my $query = "SELECT ";
 	$query .= $spec->{countrows} ? "COUNT(*)" : join(', ',@select_fields);
 	$query .= " FROM $v";
@@ -904,7 +1052,26 @@ sub DB_FetchListSelect($$)
 		    }
 
 		    if($field =~ /meta_rc_(.*)/){
-			push @ands, "($select_fields[0] in (select $spec->{table}_id from $spec->{table} WHERE $1 = ".$line->{tree}[0][0]."))";
+			#here be dragons.
+			#
+			#The thing is, meta_rc_COLNAME is a column from $table while we are looking at $view
+			#so... we have to find out if for this row of $view, $table has a row with COLNAME 
+			#that matches $value...
+
+			my $qtmp = "(? IN (SELECT $1 FROM $spec->{table} AS rc_$line->{count} WHERE ";
+			push @query_parameters, $line->{value};
+
+
+			#now match up all the primary keys, 
+			#luckily they appear in both $table and $view
+			my @prilist = @{$g{db_tables}{$spec->{table}}{primary}};
+			for(@prilist){
+			    $_ = "rc_$line->{count}.$_ = $spec->{view}.$_";
+			}
+			$qtmp.= join(' AND ', @prilist);
+			$qtmp.= "))";
+
+			push @ands, $qtmp;
 		    } else {
 			#roll out tree of conjuctions and disjunctions
 			my @ors = @{$line->{tree}};
@@ -955,8 +1122,10 @@ sub DB_FetchListSelect($$)
 				# guaranteed -> this can be confusing
 				# while scrolling.
 				# try to put order by sorting additionally
-				# with first field, assumed to be the ID
-				$query .= ", $fields[0]";
+				# with primary key fields
+			    for(@{$g{db_tables}{$spec->{table}}{primary}}){
+				$query.=",$_";
+			    }
 			}
 		} elsif (defined $g{db_tables}{$v}{meta_sort}) {
 			$query .= " ORDER BY $v.meta_sort";
@@ -974,6 +1143,7 @@ sub DB_FetchListSelect($$)
 	# print "\n<!-- $query -->\n" unless $spec->{export};
 	# print STDERR  "$query\n";
 	# this is kind of useless now that query's are made with the ? placeholders.
+	print STDERR "$query \n";
 
 	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
 	
@@ -991,14 +1161,77 @@ sub DB_FetchReferencedId($$$$){
     my $s = shift;
     my $table = shift;
     my $column = shift;
-    my $id = shift;
+    my $row = shift;
+    my $target = $g{db_fields}{$table}{$column}{reference};
+    my $constraint = $g{db_fields}{$table}{$column}{refconstraint};
+    my @reffields = @{$g{db_tables}{$table}{foreign}{$constraint}};
+
     my $dbh = $s->{dbh};
-    my $query = "select $column as ref from $table where $table"."_id = ?";
+    my $query = "select ".join(',',@reffields)." from $table where ";
+    my @idlist = ();
+    for(keys %{$row->[0]}){
+	push @idlist, " $_ = ? ";
+    }
+    $query .= join(' and ',@idlist);
     my $sth= $dbh->prepare($query);
-    my $res = $sth->execute($id);
-    my @data = $sth->fetchrow_array();
-    return $data[0];
+
+    print STDERR "FRI: $query\n";
+
+    my $paramnumber = 1;
+    for(keys %{$row->[0]}){
+	#print STDERR "FRI: $_ -> $row->[0]{$_}\n";
+	$sth->bind_param($paramnumber,$row->[0]{$_});
+	$paramnumber++;
+    }
+    
+    my $res = $sth->execute();
+    my $data = $sth->fetchrow_hashref();
+    return $data;
 }
+
+#given a row and a rtable+constraint that references us,
+#returns the hash of columnnames -> values that link to 
+#the row.
+sub DB_FetchReferencedSearchValues($$$$$){
+    my $s = shift;
+    my $row = shift;
+    my $table = shift;
+    my $rtable = shift;
+    my $constraint = shift;
+ 
+    
+    #print STDERR "FRSV constraint: $constraint\n";
+    
+    my @rlist = @{$g{db_tables}{$rtable}{foreign}{$constraint}};
+
+    my @reffields = ();
+    for(@rlist){
+	push @reffields,$g{db_tables}{$rtable}{foreign_pairs}{$_};
+    }
+
+    my $dbh = $s->{dbh};
+    my $query = "select ".join(',',@reffields)." from $table where ";
+    my @idlist = ();
+    for(keys %{$row->[0]}){
+	push @idlist, " $_ = ? ";
+    }
+    $query .= join(' and ',@idlist);
+
+    #print STDERR "FRSV: $query\n";
+    my $sth= $dbh->prepare($query);
+
+    my $paramnumber = 1;
+    for(keys %{$row->[0]}){
+	$sth->bind_param($paramnumber,$row->[0]{$_});
+	$paramnumber++;
+    }
+    
+    my $res = $sth->execute();
+    my $data = $sth->fetchrow_hashref();
+
+    return $data;
+}
+
 
 sub DB_FetchList($$)
 {
@@ -1034,6 +1267,7 @@ sub DB_FetchList($$)
 		acl => defined $g{db_tables}{$spec->{table}}{acls}{$user} ?
 			$g{db_tables}{$spec->{table}}{acls}{$user} : ''
 	);
+
 	my $col = 0;
 	my @columns;
 	for my $f (@{$list{fields}}) {
@@ -1050,10 +1284,11 @@ sub DB_FetchList($$)
 		if($f =~ /meta_rc_(.*)#(.*)/){
 		   $columns[$col]
 			= {field     => $f,
-			   desc      => $1,
+			   desc      => $g{db_tables}{$1}{desc},
+			   rtable    => $1,
 			   align     => '"LEFT"',
 			   refcount  => 1,
-			   tar_field => $2,
+			   constraint => $2,
 			   type      => 'int4'
 			       
 			  };
@@ -1072,6 +1307,23 @@ sub DB_FetchList($$)
 	}
 	$list{columns} = \@columns;
 
+
+	#find column numbers for every primary key and store them in 
+	#$list{keys}
+	my $fieldcounter = 0;
+	my %primary = ();
+	for my $primarykey (@{$g{db_tables}{$spec->{table}}{primary}}){
+	    $fieldcounter = 0;
+	    for(@{$list{columns}}){
+		#print STDERR "$_->{field} ... $primarykey\n";
+		if($_->{field} eq $primarykey){
+		    $primary{$primarykey} = $fieldcounter;
+		}
+		$fieldcounter++;
+	    }
+	}
+	$list{keys} = \%primary;
+
 	# fetch the data
 	while(my $data = $sth->fetchrow_arrayref()) {
 		my $col;
@@ -1080,8 +1332,11 @@ sub DB_FetchList($$)
 			push @row, $spec->{export} ? $data->[$col] :
 				DB_DB2HTML($data->[$col], $columns[$col]{type});
 		}
-
-		push @{$list{data}}, [ $data->[0], \@row ];
+		my %privalue = ();
+		for(keys %{$list{keys}}){
+		    $privalue{$_} = $row[$list{keys}{$_}];
+		}
+		push @{$list{data}}, [\%privalue, \@row ];
 	}
 	die $sth->errstr if $sth->err;
 
@@ -1103,7 +1358,7 @@ sub DB_GetRecord($$$$)
 {
 	my $dbh = shift;
 	my $table = shift;
-	my $id = shift;
+	my $keys = shift;
 	my $record = shift;
 
 	my @fields_list = @{$g{db_fields_list}{$table}};
@@ -1119,9 +1374,21 @@ sub DB_GetRecord($$$$)
 	my $data;
 	my $query = "SELECT ";
 	$query .= join(', ',@select_fields); # @{$g{db_fields_list}{$table}});
-	$query .= " FROM $table WHERE ${table}_id = $id";
+	$query .= " FROM $table WHERE ";
+	my @keylist = (); 
+	for(keys %$keys){
+	    push @keylist, " $_ = ? ";
+	}
+	$query .= join " AND ",@keylist;
 	my $sth;
+
 	$sth = $dbh->prepare_cached($query) or die $dbh->errstr;
+	my $paramnumber = 1;
+	for(keys %$keys){
+	    $sth->bind_param($paramnumber,$keys->{$_});
+	    $paramnumber++;
+	}
+
 	$sth->execute() or die $sth->errstr;
 	$data = $sth->fetchrow_arrayref() or
 		die ($sth->err ? $sth->errstr : "Record not found ($query)\n");
@@ -1235,14 +1502,15 @@ sub DB_Record2DB($$$$)
 	}
 }
 
-sub DB_ExecQuery($$$$$)
+sub DB_ExecQuery($$$$$;$)
 {
 	my $dbh = shift;
 	my $table = shift;
 	my $query = shift;
 	my $data = shift;
 	my $fields = shift;
-	
+	my $keys = shift;
+
 	my %datatypes = ();
 	for(@$fields){
 		$datatypes{$_} = $g{db_fields}{$table}{$_}{type};
@@ -1265,6 +1533,15 @@ sub DB_ExecQuery($$$$$)
 		}
 		$paramnumber++;
 	}
+
+	#if primary keys are defined, bind them now.
+	if($keys){
+	    for(keys %$keys){
+		$sth->bind_param($paramnumber,$keys->{$_});
+		$paramnumber++;
+	    }
+	}
+
 	my $res = $sth->execute() or do {
 		# report nicely the error
 		$g{db_error}=$sth->errstr; return undef;
@@ -1282,7 +1559,7 @@ sub DB_AddRecord($$$)
 	my $record = shift;
 
 	my $fields = $g{db_fields}{$table};
-	my @fields_list = grep !/${table}_id/, @{$g{db_fields_list}{$table}};
+	my @fields_list = grep {!$fields->{$_}{serial}} @{$g{db_fields_list}{$table}};
 	
 	# filter-out readonly fields
 	@fields_list = grep { not defined $g{db_fields}{$table}{$_}{widget} or $g{db_fields}{$table}{$_}{widget} ne 'readonly' } @fields_list;
@@ -1307,11 +1584,12 @@ sub DB_AddRecord($$$)
 	return DB_ExecQuery($dbh,$table,$query,\%dbdata,\@fields_list);
 }
 
-sub DB_UpdateRecord($$$)
+sub DB_UpdateRecord($$$$)
 {
 	my $dbh = shift;
 	my $table = shift;
 	my $record = shift;
+	my $keys = shift;
 
 	my $fields = $g{db_fields}{$table};
 	my @fields_list = @{$g{db_fields_list}{$table}};
@@ -1331,15 +1609,23 @@ sub DB_UpdateRecord($$$)
 	my $query = "UPDATE $table SET ";
 	my @updatefields;
 	for(@fields_list) {
-		if($_ eq "id") { next; }
-		if($_ eq "${table}_id") { next; }
-		push @updates,"$_ = ?";
-		push @updatefields,$_;
+	    #skip when serial
+	    next if($g{db_fields}{$table}{$_}{serial});
+	    push @updates,"$_ = ?";
+	    push @updatefields,$_;
 	}
 	$query .= join(', ',@updates);
-	$query .= " WHERE ${table}_id = $record->{id}";
 
-	return DB_ExecQuery($dbh,$table,$query,\%dbdata,\@updatefields);
+
+	$query .= " WHERE ";
+
+	my @keylist = ();
+	for(keys %$keys){
+	    push @keylist, " $_ = ? ";
+	}
+	$query .= join " AND ",@keylist;
+
+	return DB_ExecQuery($dbh,$table,$query,\%dbdata,\@updatefields,$keys);
 }
 
 sub DB_GetCombo($$$)
@@ -1348,7 +1634,7 @@ sub DB_GetCombo($$$)
 	my $combo_view = shift;
 	my $combo_data = shift;
 
-	my $query = "SELECT id, text FROM $combo_view";
+	my $query = "SELECT * FROM $combo_view";
 	if(defined $g{db_tables}{$combo_view}{meta_sort}) {
 		$query .= " ORDER BY meta_sort";
 	}
@@ -1359,10 +1645,13 @@ sub DB_GetCombo($$$)
 	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
 	$sth->execute() or die $sth->errstr;
 	my $data;
-	while($data = $sth->fetchrow_arrayref()) {
-		$data->[0]='' unless defined $data->[0];
-		$data->[1]='' unless defined $data->[1];
-		push @$combo_data, [$data->[0], $data->[1]];
+	while($data = $sth->fetchrow_hashref()) {
+	    my %combohash = ();
+	    for(keys %$data){
+		next if($_ eq 'meta_sort');
+		$combohash{$_} = $data->{$_} || '';
+	    }
+	    push @$combo_data, \%combohash;
 	}
 	die $sth->errstr if $sth->err;
 
@@ -1373,12 +1662,23 @@ sub DB_DeleteRecord($$$)
 {
 	my $dbh = shift;
 	my $table = shift;
-	my $id = shift;
+	my $keys = shift;
 
-	my $query = "DELETE FROM $table WHERE ${table}_id = $id";
+	my $query = "DELETE FROM $table WHERE ";
 
-	#print "<!-- Executing: $query -->\n";
-	my $sth = $dbh->prepare($query) or die $dbh->errstr;
+	my @keylist = ();
+	for(keys %$keys){
+	    push @keylist, " $_ = ? ";
+	}
+	$query .= join " AND ",@keylist;
+
+	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
+	my $paramnumber = 1;
+	for(keys %$keys){
+	    $sth->bind_param($paramnumber,$keys->{$_});
+	    $paramnumber++;
+	}
+
 	$sth->execute() or do {
 		# report nicely the error
 		$g{db_error}=$sth->errstr; return undef;
@@ -1392,18 +1692,26 @@ sub DB_GetBlobMetaData($$$$)
 	my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
-	my $id = shift;
+	my $keys = shift;
 
-	my $idcolumn = "${table}_id";
-	if($table =~ /\w+_list/){
-		#tables that end with _list are actualy views and have their
-		# id column as the first column of the view
-		$idcolumn = $g{db_fields_list}{$table}[0];
+
+	my $query = "SELECT SUBSTRING($field,1,position('#'::bytea in $field)-1) FROM $table WHERE ";
+
+	my @keylist = ();
+	for(keys %$keys){
+	    push @keylist, " $_ = ? ";
+	}
+	$query .= join " AND ",@keylist;
+
+	my $sth = $dbh->prepare($query);
+
+	my $paramnumber = 1;
+	for(keys %$keys){
+	    $sth->bind_param($paramnumber,$keys->{$_});
+	    $paramnumber++;
 	}
 
 
-	my $query = "Select substring($field,1,position('#'::bytea in $field)-1) from $table where $idcolumn=$id";
-	my $sth = $dbh->prepare($query);
 	$sth->execute() or return undef;
 	my $data = $sth->fetchrow_arrayref() or return undef;
 	my $metadata = $data->[0];
@@ -1420,8 +1728,8 @@ sub DB_GetBlobName($$$$)
     my $dbh = shift;
     my $table = shift;
     my $field = shift;
-    my $id = shift;
-    my @metadata= DB_GetBlobMetaData($dbh,$table,$field,$id);
+    my $keys = shift;
+    my @metadata= DB_GetBlobMetaData($dbh,$table,$field,$keys);
     return $metadata[0];
 }
 
@@ -1430,8 +1738,8 @@ sub DB_GetBlobType($$$$)
     my $dbh = shift;
     my $table = shift;
     my $field = shift;
-    my $id = shift;
-    my @metadata= DB_GetBlobMetaData($dbh,$table,$field,$id);
+    my $keys = shift;
+    my @metadata= DB_GetBlobMetaData($dbh,$table,$field,$keys);
     return $metadata[1];
 }
 
@@ -1440,27 +1748,43 @@ sub DB_DumpBlob($$$$)
 	my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
-	my $id = shift;
+	my $keys = shift;
 
-	my $idcolumn = "${table}_id";
-	if($table =~ /\w+_list/){
-		#tables that end with _list are actualy views and have their
-		# id column as the first column of the view. 
-		$idcolumn = $g{db_fields_list}{$table}[0];
+	my $query = "SELECT position('#'::bytea in $field)+1,octet_length($field) FROM $table WHERE ";
+	my @keylist = ();
+	for(keys %$keys){
+	    push @keylist, " $_ = ? ";
 	}
-	
-	my $query = "Select position('#'::bytea in $field)+1,octet_length($field) from $table where $idcolumn=$id";
+	$query .= join " AND ",@keylist;
+
 	my $sth = $dbh->prepare($query);
+
+	my $paramnumber = 1;
+	for(keys %$keys){
+	    $sth->bind_param($paramnumber,$keys->{$_});
+	    $paramnumber++;
+	}
+
+
 	$sth->execute() or return -1;
 	my $data = $sth->fetchrow_arrayref() or return -1;
 	my $startpos = $data->[0] || 0;
 	my $strlength = $data->[1] || 0;
 	$sth->finish();
 	my $endpos = $strlength-($startpos-1);
-	my $dumpquery = "Select substring($field,?,?) from $table where $idcolumn=$id";
+	my $dumpquery = "SELECT substring($field,?,?) FROM $table WHERE ". join " AND ",@keylist;
 	my $dumpsth = $dbh->prepare($dumpquery);
 	my $blobdata;
-	$dumpsth->execute($startpos,$endpos) or return -1;
+	$dumpsth->bind_param(1,$startpos);
+	$dumpsth->bind_param(2,$endpos);
+
+	$paramnumber = 3;
+	for(keys %$keys){
+	    $dumpsth->bind_param($paramnumber,$keys->{$_});
+	    $paramnumber++;
+	}
+
+	$dumpsth->execute() or return -1;
 	$blobdata = $dumpsth->fetchrow_arrayref() or return -1;
 	# I know it is not nice to do the print here but I don't want to make the memory footprint
 	# to large so returning the blob to a GUI routine is not possible.
@@ -1468,102 +1792,104 @@ sub DB_DumpBlob($$$$)
 	return 1;
 }
 
-sub DB_RawField($$$$)
-{
-	my $dbh = shift;
-	my $table = shift;
-	my $field = shift;
-	my $id = shift;
+#Not entirely sure what this was used for once...
+#Looks like we don't need it any more...
+#sub DB_RawField($$$$)
+#{
+#	my $dbh = shift;
+#	my $table = shift;
+#	my $field = shift;
+#	my $id = shift;
+#
+#	my $query = "Select $field from $table where ${table}_id = $id";
+#	# print STDERR $query."\n";
+#	my $sth = $dbh->prepare($query);
+#	$sth->execute() or return undef;
+#	my $data = $sth->fetchrow_arrayref() or return undef;
+#	return $data->[0];
+#}
 
-	my $query = "Select $field from $table where ${table}_id = $id";
-	# print STDERR $query."\n";
-	my $sth = $dbh->prepare($query);
-	$sth->execute() or return undef;
-	my $data = $sth->fetchrow_arrayref() or return undef;
-	return $data->[0];
-}
-
-sub DB_DumpTable($$$)
-{
-	my $dbh = shift;
-	my $table = shift;
-	my $view = defined $g{db_tables}{"${table}_list"} ?
-			"${table}_list" : $table;	
-	my $atribs = shift;
-
-	my @fields = @{$g{db_fields_list}{$view}};
-	# update the query to prevent listing binary data
-	my @select_fields = @fields;
-	for(@select_fields){
-		if($g{db_fields}{$view}{$_}{type} eq 'bytea'){
-			$_ = DB_filenameSql($_);
-		}
-	}
-
-	my $query = "SELECT ";
-	$query .= join(', ',@select_fields);
-	$query .= " FROM $view";
-	
-	# fix this for placeholders
-
-	my $first = 1;
-	for my $field (keys(%$atribs)){
-		if($first){
-			$query .= " where ";
-		}else{
-			$query .= " and ";
-		}
-		my $value = $atribs->{$field};
-		my $type = $g{db_fields}{$view}{$field}{type};
-		if($type eq 'date') {
-			$query .= " $field = '$value'";
-		}
-		elsif($type eq 'bool') {
-			$query .= " $field = '$value'";
-		}
-		else {
-			$query .= " $field ~* '.*$value.*'";
-		}
-	}
-
-	my $sth = $dbh->prepare($query) or return undef;
-	$sth->execute() or return undef;
-
-	my (@row, $data);
-	
-	$data=$sth->rows."\n";
-	
-	$first = 1;
-	my $numcolumns = scalar @select_fields;
-	my $maxsize = $g{conf}{max_dumpsize};
-	$maxsize = 10000 unless($maxsize);
-	while(@row = $sth->fetchrow_array()) {
-		$first = 1;
-		for (0..$numcolumns-1){
-			my $field=$row[$_];
-			if(!$field||$field eq ""){
-				$field = " ";
-			}
-			
-			if(not $first){
-				$data.="\t";
-			}
-			$first = 0;
-			$field =~ s/\t/\&\#09\;/gm;
-			$field =~ s/\n/\&\#10\;/gm;
-			$field =~ s/[\r\f]//gm;
-			
-			$data .= $field;
-			if(length($data) > $maxsize){
-			    $data = "Resultset exeeds desirable size.\n";
-			}
-
-		}
-		$data .= "\n";
-	}
-	$sth->finish();
-	return $data;
-}
+#sub DB_DumpTable($$$)
+#{
+#	my $dbh = shift;
+#	my $table = shift;
+#	my $view = defined $g{db_tables}{"${table}_list"} ?
+#			"${table}_list" : $table;	
+#	my $atribs = shift;
+#
+#	my @fields = @{$g{db_fields_list}{$view}};
+#	# update the query to prevent listing binary data
+#	my @select_fields = @fields;
+#	for(@select_fields){
+#		if($g{db_fields}{$view}{$_}{type} eq 'bytea'){
+#			$_ = DB_filenameSql($_);
+#		}
+#	}
+#
+#	my $query = "SELECT ";
+#	$query .= join(', ',@select_fields);
+#	$query .= " FROM $view";
+#	
+#	# fix this for placeholders
+#
+#	my $first = 1;
+#	for my $field (keys(%$atribs)){
+#		if($first){
+#			$query .= " where ";
+#		}else{
+#			$query .= " and ";
+#		}
+#		my $value = $atribs->{$field};
+#		my $type = $g{db_fields}{$view}{$field}{type};
+#		if($type eq 'date') {
+#			$query .= " $field = '$value'";
+#		}
+#		elsif($type eq 'bool') {
+#			$query .= " $field = '$value'";
+#		}
+#		else {
+#			$query .= " $field ~* '.*$value.*'";
+#		}
+#	}
+#
+#	my $sth = $dbh->prepare($query) or return undef;
+#	$sth->execute() or return undef;
+#
+#	my (@row, $data);
+#	
+#	$data=$sth->rows."\n";
+#	
+#	$first = 1;
+#	my $numcolumns = scalar @select_fields;
+#	my $maxsize = $g{conf}{max_dumpsize};
+#	$maxsize = 10000 unless($maxsize);
+#	while(@row = $sth->fetchrow_array()) {
+#		$first = 1;
+#		for (0..$numcolumns-1){
+#			my $field=$row[$_];
+#			if(!$field||$field eq ""){
+#				$field = " ";
+#			}
+#			
+#			if(not $first){
+#				$data.="\t";
+#			}
+#			$first = 0;
+#			$field =~ s/\t/\&\#09\;/gm;
+#			$field =~ s/\n/\&\#10\;/gm;
+#			$field =~ s/[\r\f]//gm;
+#			
+#			$data .= $field;
+#			if(length($data) > $maxsize){
+#			    $data = "Resultset exeeds desirable size.\n";
+#			}
+#
+#		}
+#		$data .= "\n";
+#	}
+#	$sth->finish();
+#	return $data;
+#}
 
 sub DB_DumpJSITable($$$)
 {
@@ -1629,49 +1955,92 @@ sub DB_DumpJSITable($$$)
 	if($numrecs == -1){
 	    print $jsheader."dberror = true;\n".$jsfooter;
 	    return;
-	}elsif($numrecs > 1500){
+	}elsif($numrecs > 2500){
 	    print $jsheader."toolarge = true;\n".$jsfooter;
 	    return;
 	}
 		
 	print $jsheader."idata = new Array($numrecs);\n".$jsfooter;
 
+
+	#find column numbers of primary keys
+	my $fieldcounter = 0;
+	my %primary = ();
+	for my $primarykey (@{$g{db_tables}{$table}{primary}}){
+	    $fieldcounter = 0;
+	    for(@select_fields){
+		if($_ eq $primarykey){
+		    $primary{$primarykey} = $fieldcounter;
+		}
+		$fieldcounter++;
+	    }
+	}
+
+
+
 	$first = 1;
+
 	my $numcolumns = scalar @select_fields;
+
+	#add one column for keys hash if we need that
+	my $morekeys =0;
+	if(scalar keys(%primary)>1){
+	    $morekeys = 1;
+	}
+
+
+
 	my $dataline;
 	my $recno = 0;
 
 	my $collecting = 1;
 
 	print $jsheader;
+	print "var morekeys = $morekeys;";
+	
+	my %keyhash;
 
 	while(@row = $sth->fetchrow_array()) {
-		$first = 1;
-		print "idata[$recno] = new Array(\"";
-		for (0..$numcolumns-1){
-			my $field=$row[$_];
-			if(!$field||$field eq ""){
-				$field = " ";
-			}
-			
-			if(not $first){
-				print '","';
-			}
-			$first = 0;
-			$field =~ s/\t/\&\#09\;/gm;
-			$field =~ s/\n/\&\#10\;/gm;
-			$field =~ s/\"/\&\#34\;/gm;
-			$field =~ s/[\r\f]//gm;
-			
-			print $field;
+	    %keyhash = ();
+	    for(keys %primary){
+		$keyhash{$_} = $row[$primary{$_}];
+	    }
+	    $first = 1;
+	    print "idata[$recno] = new Array(\"";
+	    for (0..$numcolumns-1){
+		my $field=$row[$_];
+		if(!$field||$field eq ""){
+		    $field = " ";
 		}
-		print "\");\n";
-		if($recno % 100 == 0){
-		    print $jsfooter;
-		    print $jsheader."progress(".(100*$recno/$numrecs).");\n".$jsfooter;
-		    print $jsheader;
+		
+		if(not $first){
+		    print '","';
 		}
-		$recno++;
+		
+		$first = 0;
+		$field =~ s/\t/\&\#09\;/gm;
+		$field =~ s/\n/\&\#10\;/gm;
+		$field =~ s/\"/\&\#34\;/gm;
+		$field =~ s/[\r\f]//gm;
+		
+		print $field;
+	    }
+
+	    if($morekeys){
+		if(not $first){
+		    print '","';
+		}
+		$first = 0;
+		print DataUnTree(\%keyhash);
+	    }
+
+	    print "\");\n";
+	    if($recno % 100 == 0){
+		print $jsfooter;
+		print $jsheader."progress(".(100*$recno/$numrecs).");\n".$jsfooter;
+		print $jsheader;
+	    }
+	    $recno++;
 	}
 	$sth->finish();
 	print $jsfooter;

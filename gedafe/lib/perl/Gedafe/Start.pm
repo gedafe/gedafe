@@ -24,7 +24,6 @@ use Gedafe::GUI qw(
 	GUI_Edit
 	GUI_Delete
 	GUI_Export
-	GUI_DumpTable
 	GUI_DumpJSIsearch
         GUI_Pearl
 	GUI_Oyster
@@ -46,6 +45,7 @@ use Gedafe::Util qw(
 	InitPearls
 	InitWidgets
 	InitOysters
+	URLRow
 );
 
 sub Start(%)
@@ -163,8 +163,9 @@ sub Start(%)
 		my $table = $q->param('table');
 		my $id = $q->param('id');
 		my $field = $q->param('field');
-		my $type = DB_GetBlobType($dbh,$table,$field,$id);
-		my $name = DB_GetBlobName($dbh,$table,$field,$id);
+		my $keys = URLRow($q);
+		my $type = DB_GetBlobType($dbh,$table,$field,$keys);
+		my $name = DB_GetBlobName($dbh,$table,$field,$keys);
 		$headers{-type}=$type;
 		if($action =~ /download/){
 			$headers{-attachment}=$name;
@@ -181,9 +182,9 @@ sub Start(%)
 		}
 	}
 
-	if($action eq 'dumptable') {
-		$headers{-type}='text/plain';
-	}
+#	if($action eq 'dumptable') {
+#		$headers{-type}='text/plain';
+#	}
 
 	if ($action eq 'runpearl')  {
 		my $pearl = $q->url_param('pearl');
@@ -203,13 +204,13 @@ sub Start(%)
 	print $q->header(%headers);
 	$s{http_header_sent}=1;
 	
-	GUI_PostEdit(\%s, $user, $dbh);
+	my $foreign_merged_copy = GUI_PostEdit(\%s, $user, $dbh);
 
 	if($action eq 'list' or $action eq 'listrep') {
 		GUI_List(\%s, $user, $dbh);
 	}
 	elsif($action eq 'edit' or $action eq 'add' or $action eq 'reedit') {
-		GUI_Edit(\%s, $user, $dbh);
+		GUI_Edit(\%s, $user, $dbh,$foreign_merged_copy);
 	}
 	elsif($action eq 'configpearl') {
 		GUI_Pearl(\%s);
@@ -222,14 +223,14 @@ sub Start(%)
 	}
 	elsif($action =~ /((view)|(download)|(dump))blob/){
 		my $table = $q->param('table');
-		my $id = $q->param('id');
 		my $field = $q->param('field');
-		DB_DumpBlob($dbh,$table,$field,$id);
+		my $keys = URLRow($q);
+		DB_DumpBlob($dbh,$table,$field,$keys);
 	}
-	elsif($action eq 'dumptable'){
-		my $table = $q->url_param('table');
-		GUI_DumpTable(\%s, $dbh);
-	}
+#	elsif($action eq 'dumptable'){
+#		my $table = $q->url_param('table');
+#		GUI_DumpTable(\%s, $dbh);
+#	}
 	elsif($action eq 'jsisearch'){
 		my $table = $q->url_param('table');
 		my $hid = $q->url_param('hid');

@@ -2,7 +2,7 @@
 <html>
 <head>
 <title>Interactive Search</title>
-<script language="javascript">
+<script language="JavaScript">
 
 function filter(input,filters){
    var l = input.length;
@@ -18,7 +18,7 @@ function filter(input,filters){
 }
 
 function recordFilter(record,filters){
-  for(var i = 0;i<record.length;i++){
+  for(var i = 0;i<filters.length;i++){
     if(record[i].toUpperCase().indexOf(filters[i].toUpperCase())==-1)return false;
   }
   return true;
@@ -47,9 +47,9 @@ function summarize(s){
     return s.substring(0,40);
 }
 
-function rec2string(r){
+function rec2string(r,filters){
 	var o="";
-	for(var i=0;i<r.length;i++){
+	for(var i=0;i<filters.length;i++){
 		o+= " "+summarize(r[i]);
 	}
 	return o;
@@ -158,15 +158,102 @@ function refilter(){
 
 	for(var i=0;i<records.length;i++){
 		opts.length++;
-		opts[opts.length-1]= new Option(rec2string(records[i]),records[i][##RETCOLUMN##]);
+		opts[opts.length-1]= new Option(rec2string(records[i],filters),records[i][##RETCOLUMN##]);
 	}
         recselEnable(true);
 }
 
+function convertToByte(hexstring){
+  return String.fromCharCode(eval("0x"+hexstring));
+
+}
+
+function Gedafe_URL_Decode(input)
+{
+      //alert("decoding: "+input);
+      var ar;
+      while(ar = input.match(/!([0-9a-fA-F]{2})/)){
+          input = input.substring(0,ar["index"])+
+          convertToByte(ar[1])+
+          input.substring(ar["index"]+3,input.length);
+      }
+      //alert("decode result:"+input);
+      return input;
+}
+
+
+
+function DataTree(input){
+      var tmp;
+      var s;
+      var ret;
+      var count;
+      var data;
+      var ds;
+      var name;
+      var value;
+      var ar;
+      //alert("input: "+input);
+      if(ar = input.match(/^s(.*)/)){
+	ret =  Gedafe_URL_Decode(ar[1]);
+      }else if(ar = input.match(/^l(.*)/)){
+	tmp = ar[1];
+	ret = new Array(0);
+	count = 0;
+	while(tmp != ''){
+	  if(ar = tmp.match(/(\d+)-/)){    
+	    ds = tmp.indexOf('-')+1;
+	    data = tmp.substring(tmp,ds,tmp.ds+parseInt(ar[1]));
+	    tmp = substring(tmp,ds+ar[1],tmp.length);
+	    ret[count++] = DataTree(data);
+          }else{
+            alert("encoded string "+tmp+" does not parse as a list");
+            exit(1);
+          }
+	}
+
+      }else if(ar = input.match(/^h(.*)/)){
+	tmp = ar[1];
+	ret = new Array();
+	while(tmp !=''){
+            if(ar = tmp.match(/(\d+)_(\d+)-/)){
+	      ds = tmp.indexOf('-')+1;
+              //alert(tmp.substring(ds,ds+ar[1])+" ds+ar[1]:"+(ds+parseInt(ar[1])));
+	      name = Gedafe_URL_Decode(tmp.substring(ds,ds+parseInt(ar[1])));
+              //alert(ds+" "+ar[1]+" "+ar[2]+" name:"+name)
+	      value = tmp.substring(ds+parseInt(ar[1]),ds+parseInt(ar[1])+parseInt(ar[2]));
+	      tmp = tmp.substring(ds+parseInt(ar[1])+parseInt(ar[2]),tmp.length);
+              ret[name] = DataTree(value);
+              
+            }else{
+	      alert("encoded string "+tmp+" does not parse as a hash");
+              exit(1);
+            }
+	}
+      }else{
+	alert("String "+input+" does not parse to a value.");
+      }
+      return ret;
+}
+
+
 function setGedafe(){
    var obj = document.getElementById("recsel");
    if(obj.selectedIndex==-1)return;
-
+   //alert(obj.options[obj.selectedIndex].value);
+   var displaydata = "";
+   if(morekeys){
+      var h = DataTree(obj.options[obj.selectedIndex].value);
+   
+      for(var i in h){
+      displaydata += i +" = "+h[i]+", ";
+     }
+     displaydata = displaydata.substring(0,displaydata.length-2);
+   }else{
+     displaydata = obj.options[obj.selectedIndex].value;
+   }
+   var displayspan = window.opener.document.getElementById("display_##INPUTNAME##");
+   displayspan.childNodes[0].data = displaydata;
    window.opener.document.editform.##INPUTNAME##.value = obj.options[obj.selectedIndex].value;
    window.close();
 }

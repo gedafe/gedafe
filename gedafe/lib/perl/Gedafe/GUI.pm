@@ -22,9 +22,9 @@ use Gedafe::DB qw(
 	DB_ID2HID
 	DB_HID2ID
 	DB_RawField
-	DB_DumpTable
 	DB_DumpJSITable
 	DB_FetchReferencedId
+	DB_FetchReferencedSearchValues
 	DB_Connect
 );
 
@@ -45,7 +45,12 @@ use Gedafe::Util qw(
 	DataUnTree
 	Gedafe_URL_Decode
 	Gedafe_URL_Encode
+	CGI_URL_Encode
 	StripJavascript
+	IdentifyRow
+	URLRow
+        FindReferer
+	MergeForeignColumns
 );
 
 use Gedafe::StdoutBuffer;
@@ -76,8 +81,8 @@ sub GUI_AppletParam($$);
 sub GUI_CheckFormID($$);
 sub GUI_Delete($$$);
 sub GUI_DeleteLink($$$$);
-sub GUI_DumpTable($$);
-sub GUI_Edit($$$);
+#sub GUI_DumpTable($$);
+sub GUI_Edit($$$$);
 sub GUI_EditLink($$$$);
 sub GUI_Edit_Error($$$$$$);
 sub GUI_Entry($$$);
@@ -95,7 +100,7 @@ sub GUI_InitTemplateArgs($$);
 sub GUI_List($$$);
 sub GUI_ListButtons($$$$);
 sub GUI_ListTable($$$);
-sub GUI_MakeCombo($$$$);
+sub GUI_MakeCombo($$$$;$);
 sub GUI_MakeISearch($$$$$$);
 sub GUI_PostEdit($$$);
 sub GUI_Search($$$);
@@ -175,7 +180,7 @@ sub GUI_InitTemplateArgs($$)
 	my $stripped_url = MakeURL($s->{url}, {
 				filterfirst_button => '',
 				search_button => '',
-                                copyfromid   => '',
+                                copyfrom   => '',
 			});
 	# Define screen format as list_rows <= $g{conf}{list_rows}
 	# and    print  format as list_rows >  $g{conf}{list_rows}
@@ -652,7 +657,7 @@ sub GUI_ReadSearchSpec($$){
 			# op  is the operator, like is default
 			# except when we are following a reference link
 
-			$op = 'like';
+			$op = '~*';
 			
 			$operand = $value;
 			# print STDERR "$operand\n";
@@ -668,6 +673,9 @@ sub GUI_ReadSearchSpec($$){
 			}elsif($value =~ /^>/){
 				$operand = substr $value,1;
 				$op = '>';
+			}elsif($value =~ /^like /){
+				$operand = substr $value,5;
+				$op = 'like';
 			}elsif($value =~ /^not /){
 				$operand = substr $value,4;
 				$op = 'not like';
@@ -696,6 +704,7 @@ sub GUI_ReadSearchSpec($$){
 					     value=>$value,
 					     op=>$op,
 					     operand=>$operand,
+					     count => $fieldcount,
 					     tree=>\@ors};
 		}
 		$fieldcount ++;
@@ -728,24 +737,31 @@ sub GUI_Search($$$){
 		$field = $_->{field};
 		$value = $_->{value};
 
+		if($field =~ /^meta_rc_(.*)$/){
+			#in case of searching from rowcount link
+			$search_combos{$name} .= "$1 = $value".
+			    $q->hidden($name,$field).
+				$q->hidden("search_value$counter",$value)." \n";
+		}else{
+			#default the field to 'all columns';
+			$search_combos{$name} = "<SELECT name=\"$name\" SIZE=\"1\">\n";
+			if($_->{field} =~ /^meta_rc_(.*)_(.*)$/){
+				$search_combos{$name} .= "<OPTION SELECTED VALUE=\"$_->{field}\">Reference from $2 to $1</OPTION>\n";
+			}
+			foreach(@fields) {
+				my $description = $_ eq '#ALL#' ? 'All columns'
+				    : $g{db_fields}{$view}{$_}{desc};
+				if(/^$field$/) {
+					$search_combos{$name} .= "<OPTION SELECTED VALUE=\"$_\">$description</OPTION>\n";
+				}
+				else {
+					$search_combos{$name} .= "<OPTION VALUE=\"$_\">$description</OPTION>\n";
+				}
+			}
+			$search_combos{$name} .= "</SELECT>\n";
+			$search_combos{$name} .= "<INPUT TYPE=\"text\" NAME=\"search_value$counter\" VALUE=\"$value\">\n";
+		}
 
-		#default the field to 'all columns';
-		$search_combos{$name} = "<SELECT name=\"$name\" SIZE=\"1\">\n";
-		if($_->{field} =~ /^meta_rc_(.*)_(.*)$/){
-			$search_combos{$name} .= "<OPTION SELECTED VALUE=\"$_->{field}\">Reference from $2 to $1</OPTION>\n";
-		}
-		foreach(@fields) {
-			my $description = $_ eq '#ALL#' ? 'All columns'
-			    : $g{db_fields}{$view}{$_}{desc};
-			if(/^$field$/) {
-				$search_combos{$name} .= "<OPTION SELECTED VALUE=\"$_\">$description</OPTION>\n";
-			}
-			else {
-				$search_combos{$name} .= "<OPTION VALUE=\"$_\">$description</OPTION>\n";
-			}
-		}
-		$search_combos{$name} .= "</SELECT>\n";
-		$search_combos{$name} .= "<INPUT TYPE=\"text\" NAME=\"search_value$counter\" VALUE=\"$value\">\n";
 
 		#add clear button to all rows except the last one.
 		$search_combos{$name} .= "<INPUT TYPE=\"submit\" NAME=\"search_clear$counter\" VALUE=\"Clear\">\n" unless($counter == 1);
@@ -788,11 +804,16 @@ sub GUI_EditLink($$$$)
 {
 	my ($s, $template_args, $list, $row) = @_;
 	my $edit_url;
-	$edit_url = MakeURL($s->{url}, {
-		action=>'edit',
-		id=>$row->[0],
-		refresh=>NextRefresh,
-	});
+	
+	my $linkargs = {
+			action=>'edit',
+			#id=>$row->[0],
+			refresh=>NextRefresh,
+		       };
+
+	IdentifyRow($row,$linkargs);
+
+	$edit_url = MakeURL($s->{url},$linkargs );
 	$template_args->{ELEMENT}='td_edit';
 	$template_args->{EDIT_URL}=$edit_url;
 	print Template($template_args);
@@ -803,11 +824,15 @@ sub GUI_AddFromLink($$$$)
 {
         my ($s, $template_args, $list, $row) = @_;
         my $add_url;
-        $add_url = MakeURL($s->{url}, {
+	my $linkargs = {
                 action=>'add',
-                copyfromid=>$row->[0],
+                copyfrom=>1,
                 refresh=>NextRefresh,
-        });
+        };
+
+	IdentifyRow($row,$linkargs);
+
+        $add_url = MakeURL($s->{url}, $linkargs);
         $template_args->{ELEMENT}='td_edit';
         $template_args->{CLONE_URL}=$add_url;
         print Template($template_args);
@@ -818,11 +843,15 @@ sub GUI_DeleteLink($$$$)
 {
 	my ($s, $template_args, $list, $row) = @_;
 	my $delete_url;
-	$delete_url =  MakeURL($s->{url}, {
+	my $linkargs = {
 		action=>'delete',
-		id=>$row->[0],
+		#id=>$row->[0],
 		refresh=>NextRefresh,
-	});
+	};
+
+	IdentifyRow($row,$linkargs);
+
+	$delete_url =  MakeURL($s->{url}, $linkargs);
 	$template_args->{ELEMENT}='td_delete';
 	$template_args->{DELETE_URL}=$delete_url;
 	print Template($template_args);
@@ -969,12 +998,12 @@ sub GUI_ListTable($$$)
 			if($c->{type} eq 'bytea' && $d ne '&nbsp;'){
 				#table => view is correct here:
 				#since bytea's can also be extracted from views
-				my $bloburl = MakeURL($s->{url}, {
-						table => $view, 
+				my $linkargs = {	table => $view,
 						action => 'dumpblob',
-						id => $row->[0],
-						field => $c->{field},
-				});
+						field => $c->{field}
+					      };
+				IdentifyRow($row,$linkargs);
+				my $bloburl = MakeURL($s->{url},$linkargs);
 				$d = qq{<A HREF="$bloburl" TARGET="_blank">$d</A>};
 			}
 			my $align = $c->{align};
@@ -985,21 +1014,38 @@ sub GUI_ListTable($$$)
 				    DB_FetchReferencedId($s,
 							 $list->{spec}{table},
 							 $c->{field},
-							 $row->[0]);
-				my $refurl = MakeURL($s->{url}, {
-						table => $ref_table,
-						action => 'edit',
-						id => $ref_id});
+							 $row);
+				my $linkargs = {table => $ref_table,
+						action => 'edit'};
+				my $keycounter = 0;
+				for(keys %$ref_id){
+					$linkargs->{"pri_name$keycounter"} = 
+					    $g{db_fields}{$list->{spec}{table}}{$_}{targetcolumn};
+					$linkargs->{"pri_value$keycounter"} = $ref_id->{$_};
+					$keycounter++;
+				}
+
+				my $refurl = MakeURL($s->{url},$linkargs,['pri_name','pri_value','search_value','search_field']);
 				$align = '"LEFT"';
 				$d = qq{<A HREF="$refurl">$d</A>};
 			}
 			
 			if($c->{refcount}){
-				my $refurl = MakeURL($s->{url}, {
-						table => $c->{desc},
-						action => 'list',
-						search_field1 => 'meta_rc_'.$c->{tar_field},
-						search_value1 => '='.$row->[0]});
+				my $searchhash = 
+				    DB_FetchReferencedSearchValues($s,
+								   $row,
+								   $table,
+								   $c->{rtable},
+								   $c->{constraint});
+				my $linkhash = {table => $c->{rtable},action => 'list'};
+				my $scounter = 1;
+				for my $tcol (keys %$searchhash){
+					$linkhash->{"search_field$scounter"} = "meta_rc_".
+					    FindReferer($c->{rtable},$c->{constraint},$tcol);
+					    
+					$linkhash->{"search_value$scounter"} = $searchhash->{$tcol};
+				}
+				my $refurl = MakeURL($s->{url},$linkhash,['orderby','search_value','search_field']);
 				$d = qq {<A HREF="$refurl">$d items</a>};
 			}
 			if($c->{type} eq 'date' && 
@@ -1151,8 +1197,6 @@ sub GUI_List($$$)
 		GUI_FilterFirst($s, $dbh, $spec{view}, \%template_args);
 
 	# search
-	#($spec{search_field}, $spec{search_value}) =
-	#	GUI_Search($s, $spec{view}, \%template_args);
 	$spec{search} =	GUI_Search($s, $spec{view}, \%template_args);
 
 
@@ -1290,11 +1334,6 @@ sub GUI_Export($$$)
 	);
 
 	# get search params
-	#$spec{search_field} = $q->url_param('search_field') || '';
-	#$spec{search_value} = $q->url_param('search_value') || '';
-	#$spec{search_field} =~ s/^\s*//; $spec{search_field} =~ s/\s*$//;
-	#$spec{search_value} =~ s/^\s*//; $spec{search_value} =~ s/\s*$//;
-
 	$spec{search} = GUI_ReadSearchSpec($s,$spec{view});
 
 	# fetch list
@@ -1398,15 +1437,22 @@ sub GUI_PostEdit($$$)
 	my ($s, $user, $dbh) = @_;
 	my $q = $s->{cgi};
 	my $action = $q->param('post_action');
-	if(not defined $action) { return; }
+	if(not defined $action) { return undef; }
 
 	if(defined $q->param('button_cancel')) { return; }
 
 	my $table = $q->url_param('table');
 
+	my $keys = URLRow($q);
+
+	my $fields = $g{db_fields}{$table};
+	my @fields_list = @{$g{db_fields_list}{$table}};
+	
+
+	
 	## delete
 	if($action eq 'delete') {
-		if(!DB_DeleteRecord($dbh,$table,$q->param('id'))) {
+		if(!DB_DeleteRecord($dbh,$table,$keys)) {
 			my %template_args = (
 				PAGE => 'db_error',
 				USER => $user,
@@ -1423,17 +1469,69 @@ sub GUI_PostEdit($$$)
 		}
 	}
 
+	MergeForeignColumns(\@fields_list,$fields);
 
 	## add or edit:
 	my %record;
 	if($action eq 'add' || $action eq 'edit'){
-		for my $field (@{$g{db_fields_list}{$table}}) {
-			my $value = GUI_WidgetRead($s, "field_$field", $g{db_fields}{$table}{$field}{widget});
+		for my $field (@fields_list) {
+			my $value = GUI_WidgetRead($s, "field_$field", $fields->{$field}{widget});
 			if(defined $value) {
 				$record{$field} = $value;
 			}
 		}
 	}
+
+	print STDERR "PE: ".DataUnTree(\%record)."\n";
+
+	#clean up record with respect to merged columns.
+	#we didn't do that in MergeForeignColumns since after that we had to read the 
+	#record first with GUI_Widget_Read.
+
+	my %foreign_columns=();
+	my @removelist = grep /^meta_foreign_\d+$/,keys(%record); 
+	for my $meta_foreign (@removelist){
+		#get constraint number;
+		$meta_foreign =~ /(\d+)/;
+
+		#when the foreign key constraint contains only one column
+		#the value isn't DataUnTree()-ed but inserted directly
+		print STDERR "AR: $meta_foreign , $1\n";
+		if(scalar @{$g{db_tables}{$table}{foreign}{$1}}==1){
+			print STDERR "only one key column\n";
+			my ($colname) = @{$g{db_tables}{$table}{foreign}{$1}};
+			$record{$colname} = $record{$meta_foreign}; 
+		}else{
+			#this is easy since all column names have been preserved in
+			#the meta_foreign hash
+			my $constraint_cols = DataTree($record{$meta_foreign});
+			for(keys %$constraint_cols){
+				$record{$_} = $constraint_cols->{$_};
+			}
+		}
+	}
+	
+	print STDERR "PE_fix: ".DataUnTree(\%record)."\n";
+	
+	#clear record of meta_foreign values...
+	#but hold on to them for a little longer..
+	my $meta_foreign_copy = {};
+
+	for(@removelist){
+		if($fields->{$_}{copy}){
+			/meta_foreign_(\d+)/;
+			print STDERR "This field will be considered for copy: $_ $1\n";
+			if(scalar @{$g{db_tables}{$table}{foreign}{$1}}==1){
+				$meta_foreign_copy->{$_} = $record{$_};
+			}else{
+				$meta_foreign_copy->{$_} = DataTree($record{$_});
+			}
+		}
+		delete $record{$_};
+	}
+	
+
+
 	if($action eq 'add') {
 		if(!DB_AddRecord($dbh,$table,\%record)) {
 			my $data = DataUnTree(\%record);
@@ -1442,23 +1540,35 @@ sub GUI_PostEdit($$$)
 		}
 	}
 	elsif($action eq 'edit') {
-		$record{id} = $q->param('id');
-		if(!DB_UpdateRecord($dbh,$table,\%record)) {
+		#$record{id} = $q->param('id');
+		if(!DB_UpdateRecord($dbh,$table,\%record,$keys)) {
 			my $data = DataUnTree(\%record);
 			GUI_Edit_Error($s, $user, $g{db_error},
 			$q->param('form_url'), $data, $action);
 		}
 	}
+
+
+	#clean up introduced spanning combos
+	for(grep /^meta_foreign_(\w+)$/,@fields_list){
+		delete $fields->{$0};
+	}
+	
+	return $meta_foreign_copy;
+
 }
 	
-sub GUI_Edit($$$)
+sub GUI_Edit($$$$)
 {
-	my ($s, $user, $dbh) = @_;
+	my ($s, $user, $dbh,$meta_foreign_copy) = @_;
 	my $q = $s->{cgi};
 	my $action = $q->url_param('action');
 	my $table = $q->url_param('table');
 	my $id = $q->url_param('id');
+
 	our %template_form_args;
+	
+	my $keys = URLRow($q);
 
 	my $reedit = undef;
 	if($action eq 'reedit') {
@@ -1473,6 +1583,8 @@ sub GUI_Edit($$$)
 	my $title = $g{db_tables}{$table}{desc};
 	$title =~ s/s\s*$//; # very rough :-)
 	$title =~ s/^. //;
+
+	
 	my %template_args = (
 		USER => $user,
 		PAGE => 'edit',
@@ -1484,14 +1596,14 @@ sub GUI_Edit($$$)
 	);
 
 	my $form_url = MakeURL($s->{url}, { refresh => NextRefresh(),
-					   copyfromid => ''});
+					   copyfrom => ''});
 	my $next_url;
 	my $cancel_url = MakeURL($form_url, {
 		action => 'list',
 		id => '',
 		reedit_action => '',
 		reedit_data => '',
-	});
+	},['pri_name','pri_value']);
 	if($action eq 'add') {
 		$next_url = MakeURL($form_url, {
 			action => $action,
@@ -1524,11 +1636,11 @@ sub GUI_Edit($$$)
 	}
 	elsif($action eq 'edit') {
 		my %record = ();
-		DB_GetRecord($dbh,$table,$id,\%values);
+		DB_GetRecord($dbh,$table,$keys,\%values);
 	}
 	elsif($action eq 'add') {
-	    if (defined $q->url_param('copyfromid')){
-		DB_GetRecord($dbh,$table,$q->url_param('copyfromid'),\%values);
+	    if (defined $q->url_param('copyfrom')){
+		DB_GetRecord($dbh,$table,$keys,\%values);
 	    } else {
 		# take filterfirst value if set
 		my $ff_field = $g{db_tables}{$table}{meta}{filterfirst};
@@ -1552,7 +1664,36 @@ sub GUI_Edit($$$)
 	}
 
 	if($action eq 'edit') {
-		print "<INPUT TYPE=\"hidden\" NAME=\"id\" VALUE=\"$id\">\n";
+		#print "<INPUT TYPE=\"hidden\" NAME=\"id\" VALUE=\"$id\">\n";
+		#make hidden fields with all the primary keys/values in it.
+		my $i = 0;
+		for(keys %$keys){
+			print $q->hidden("pri_name$i",$_)."\n";
+			print $q->hidden("pri_value$i",$keys->{$_})."\n";
+			$i++;
+		}
+
+	}
+
+	#hack @fields_list and %values to merge spanning foreign keys into
+	#single combo's except when no combo,hidcombo,jsisearch is defined.
+	#When one column from a set that references has a widget, all will be replaced.
+
+	MergeForeignColumns(\@fields_list,$fields,\%values);
+
+	
+	#at this point the default values or the edit values have been merged into
+	#the right kind of %values hash. However, if we are about to do an add, 
+	#the meta_fields copy has precedence over the default and over whatever the
+	#gui_widget_read dragged in.
+
+	if($action eq 'add' && $meta_foreign_copy){
+		for(keys %$meta_foreign_copy){
+			print STDERR "Copying these fields $_\n";
+			print STDERR "Before: ".DataUnTree(\%values)."\n";
+			$values{$_} = $meta_foreign_copy->{$_};
+			print STDERR "After: ".DataUnTree(\%values)."\n";
+		}
 	}
 
 	# Fields
@@ -1562,7 +1703,9 @@ sub GUI_Edit($$$)
 	my $field;
 	my $n=0;
 	foreach $field (@fields_list) {
-		if($field eq "${table}_id") { next; }
+
+		#skip field if it is a serial
+		next if($g{db_fields}{$table}{$field}{serial} );
 
 		my $value = exists $values{$field} ? $values{$field} : '';
 		# get default from DB
@@ -1593,6 +1736,7 @@ documentation for further information.</p>
 end
 			};
 		}
+		print STDERR "PEW: $fields->{$field}{widget}\n";
 		my $inputelem = GUI_WidgetWrite($s, "field_$field", $fields->{$field}{widget},$value);
 
                if (defined $edit_mask){
@@ -1632,6 +1776,11 @@ end
 	$template_args{ELEMENT} = 'editform_footer';
 	print Template(\%template_args);
 
+	#clean up introduced spanning combos
+	for(grep /^meta_foreign_(\w+)$/,@fields_list){
+		delete $fields->{$0};
+	}
+
 	# Buttons
 	$template_args{ELEMENT} = 'buttons';
 	$template_args{CANCEL_URL} = $cancel_url;
@@ -1639,6 +1788,7 @@ end
 
 	UniqueFormEnd($s, $form_url, $next_url);
 	GUI_Footer(\%template_args);
+	
 }
 	
 sub GUI_Pearl($)
@@ -1711,9 +1861,9 @@ sub GUI_Pearl($)
 	GUI_Footer(\%template_args);
 }
 
-sub GUI_MakeCombo($$$$)
+sub GUI_MakeCombo($$$$;$)
 {
-	my ($dbh, $combo_view, $name, $value) = @_;
+	my ($dbh, $combo_view, $name, $value,$warg) = @_;
 
 	$value =~ s/^\s+//;
 	$value =~ s/\s+$//;
@@ -1725,16 +1875,32 @@ sub GUI_MakeCombo($$$$)
 		return undef;
 	}
 
+	
+
 	$str = "<!-- |$value| -->\n<SELECT SIZE=\"1\" name=\"$name\">\n";
 	# the empty option must not be empty! else the MORE ... disapears off screen
 	$str .= "<OPTION VALUE=\"\">Make your Choice ...</OPTION>\n";
 	foreach(@combo) {
-		my $id = $_->[0];
-		$id=~s/^\s+//; $id=~s/\s+$//;
-		#my $text = "$_->[0] -- $_->[1]";
-		my $text = $_->[1];
+		my $text = $_->{text};
 		$text = StripJavascript($text);
-		if($value eq $id) {
+		delete $_->{text};
+		my $id;
+		my $val;
+		if(scalar keys(%$_)>1){
+			$id = DataUnTree($_);
+			$val = DataUnTree($value);
+		}else{
+			my ($idcol) = keys %$_;
+
+			$val = $value;
+			$id = $_->{$idcol};
+			$id=~s/^\s+//; $id=~s/\s+$//;
+		}
+		#my $text = "$_->[0] -- $_->[1]";
+
+		$id = CGI_URL_Encode($id);
+
+		if($val eq $id) {
 			$str .= "<OPTION SELECTED VALUE=\"$id\">$text</OPTION>\n";
 		}
 		else {
@@ -1785,35 +1951,36 @@ sub GUI_MakeRadio($$$$$$)
 	return $str;
 }
 
-sub GUI_MakeISearch($$$$$$)
-{
-	my $ref_target = shift;
-	my $input_name = shift;
-	my $ticket = shift;
-	my $myurl = shift;
-	my $value = shift;
-	my $hidisearch = shift;
-	
-	$value =~ s/^\s+//;
-	$value =~ s/\s+$//;
-
-
-	my $targeturl = MakeURL($myurl,{action=>'dumptable',table=>$ref_target,ticket=>$ticket});
-
-	my $html;
-	$html .= "<input type=\"button\" onclick=\"";
-	$html .= "document.editform.$input_name.value=document.isearch_$input_name.getID('$value')";
-	$html .= ";\" value=\"I-Search\">&nbsp;";
-	$html .= "<applet id=\"isearch_$input_name\" name=\"isearch_$input_name\"";
-	$html .= ' code="ISearch.class" width="70" height="20" archive="'.$g{conf}{isearch}.'">'."\n";
-	$html .= GUI_AppletParam("url",$targeturl);
-	if($hidisearch){
-		$html .= GUI_AppletParam("hid","true");
-	}
-	$html .= "</applet>\n";
-	
-	return $html
-}
+# Isearch is deprecated use JSISearch instead
+#sub GUI_MakeISearch($$$$$$)
+#{
+#	my $ref_target = shift;
+#	my $input_name = shift;
+#	my $ticket = shift;
+#	my $myurl = shift;
+#	my $value = shift;
+#	my $hidisearch = shift;
+#	
+#	$value =~ s/^\s+//;
+#	$value =~ s/\s+$//;
+#
+#
+#	my $targeturl = MakeURL($myurl,{action=>'dumptable',table=>$ref_target,ticket=>$ticket});
+#
+#	my $html;
+#	$html .= "<input type=\"button\" onclick=\"";
+#	$html .= "document.editform.$input_name.value=document.isearch_$input_name.getID('$value')";
+#	$html .= ";\" value=\"I-Search\">&nbsp;";
+#	$html .= "<applet id=\"isearch_$input_name\" name=\"isearch_$input_name\"";
+#	$html .= ' code="ISearch.class" width="70" height="20" archive="'.$g{conf}{isearch}.'">'."\n";
+#	$html .= GUI_AppletParam("url",$targeturl);
+#	if($hidisearch){
+#		$html .= GUI_AppletParam("hid","true");
+#	}
+#	$html .= "</applet>\n";
+#	
+#	return $html
+#}
 
 sub GUI_MakeJSISearch($$$$$$)
 {
@@ -1874,7 +2041,22 @@ sub GUI_DumpJSIsearch($$$){
 	#will hold the number of the id of hid
 	#column from which to return values.
 	my $retcolumn = 0; 
+	if(scalar @{$g{db_tables}{$table}{primary}} ==1){
+		my ($primary) =  @{$g{db_tables}{$table}{primary}};
+		my $tmp = 0;
+		for my $fieldname (@fields_list){
+			if($fieldname eq $primary){
+				$retcolumn = $tmp;
+				last;
+			}
+			$tmp++;
+		}
+	}else{
+		#the last column will be the one with a hash of all the columns
+		$retcolumn = scalar @fields_list;
+	}
 
+	#hid takes precedence over primary keys
 	if($hid){
 		my $tmp = 0;
 		for my $fieldname (@fields_list){
@@ -1914,12 +2096,12 @@ sub GUI_DumpJSIsearch($$$){
 	print Template({PAGE=>'jsisearch',ELEMENT=>'foot'});
 }
 
-
-sub GUI_AppletParam($$){
-	my $name=shift;
-	my $value=shift;
-	return "<param name=\"$name\" value=\"$value\">\n";
-}
+#isearch is deprecated use jsisearch now.
+#sub GUI_AppletParam($$){
+#	my $name=shift;
+#	my $value=shift;
+#	return "<param name=\"$name\" value=\"$value\">\n";
+#}
 
 sub GUI_DecodeDate($$){
   # date separator characters
@@ -2084,9 +2266,14 @@ sub GUI_WidgetWrite($$$$)
 	my $dbh = $s->{dbh};
 	my $myurl = MyURL($q);
 
-	if(not defined $value) { $value = ''; }
+	if(not defined $value) { $value = '';}
 
 	my ($w, $warg) = DB_ParseWidget($widget);
+	
+	print STDERR "W: $input_name\n";
+	for(keys %$warg){
+		print STDERR "  $_ -> $warg->{$_}\n";
+	}
 
 	my $escval = $value;
 	$escval =~ s/\"/&quot;/g;
@@ -2120,24 +2307,25 @@ sub GUI_WidgetWrite($$$$)
 	elsif($w eq 'hid') {
 		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"10\" VALUE=\"".$escval."\">";
 	}
-	elsif($w eq 'isearch' or $w eq 'hidisearch') {
-		my $out;
-		my $hidisearch;
-		$hidisearch = 0;
-		if($w eq 'hidisearch') {
-			# replace value with HID if 'hidcombo'
-			$value = DB_ID2HID($dbh,$warg->{'ref'},$value);
-			$hidisearch=1;
-		}
-		
-		my $combo = GUI_MakeISearch($warg->{'ref'}, $input_name,
-			$s->{ticket_value}, $myurl, $value, $hidisearch);
-
-		$out.="<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
-		$out .= " VALUE=\"$value\"";
-		$out .= ">\n$combo";
-		return $out;
-	}
+	#isearch is deprecated
+	#elsif($w eq 'isearch' or $w eq 'hidisearch') {
+	#	my $out;
+	#	my $hidisearch;
+	#	$hidisearch = 0;
+	#	if($w eq 'hidisearch') {
+	#		# replace value with HID if 'hidcombo'
+	#		$value = DB_ID2HID($dbh,$warg->{'ref'},$value);
+	#		$hidisearch=1;
+	#	}
+	#	
+	#	my $combo = GUI_MakeISearch($warg->{'ref'}, $input_name,
+	#		$s->{ticket_value}, $myurl, $value, $hidisearch);
+	#
+	#	$out.="<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
+	#	$out .= " VALUE=\"$value\"";
+	#	$out .= ">\n$combo";
+	#	return $out;
+	#}
 	elsif($w eq 'jsisearch' or $w eq 'hjsisearch') {
 		my $out;
 		my $hidisearch;
@@ -2151,32 +2339,67 @@ sub GUI_WidgetWrite($$$$)
 		my $combo = GUI_MakeJSISearch($warg->{'ref'}, $input_name,
 			$s->{ticket_value}, $myurl, $value, $hidisearch);
 
-		$out.="<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
-		$out .= " VALUE=\"$value\"";
-		$out .= ">\n$combo";
+		my $valuestring;
+		if(scalar @{$g{db_tables}{$warg->{ref}}{primary}}==1){
+			#my @keys=keys(%$value);
+			#if($value){
+			#	$value = $value->{$keys[0]};
+			#}
+			$valuestring = $value || '(none)';;
+			
+		}else{
+			if($value){
+				my $valuehash = $value;
+				my @valuelist=();
+				for(keys %$valuehash){
+					push @valuelist ," $_ = $valuehash->{$_}";
+				}
+				$valuestring = join ',',@valuelist;
+				$value = DataUnTree($value);
+			}else{
+				$valuestring = '(none)';
+			}
+		}
+		$value = $value || '';
+		$out.= $q->hidden($input_name,$value);
+		$out.= "<b><span id=\"display_$input_name\"> $valuestring </span></b>";
+		$out .= "\n$combo";
 		return $out;
 	}
 	elsif($w eq 'idcombo' or $w eq 'hidcombo') {
-		my $out;
-		my $combo;
+		# print STDERR "Wwrite: $input_name ".DataUnTree($warg)."\n";
+		print STDERR "combotype: $w\n";
 		
-		if($g{conf}{gedafe_compat} eq '1.0') {
-			$value = DB_ID2HID($dbh,$warg->{'ref'},$value) if $w eq 'hidcombo';
-			$combo = GUI_MakeCombo($dbh, $warg->{'combo'}, "${input_name}_combo", $value);
+		if(scalar grep(!/^meta_|^text$/,@{$g{db_fields_list}{$warg->{'combo'}}})>1){
+			$w = 'combo';
+			#falltrough and continue at combo
+		}else{
+			my $out;
+			my $combo;
+			
+			#hidcombo is not suported for tables that have many keys.
+			
+			if($g{conf}{gedafe_compat} eq '1.0') {
+				$value = DB_ID2HID($dbh,$warg->{'ref'},$value) if $w eq 'hidcombo';
+				$combo = GUI_MakeCombo($dbh, $warg->{'combo'}, "${input_name}_combo", $value,$warg);
+			}
+			else {
+				$combo = GUI_MakeCombo($dbh, $warg->{'combo'}, "${input_name}_combo", $value,$warg);
+				$value = DB_ID2HID($dbh,$warg->{'ref'},$value) if $w eq 'hidcombo';
+			}
+			
+			$out .= "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
+			if($combo !~ /SELECTED/ and defined $value) {
+				$value = CGI_URL_Encode($value);
+				$out .= " VALUE=\"$value\"";
+			}
+			$out .= ">\n$combo";
+			return $out;
 		}
-		else {
-			$combo = GUI_MakeCombo($dbh, $warg->{'combo'}, "${input_name}_combo", $value);
-			$value = DB_ID2HID($dbh,$warg->{'ref'},$value) if $w eq 'hidcombo';
-		}
-		$out .= "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=10";
-		if($combo !~ /SELECTED/ and defined $value) {
-			$out .= " VALUE=\"$value\"";
-		}
-		$out .= ">\n$combo";
-		return $out;
 	}
-	elsif($w eq 'combo') {
-		return GUI_MakeCombo($dbh, $warg->{'combo'}, "${input_name}_combo", $value);
+	
+	if($w eq 'combo'){
+		return GUI_MakeCombo($dbh, $warg->{'combo'}, "${input_name}_combo", $value,$warg);
 	}
 	elsif($w eq 'radio' ) {
 		# Do NOT support old HID Behaviour
@@ -2347,15 +2570,23 @@ sub GUI_Delete($$$)
 	my ($s, $user, $dbh) = @_;
 	my $q = $s->{cgi};
 	my $table = $q->url_param('table');
-	my $id = $q->url_param('id');
+	#my $id = $q->url_param('id');
 	my $next_url = MakeURL($s->{url}, { action=>'list', id=>'' });
+	my $keys = URLRow($q);
 
+	my $record = "<UL>\n";
+	for(keys %$keys){
+		$record.="<LI><B>".
+		    $g{db_fields}{$table}{$_}{desc}.
+			":</B> ".$keys->{$_}."</LI>\n";
+	}
+	$record .= "</UL>\n";
 	my %template_args = (
 		PAGE => 'delete',
 		USER => $user,
 		TITLE => "Delete Record",
 		TABLE => $table,
-		ID => $id,
+		RECORD => $record,
 		NEXT_URL => $next_url,
 	);
 
@@ -2367,44 +2598,52 @@ sub GUI_Delete($$$)
 	print Template(\%template_args);
 
 	print "<INPUT TYPE=\"hidden\" NAME=\"post_action\" VALUE=\"delete\">\n";
-	print "<INPUT TYPE=\"hidden\" NAME=\"id\" VALUE=\"$id\">\n";
+	#make hidden fields with all the primary keys/values in it.
+	my $i = 0;
+	for(keys %$keys){
+		print $q->hidden("pri_name$i",$_)."\n";
+		print $q->hidden("pri_value$i",$keys->{$_})."\n";
+		$i++;
+	}
+
 	UniqueFormEnd($s, $next_url, $next_url);
 	GUI_Footer(\%template_args);
 }
 
-sub GUI_DumpTable($$){
-	my $s = shift;
-	my $q = $s->{cgi};
-	my $dbh = shift;
-
-	my $myurl = MyURL($q);
-	my $table = $q->url_param('table');
-	
-	my %atribs;
-	foreach($q->param) {
-		if(/^field_(.*)/) {
-			$atribs{$1} = $q->param($_);
-		}
-	}
-	my $data;
-	my $first = 1;
-
-	my $view = defined $g{db_tables}{"${table}_list"} ?
-			"${table}_list" : $table;
-
-	my @fields_list = @{$g{db_fields_list}{$view}};
-	for (@fields_list){
-		if(not $first){
-			$data.="\t";
-		}
-		$first = 0;
-		$data.=$_;
-	}
-	$data.="\n";
-		
-	$data .= DB_DumpTable($dbh,$table,\%atribs);
-	print $data;
-}
+#Isearch is deprecated use JSIsearch in stead
+#sub GUI_DumpTable($$){
+#	my $s = shift;
+#	my $q = $s->{cgi};
+#	my $dbh = shift;
+#
+#	my $myurl = MyURL($q);
+#	my $table = $q->url_param('table');
+#	
+#	my %atribs;
+#	foreach($q->param) {
+#		if(/^field_(.*)/) {
+#			$atribs{$1} = $q->param($_);
+#		}
+#	}
+#	my $data;
+#	my $first = 1;
+#
+#	my $view = defined $g{db_tables}{"${table}_list"} ?
+#			"${table}_list" : $table;
+#
+#	my @fields_list = @{$g{db_fields_list}{$view}};
+#	for (@fields_list){
+#		if(not $first){
+#			$data.="\t";
+#		}
+#		$first = 0;
+#		$data.=$_;
+#	}
+#	$data.="\n";
+#		
+#	$data .= DB_DumpTable($dbh,$table,\%atribs);
+#	print $data;
+#}
 
 sub GUI_Oyster($)
 {
