@@ -130,7 +130,7 @@ sub AuthConnect($$$$) {
 	$$ticket_value=$c;
 	if(defined $c and Auth_GetTicket($s, $c, $user, \$pass)) {
 		# ticket authentication successfull
-		return DB_Connect($$user, $pass);
+		return DB_Connect($s, $$user, $pass);
 	}
 
 	# login response
@@ -140,7 +140,7 @@ sub AuthConnect($$$$) {
 		$pass = $q->param('login_pass');
 		$pass = 'anonymous' unless defined $pass;
 
-		if(defined ($dbh = DB_Connect($$user, $pass))) {
+		if(defined ($dbh = DB_Connect($s, $$user, $pass))) {
 			# user/pass authentication successfull
 			my $ticket=Auth_SetTicket($s, $$user, $pass);
 			$$cookie=$q->cookie(-name=>$s->{ticket_name},
