@@ -6,7 +6,7 @@
 
 package Gedafe::GUI;
 use strict;
-
+use File::Copy;
 use Gedafe::Global qw(%g);
 use Gedafe::DB qw(
 	DB_GetNumRecords
@@ -317,12 +317,12 @@ sub GUI_Entry_Header($$)
         $actualschema  = $g{conf}{schema} unless defined $actualschema;
 
         my @schemalist;
-        if ( not defined $actualschema){ # We do not have Schemas
+        #if ( not defined $actualschema){ # We do not have Schemas
             @schemalist =  (); # Show a empty schema list in the header
-        } else {		     # We do have Schemas
-            @schemalist    = keys %{$g{tables_per_schema}};
+        #} else {		     # We do have Schemas
+        #    @schemalist    = ();#keys %{$g{tables_per_schema}};
 
-        }
+        #}
         foreach my $sch ( @schemalist) {
 		$args->{TABLE_TABLE}=$sch;
 		$args->{TABLE_DESC}= $sch;
@@ -1220,7 +1220,7 @@ sub GUI_WidgetRead($$$)
 				    s/#/gedafe_PROTECTED_hAsh/g;
 				my $mimetype = $q->uploadInfo($file)->{'Content-Type'};
 				my $blob=$filename.' '.$mimetype.'#';
-				my $buffer; 
+				my $buffer;
 				while(read($file,$buffer,4096)){
 					$blob .=$buffer;
 				}
@@ -1255,27 +1255,31 @@ sub GUI_WidgetRead($$$)
 			}
 		}
 	}
+	
 	if($w eq 'file2fs'){
 		my $file = $value;
 		my $deletefile = $q->param("file_delete_$input_name");
+		my $localpath = $q->param("file_update_$input_name");
+						
 		if($deletefile) {
 			$value="";
 		}
-		else {
-			if($file) {
-				my $filename = $file;
-				$filename =~ s/.*[\\\/]//; #strip path
-				$filename =~ 
-				    s/ /gedafe_PROTECTED_sPace/g;
-				$filename =~ 
-				    s/#/gedafe_PROTECTED_hAsh/g;
-				    $value="$warg->{'server'}/$filename";
-			}
-			else {
-				#when we are here the file field has not been set
-				$value = undef;
-			}
+		
+		if ($localpath){
+			my $uploadpath = $localpath;
+			$uploadpath =~ s/.*[\\\/]//; #strip path
+			$uploadpath =~ 
+			    s/ /gedafe_PROTECTED_sPace/g;
+			$uploadpath =~ 
+			    s/#/gedafe_PROTECTED_hAsh/g;
+			$uploadpath = "$warg->{'uploadpath'}/".time()."_".$uploadpath;
+			
+			my $upload_tempfilename = $q->tmpFileName($q->param('file_update_$input_name'));
+			my $realname = $q->tmpFileName($localpath);
+			$value =_GUI_Upload2FS($realname,$uploadpath); 
+						
 		}
+		if ($value eq ''){$value=undef;}
 	}
 
 	if($w eq 'hid' or $w eq 'hidcombo' or $w eq 'hidisearch' or $w eq 'hjsisearch') {
@@ -1362,7 +1366,6 @@ sub GUI_Edit($$$)
 	my $q = $s->{cgi};
 	my $action = $q->url_param('action');
 	my $table = $q->url_param('table');
-	my @mntable = _GUI_GetMNref($table);
 	my $id = $q->url_param('id');
 	our %template_form_args;
 
@@ -2126,7 +2129,9 @@ sub GUI_WidgetWrite($$$$)
 		if($value ne ''){
 			$out .= "<br>Delete file?: <INPUT TYPE=\"checkbox\" NAME=\"file_delete_$input_name\">";
 		}
-		$out .= "<br>Enter filename to update.<br><INPUT TYPE=\"file\" NAME=\"$input_name\">";
+		$out .= "<br>Enter filename to update.<br><INPUT TYPE=\"file\" NAME=\"file_update_$input_name\">";
+		$out .= "<INPUT TYPE=\"hidden\" NAME=\"$input_name\" VALUE=\"$filename\"></INPUT>";
+
 		return $out;
 	}
 
@@ -2607,18 +2612,30 @@ sub _GUI_GetAllFields($){
     return (\@fields_list, \@mnfields_list);
 };
 
-sub _GUI_GetMNref($){
-    my $table = shift;
-    my ($fields_listref, $mnfields_listref) = _GUI_GetAllFields($table);
-	my @mntables;
-    my @mnfields_list =  @$mnfields_listref;
-    
-    for my $item (@mnfields_list){
-        push @mntables, $g{db_fields}{$table}{$item}{reference};
+sub _GUI_Upload2FS($$)  {
+	my($localpath, $uploadpath) = (shift,shift);
+    my($size, $buff, $bytes_count);
+	
+	$size = $bytes_count =0;
+	
+	open(FILEREAD,"<$localpath") || print STDERR ("Error opening file $localpath for reading, error $!", 1);
+    open(FILE,">$uploadpath") || print STDERR ("Error opening file $uploadpath for writing, error $!", 1);
+	binmode FILE;
+	
+	while ($bytes_count = read(FILEREAD,$buff,2048)) {
+		$size += $bytes_count;
+		print FILE $buff;
     }
+	close(FILE);
+	close(FILEREAD);
 
-    return @mntables;
-};
+	if ((stat "$uploadpath")[7] <= 0) {
+		unlink("$uploadpath");
+		print STDERR "File $localpath is not uploaded)";
+		return undef;
+	} 
+	return $uploadpath;
+}
 
 1;
 # Emacs Configuration

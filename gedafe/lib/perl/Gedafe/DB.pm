@@ -46,7 +46,7 @@ sub DB_DB2HTML($$);
 sub DB_DeleteRecord($$$);
 sub DB_DumpBlob($$$$);
 sub DB_DumpTable($$$);
-sub DB_ExecQuery($$$$$);
+sub DB_ExecQuery($$$$$$);
 sub DB_FetchList($$);
 sub DB_FetchListSelect($$);
 sub DB_GetBlobName($$$$);
@@ -232,12 +232,13 @@ sub DB_ReadTables($$)
 	# tables
 	if($database->{version} >= 7.3) {
 	$query = <<END;
-SELECT c.relname, n.nspname
+SELECT c.relname, n.nspname, c.oid
 FROM pg_class c, pg_namespace n
 WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND   (c.relname !~ '^pg_')
 AND   (c.relnamespace = n.oid) 
 AND   (n.nspname != 'information_schema')
+ORDER BY obj_description(c.oid, 'pg_class')
 END
 	} else { # no schema support before 7.3
         $query = <<END;
@@ -543,8 +544,8 @@ sub DB_ParseWidget($)
 			die "widget $widget: mandatory argument 'combo' not defined";
 	}
 	if($type eq 'file2fs') {
-		defined $args{'server'} or
-			die "widget $widget: mandatory argument 'server' not defined";
+		defined $args{'uploadpath'} or
+			die "widget $widget: mandatory argument 'uploadpath' not defined";
 	}
 	return ($type, \%args);
 }
@@ -723,7 +724,7 @@ END
 	}
 
 
-	# meta virtual fields
+	# meta mncombo fields
 	my %meta_mnfields = ();
 	$query = <<'END';
 
@@ -737,27 +738,33 @@ AND a.attname != ('........pg.dropped.' || a.attnum || '........')
 END
 
 	
-	# to insert/update/delete data in M:N table we need to know real order of its fields
-	#  
+	# to insert/update/delete data in M:N table we need to know real order of the table fields
+	# 
+	# {mnfirstfield_name} is the name of the first (real) field of the M:N table
 	# {mnfirstref_name} is the name of the table referenced by the first field of the M:N table
-	# {mnfirstfield_name} is the name of the first field of the M:N table
-	# {mnsecondfield_name} is the name of the second fileld of the M:N table
+	# {mnsecondfield_name} is the name of the second (real) field of the M:N table
 		
 	$sth = $dbh->prepare($query) or die $dbh->errstr;
 	$sth->execute() or die $sth->errstr;
 	while ($data = $sth->fetchrow_arrayref()) {
+		
+		my $mnfirstfield_dict = _DB_GetMNComboFieldDef($dbh,lc($data->[2]),2);
+		my $mnsecondfield_dict = _DB_GetMNComboFieldDef($dbh,lc($data->[2]),3);
+		
 		$meta_mnfields{lc($data->[0])}{lc($data->[1])}{atable} = lc($data->[0]);
-		$meta_mnfields{lc($data->[0])}{lc($data->[1])}{btable} = _DB_GetMNComboSecondFieldReference($dbh,lc($data->[2]),lc($data->[0]));
 		$meta_mnfields{lc($data->[0])}{lc($data->[1])}{reference} = lc($data->[2]);
-		$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnfirstref_name} = _DB_GetMNComboFieldReference($dbh,lc($data->[2]),2);
-		$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnsecondref_name} = _DB_GetMNComboFieldReference($dbh,lc($data->[2]),3);
+		
+		$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnfirstref_name} = $mnfirstfield_dict->{reference};
+		$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnsecondref_name} = $mnsecondfield_dict->{reference};
 			
 		if (lc($data->[0]) eq $meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnfirstref_name}) {
 			$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnfirstfield_name} =  lc($data->[3]);
-			$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnsecondfield_name} = _DB_GetMNComboField($dbh,lc($data->[2]),3);
+			$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnsecondfield_name} = $mnsecondfield_dict->{field};
+			$meta_mnfields{lc($data->[0])}{lc($data->[1])}{btable} = $mnsecondfield_dict->{reference};
 		}else{
-			$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnfirstfield_name} =  _DB_GetMNComboField($dbh,lc($data->[2]),3);
+			$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnfirstfield_name} =  $mnsecondfield_dict->{field};
 			$meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnsecondfield_name} = lc($data->[3]);
+			$meta_mnfields{lc($data->[0])}{lc($data->[1])}{btable} = $mnfirstfield_dict->{reference};
 		}
 		
 		defined $meta_mnfields{lc($data->[0])}{lc($data->[1])}{mnfirstref_name} or
@@ -791,7 +798,7 @@ END
 		$fields{$table}{$meta_mnfield}{widget} = "mncombo(combo=".$meta_mnfields{lc($data->[0])}{lc($data->[1])}{btable}."_combo)";
 
 		#hide tables from web page
-		$g{db_tables}{lc($data->[3])}{hide} = "1";
+		#$g{db_tables}{lc($data->[3])}{hide} = "true";
 	}
 	$sth->finish;
 	return \%fields, \%meta_mnfields;
@@ -1274,36 +1281,44 @@ sub DB_Record2DB($$$$)
 	}
 }
 
-sub DB_ExecQuery($$$$$)
+sub DB_ExecQuery($$$$$$)
 {
 	my $dbh = shift;
 	my $table = shift;
 	my $query = shift;
 	my $data = shift;
 	my $fields = shift;
+	my $mninsert = shift;
+
+	#For subsequential inserts into M:N table it is needed the ID of 
+	#a newly inserted row. We can get it through the OID of the insert 
+	#command itself. 
+	my $oid = undef;
 	
 	my %datatypes = ();
 	for(@$fields){
 		$datatypes{$_} = $g{db_fields}{$table}{$_}{type};
 	}
 	
-	#print "<!-- Executing: $query -->\n";
-	
 	my $sth = $dbh->prepare($query) or die $dbh->errstr;
 	
-	my $paramnumber = 1;
-	for(@$fields){
-		my $type = $datatypes{$_};
-		my $data = $data->{$_};
-		if($type eq "bytea") {
-			#note the reference to the large blob
-			$sth->bind_param($paramnumber,$$data,{ pg_type => DBD::Pg::PG_BYTEA });
+	if ((not defined $mninsert) or ($mninsert ne "MN")) { 
+		my $paramnumber = 1;
+		for(@$fields){
+			my $type = $datatypes{$_};
+			my $data = $data->{$_};
+			if($type eq "bytea") {
+				#note the reference to the large blob
+				$sth->bind_param($paramnumber,$$data,{ pg_type => DBD::Pg::PG_BYTEA });
+			}
+			else {
+				$sth->bind_param($paramnumber,$data);
+			}
+			$paramnumber++;
 		}
-		else {
-			$sth->bind_param($paramnumber,$data);
-		}
-		$paramnumber++;
 	}
+	
+	print STDERR "DB_ExecQuery $query\n";
 	my $res = $sth->execute() or do {
 		# report nicely the error
 		$g{db_error}=$sth->errstr; return undef;
@@ -1311,7 +1326,12 @@ sub DB_ExecQuery($$$$$)
 	if($res ne 1 and $res ne '0E0') {
 		die "Number of rows affected is not 1! ($res)";
 	}
-	return 1;
+	#getting aan OID of the INSERT command
+	if($res eq 1){
+		$oid = $sth->{'pg_oid_status'};
+	}
+	
+	return 1, $oid;
 }
 
 sub DB_AddRecord($$$)
@@ -1332,8 +1352,23 @@ sub DB_AddRecord($$$)
 	my %dbdata = ();
 	DB_Record2DB($dbh, $table, $record, \%dbdata);
 
-	my $query = _DB_Insert($table, \@fields_list);
-	my ($result,$oid) = DB_ExecQueryOID($dbh,$table,$query,\%dbdata,\@fields_list);
+	my $query = "INSERT INTO $table (";
+	$query   .= join(', ',@fields_list);
+	$query   .= ") VALUES (";
+	my $first = 1;
+	for(@fields_list) {
+		if($first) {
+			$first = 0;
+		}
+		else {
+			$query .= ', ';
+		}
+		$query .= '?'
+	}
+	$query   .= ");";
+
+	#parameter undef is for normal insert, 'MN' is for insert into M:N
+	my ($result,$oid) = DB_ExecQuery($dbh,$table,$query,\%dbdata,\@fields_list,undef);
 	
 	my $ID = _DB_GetID($dbh,$table,$oid);
 	if (defined $ID){
@@ -1368,10 +1403,9 @@ sub DB_AddRecord($$$)
 						if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
 							push @mntable_row, $order--;
 						}
-						print STDERR ($query);
-						$query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
 						
-						DB_ExecQueryMN($dbh,$mntable,$query,\@fields_list);
+						$query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
+						DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
 					}
 				}
 			}
@@ -1414,10 +1448,12 @@ sub DB_UpdateRecord($$$)
 	$query .= join(', ',@updates);
 	$query .= " WHERE ${table}_id = $record->{id}";
     
-	my $result = DB_ExecQuery($dbh,$table,$query,\%dbdata,\@updatefields);
+	my ($result,$oid) = DB_ExecQuery($dbh,$table,$query,\%dbdata,\@updatefields,undef);
 	my $ID =  $record->{id};
         
-	if (defined $result and scalar(@mnfields_list) ne 0) {$result = _DB_UpdateMN($dbh,$table,\@fields_list,\@mnfields_list,$ID)};
+	if (defined $result and scalar(@mnfields_list) ne 0) {
+		$result = _DB_UpdateMN($dbh,$table,\@fields_list,\@mnfields_list,$ID)
+	};
 	return $result;
 }
 
@@ -1435,7 +1471,7 @@ sub DB_GetCombo($$$)
 	else {
 		$query .= " ORDER BY text";
 	}
-	print STDERR "$query\n";
+	#print STDERR "$query\n";
 	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
 	$sth->execute() or die $sth->errstr;
 	my $data;
@@ -1828,24 +1864,6 @@ sub DB_GetMNCombo($$$$$)
 	return 1;
 };
 
-sub DB_ExecQueryMN($$$$)
-{
-	my $dbh = shift;
-	my $table = shift;
-	my $query = shift;
-	my $fields = shift;
-	my $sth = $dbh->prepare($query) or die $dbh->errstr;
-	my $res = $sth->execute() or do {
-		# report nicely the error
-		$g{db_error}=$sth->errstr; return undef;
-	};
-	if($res ne 1 and $res ne '0E0') {
-		die "Number of rows affected is not 1! ($res)";
-	}
-	return 1;
-};
-
-
 sub _DB_GetID($$$){
 	my $dbh = shift;
 	my $table = shift;
@@ -1863,22 +1881,6 @@ sub _DB_GetID($$$){
 	
 	return $id;
 };
-
-sub _DB_Difference($$){
-	my $A = shift; 
-	my $B = shift;
-	my %seen = ();
-	my @result = ();
-	
-	foreach my $item (@$B) {$seen{$item} = 1};
-	foreach my $item (@$A){
-		unless ($seen{$item}) {
-			push @result, $item;
-		}
-	}
-	return \@result;
-};
-
 
 sub _DB_GetIDMN($$$$$){
 	my $dbh = shift;
@@ -1902,6 +1904,22 @@ sub _DB_GetIDMN($$$$$){
 	return \@result;
 };
 
+sub _DB_Difference($$){
+	my $A = shift; 
+	my $B = shift;
+	my %seen = ();
+	my @result = ();
+	
+	foreach my $item (@$B) {$seen{$item} = 1};
+	foreach my $item (@$A){
+		unless ($seen{$item}) {
+			push @result, $item;
+		}
+	}
+	return \@result;
+};
+
+
 sub _DB_UpdateMN($$$){
 	my $dbh = shift;
 	my $table = shift;
@@ -1915,30 +1933,31 @@ sub _DB_UpdateMN($$$){
 	my $query;
 	my $result = 1;
 	
-	print STDERR Dumper(\@mnfields_list);
-	
 	for my $vfield (@mnfields_list){ 
 		my $mntable = $g{db_fields}{$table}{$vfield}{reference};
 		my $mntable_first = $g{db_mnfields}{$table}{$vfield}{mnfirstref_name};
-				@fields_list = @{$g{db_fields_list}{$mntable}};
+		
+		@fields_list = @{$g{db_fields_list}{$mntable}};
 		@fields_list = grep !/${mntable}_id/, @fields_list;
 		@fields_list = grep !/${mntable}_order/, @fields_list;
 		
 		my $fname = "field_".$vfield;
 		
-		#new list         
+		#get the new list from the mncombo widget         
 		my @mntable_fields = $g{s}{cgi}->param($fname);
+		
 		if ( scalar(@mntable_fields) ne 0 ){
-			#old list
 			my $mncombo_firstfield = $g{db_mnfields}{$table}{$vfield}{mnfirstfield_name};
 			my $mncombo_secondfield = $g{db_mnfields}{$table}{$vfield}{mnsecondfield_name};
-			my $mntable_fields_old = _DB_GetIDMN($dbh, $mntable, $ID, $mncombo_firstfield, $mncombo_secondfield );
-			#delete list
-			my $mntable_fields_delete = _DB_Difference($mntable_fields_old, \@mntable_fields);
-			#add list
-			my $mntable_fields_add = _DB_Difference(\@mntable_fields, $mntable_fields_old);
-			#update order
 			
+			#get the old list
+			my $mntable_fields_old = _DB_GetIDMN($dbh, $mntable, $ID, $mncombo_firstfield, $mncombo_secondfield );
+			#find rows to delete => delete list
+			my $mntable_fields_delete = _DB_Difference($mntable_fields_old, \@mntable_fields);
+			#find rows to add => add list
+			my $mntable_fields_add = _DB_Difference(\@mntable_fields, $mntable_fields_old);
+			
+			#delete query
 			if (scalar(@$mntable_fields_delete) ne 0){
 				for my $val (@$mntable_fields_delete){
 					my @mntable_row = ();
@@ -1950,9 +1969,11 @@ sub _DB_UpdateMN($$$){
 						push @mntable_row, $ID;
 					}
 					$query = _DB_DeleteMN($mntable, \@fields_list,\@mntable_row);
-					$result = DB_ExecQueryMN($dbh,$mntable,$query,\@fields_list);
+					$result = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
 				}
 			}
+			
+			#add query
 			if ( scalar(@$mntable_fields_add) ne 0){
 				if ( $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
 					push @fields_list, "${mntable}_order";
@@ -1973,10 +1994,11 @@ sub _DB_UpdateMN($$$){
 					}
 					
 					$query = _DB_InsertMN($mntable, \@fields_list,\@mntable_row);
-					print STDERR ("Update $query \n");
-					$result = DB_ExecQueryMN($dbh,$mntable,$query,\@fields_list);
+					$result = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
 				}
 			}
+			
+			#update query
 			if ( scalar(@mntable_fields) ne 0 and $g{db_fields}{$table}{$vfield}{ordered} eq "1"){
 				@fields_list = grep !/${mntable}_order/, @fields_list;
 				push @fields_list, "${mntable}_order";
@@ -1995,34 +2017,13 @@ sub _DB_UpdateMN($$$){
 					push @mntable_row, $order++;
 					
 					$query = _DB_UpdateOrderMN($mntable, \@fields_list,\@mntable_row);
-					print STDERR ("UPDATE ORDER $query\n");
-					$result = DB_ExecQueryMN($dbh,$mntable,$query,\@fields_list);
+					$result = DB_ExecQuery($dbh,$mntable,$query,undef,\@fields_list,"MN");
 				}
 			}
+			
 		}
 	}
 	return $result;
-};
-
-
-sub _DB_Insert($$){
-	my $table = shift;
-	my $fields_list = shift;
-	my $query = "INSERT INTO $table (";
-	$query   .= join(', ',@$fields_list);
-	$query   .= ") VALUES (";
-	my $first = 1;
-	for(@$fields_list) {
-		if($first) {
-			$first = 0;
-		}
-		else {
-			$query .= ', ';
-		}
-		$query .= '?'
-	}
-	$query   .= ");";
-	return $query;
 };
 
 sub _DB_InsertMN($$$){
@@ -2069,6 +2070,8 @@ sub _DB_UpdateOrderMN($$$){
 
 
 sub _DB_GetFields($){
+	# helper function - separates real and virtual fields
+	
 	my $table = shift;
 	my @fields_list;
 	my @mnfields_list;
@@ -2085,69 +2088,16 @@ sub _DB_GetFields($){
 };
 
 
-sub DB_ExecQueryOID($$$$$)
-{
-	my $dbh = shift;
-	my $table = shift;
-	my $query = shift;
-	my $data = shift;
-	my $fields = shift;
-	
-	my @stringtypes = qw(
-		date
-		time
-		timestamp
-		int4
-		int8
-		numeric
-		float8
-		bpchar
-		text
-		name
-		bool
-	);
-	my @binarytypes = ('bytea');
-	       
-	my %datatypes = ();
-	for(@$fields){
-		$datatypes{$_} = $g{db_fields}{$table}{$_}{type};
-	}
-	
-	my $sth = $dbh->prepare($query) or die $dbh->errstr;
-	
-	my $paramnumber = 1;
-	for(@$fields){
-		my $type = $datatypes{$_};
-		my $data = $data->{$_};
-		if(grep (/^$type$/,@stringtypes)){
-				$sth->bind_param($paramnumber,$data);
-		}
-		if(grep (/^$type$/,@binarytypes)){
-			#note the reference to the large blob
-			$sth->bind_param($paramnumber,$$data,{ pg_type => DBD::Pg::PG_BYTEA });
-		}
-		$paramnumber++;
-	}
-	print STDERR ("DB_ExecQueryOID \n");
-	my $res = $sth->execute() or do {
-		# report nicely the error
-		$g{db_error}=$sth->errstr; return undef;
-	};
-	my $oid = $sth->{'pg_oid_status'};
-	if($res ne 1 and $res ne '0E0') {
-		die "Number of rows affected is not 1! ($res)";
-	}
-	return 1, $oid;
-};
-
-sub _DB_GetMNComboField($$$){
-	# helper function - returns M:N table field name from the given position
-	# eg. publauthor ((publauthor_publication,2)(publauthor_author,3))
+sub _DB_GetMNComboFieldDef($$$){
+	# helper function - returns M:N table field name and name of the tabel referenced
+	# by that field, given the real table position of the field 
+	# eg. _DB_GetMNComboFieldDef('publauthor',2) => ('publauthor_publication','publication')
 	
 	my $dbh = shift;
 	my $mntable = shift;
 	my $mntable_position = shift;
 	
+	#getting field name
 	my $query = "SELECT attname FROM pg_class c, pg_attribute a WHERE ";
 	$query.="c.relname ='$mntable' AND ";
 	$query.= "a.attrelid = c.oid AND attnum=$mntable_position";
@@ -2158,67 +2108,21 @@ sub _DB_GetMNComboField($$$){
 	my $table_attr = $data->[0];
 	$sth->finish;
 	
-	return $table_attr;
-};
-
-
-sub _DB_GetMNComboFieldReference($$$){
-	# helper function - returns M:N table field reference from the given position
-	# eg. publauthor ((publication,2)(person,3))
-	
-	my $dbh = shift;
-	my $mntable = shift;
-	my $mntable_position = shift;
-	
-	my $query = "SELECT attname FROM pg_class c, pg_attribute a WHERE ";
-	$query.="c.relname ='$mntable' AND ";
-	$query.= "a.attrelid = c.oid AND attnum=$mntable_position";
-	 
-	my $sth = $dbh->prepare($query);
+	#getting referenced table
+	$query="SELECT DISTINCT tgargs FROM pg_class,pg_trigger WHERE relfilenode=tgconstrrelid AND ";
+	$query.=" relname='$mntable' AND tgargs LIKE '%$table_attr%'";
+	$sth = $dbh->prepare($query);
 	$sth->execute() or die $dbh->errstr;
-	my $data = $sth->fetchrow_arrayref() or die $sth->errstr;
-	my $table_attr = $data->[0];
-	$sth->finish;
+	$data = $sth->fetchrow_arrayref() or die "TABLE $mntable does have defined CONSTRAINT on column $table_attr\n $sth->errstr";
 	
-	my $reftable = _DB_GetFieldReference($dbh, $mntable, $table_attr);
-	return $reftable;
-};
-
-
-sub _DB_GetMNComboSecondFieldReference($$$){
-	my $dbh = shift;
-	my $mntable = shift;
-	my $mncombo_first = shift;
-	my $mncombo_second = undef;
-	
-	my $mn_first =  _DB_GetMNComboFieldReference($dbh,$mntable,2);
-	my $mn_second = _DB_GetMNComboFieldReference($dbh,$mntable,3);
-	
-	if ($mncombo_first eq $mn_first){
-		$mncombo_second = $mn_second;
-	}else{
-		$mncombo_second = $mn_first;
-	}
-	return $mncombo_second;
-};
-
-sub _DB_GetFieldReference($$$){
-	my $dbh = shift;
-	my $table = shift;
-	my $table_attr = shift;
-	
-	my $query="SELECT DISTINCT tgargs FROM pg_class,pg_trigger WHERE relfilenode=tgconstrrelid AND ";
-	$query.=" relname='$table' AND tgargs LIKE '%$table_attr%'";
-	my $sth = $dbh->prepare($query);
-	$sth->execute() or die $dbh->errstr;
-	my $data = $sth->fetchrow_arrayref() or die "TABLE $table does have defined CONSTRAINT on column $table_attr\n $sth->errstr";
-	
+	#constraint postgres is saved as:
 	#"$1\000publauthor\000publication\000UNSPECIFIED\000publauthor_publication\000publication_id\000";
 	my @reflist = split('\000',$data->[0]);
+	my $reftable = $reflist[2];
 	$sth->finish;
 	
-	return $reflist[2];
+	my %fdict = (field => $table_attr, reference => $reftable);
+	return \%fdict;
 }
-
 
 1;
