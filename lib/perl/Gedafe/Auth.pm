@@ -124,7 +124,7 @@ sub AuthConnect($$$$) {
 	
 	# if ticket from cookie fails try ticket from param
 	unless($c){
-	    $c = $q->param("ticket");
+		$c = $q->param("ticket");
 	}
 	
 	$$ticket_value=$c;

@@ -316,14 +316,14 @@ sub DB_Widget($$)
 	my ($fields, $f) = @_;
 
 	if(defined $f->{widget} and $f->{widget} eq 'isearch'){
-	  my $r  = $f->{reference};
-	  my $rt = $g{db_tables}{$r};
-	  defined $rt or die "table $f->{reference}, referenced from $f->{table}:$f->{field}, not found.\n";
-	  if(defined $fields->{$r}{"${r}_hid"}) {
-	    # Combo with HID
-	    return "hidisearch(ref=$r)";
-	  }
-	  return "isearch(ref=$r)";
+		my $r  = $f->{reference};
+		my $rt = $g{db_tables}{$r};
+		defined $rt or die "table $f->{reference}, referenced from $f->{table}:$f->{field}, not found.\n";
+		if(defined $fields->{$r}{"${r}_hid"}) {
+			# Combo with HID
+			return "hidisearch(ref=$r)";
+		}
+		return "isearch(ref=$r)";
 	}
 
 
@@ -331,7 +331,7 @@ sub DB_Widget($$)
 
 	# HID and combo-boxes
 	if($f->{type} eq 'int4' or $f->{type} eq 'int8') {
-	 	if(defined $f->{reference}) {
+		if(defined $f->{reference}) {
 			my $r  = $f->{reference};
 			my $rt = $g{db_tables}{$r};
 			defined $rt or die "table $f->{reference}, referenced from $f->{table}:$f->{field}, not found.\n";
@@ -431,7 +431,7 @@ END
 					type => $data->[1],
 					attnum => $data->[2],
 					atthasdef => $data->[3],
-                                        atttypmod => $data->[4] 
+					atttypmod => $data->[4] 
 				};
 			}
 		}
@@ -665,20 +665,20 @@ sub DB_FetchListSelect($$) {
 
 
 		if($type eq 'date') {
-		  $query .= " WHERE $spec->{search_field} = ? ";
-			 push @query_parameters, "$spec->{search_value}";
+			$query .= " WHERE $spec->{search_field} = ? ";
+			push @query_parameters, "$spec->{search_value}";
 		}
 		elsif($type eq 'bool') {
-		  $query .= " WHERE $spec->{search_field} = ? ";
-			 push @query_parameters, "$spec->{search_value}";
+			$query .= " WHERE $spec->{search_field} = ? ";
+			push @query_parameters, "$spec->{search_value}";
 		}
 		elsif($type eq 'bytea') {
-		  $query .= " WHERE position(?::bytea in $spec->{search_field}) != 0";
-			 push @query_parameters, "$spec->{search_value}";
+			$query .= " WHERE position(?::bytea in $spec->{search_field}) != 0";
+			push @query_parameters, "$spec->{search_value}";
 		}
 		else {
-		  $query .= " WHERE $spec->{search_field} ~*  ? ";
-			 push @query_parameters, ".*$spec->{search_value}.*";
+			$query .= " WHERE $spec->{search_field} ~*  ? ";
+			push @query_parameters, ".*$spec->{search_value}.*";
 		}
 		$searching=1;
 	}
@@ -734,10 +734,9 @@ sub DB_FetchListSelect($$) {
 	my $sth = $dbh->prepare_cached($query) or die $dbh->errstr;
 	
 	for(1..scalar(@query_parameters)){
-	  #count from 1 to number_of_parameters including.
-	  #sql parameters start at 1. 
-
-	  $sth->bind_param($_,shift @query_parameters);
+		#count from 1 to number_of_parameters including.
+		#sql parameters start at 1. 
+		$sth->bind_param($_,shift @query_parameters);
 	}
 
 	$sth->execute() or die $sth->errstr . " ($query)";
@@ -777,7 +776,7 @@ sub DB_FetchList($$)
 
 	my %typelist=();
 	for(@{$list{fields}}){
-	    $typelist{$_} = $g{db_fields}{$v}{$_}{type};
+		$typelist{$_} = $g{db_fields}{$v}{$_}{type};
 	}
 	$list{type}=\%typelist;
 
@@ -820,9 +819,9 @@ sub DB_GetRecord($$$$)
 	#update the query to prevent listing binary data
 	my @select_fields = @fields_list;
 	for(@select_fields){
-	    if($g{db_fields}{$table}{$_}{type} eq 'bytea'){
-		$_ = "substring($_,1,position(' '::bytea in $_)-1)";
-	    }
+		if($g{db_fields}{$table}{$_}{type} eq 'bytea'){
+			$_ = "substring($_,1,position(' '::bytea in $_)-1)";
+		}
 	}
 
 	# fetch raw data
@@ -938,57 +937,59 @@ sub DB_Record2DB($$$$)
 
 sub DB_ExecQuery($$$$$)
 {
-    my $dbh = shift;
-    my $table = shift;
-    my $query = shift;
-    my $data = shift;
-    my $fields = shift;
-
-    my @stringtypes = qw(date
-			 time
-			 timestamp
-			 int4
-			 int8
-			 numeric
-			 float8
-			 bpchar
-			 text
-			 name
-			 bool);
-    my @binarytypes = ('bytea');
-
-
-
-    my %datatypes = ();
-    for(@$fields){
-	$datatypes{$_} = $g{db_fields}{$table}{$_}{type};
-    }
-
-    #print "<!-- Executing: $query -->\n";
-
-    my $sth = $dbh->prepare($query) or die $dbh->errstr;
-    
-    my $paramnumber = 1;
-    for(@$fields){
-	my $type = $datatypes{$_};
-	my $data = $data->{$_};
-	if(grep (/^$type$/,@stringtypes)){
-	    $sth->bind_param($paramnumber,$data);
+	my $dbh = shift;
+	my $table = shift;
+	my $query = shift;
+	my $data = shift;
+	my $fields = shift;
+	
+	my @stringtypes = qw(
+		date
+		time
+		timestamp
+		int4
+		int8
+		numeric
+		float8
+		bpchar
+		text
+		name
+		bool
+	);
+	my @binarytypes = ('bytea');
+	
+	
+	
+	my %datatypes = ();
+	for(@$fields){
+		$datatypes{$_} = $g{db_fields}{$table}{$_}{type};
 	}
-	if(grep (/^$type$/,@binarytypes)){
-	    #note the reference to the large blob
-	    $sth->bind_param($paramnumber,$$data,{ pg_type => DBD::Pg::PG_BYTEA });
+	
+	#print "<!-- Executing: $query -->\n";
+	
+	my $sth = $dbh->prepare($query) or die $dbh->errstr;
+	
+	my $paramnumber = 1;
+	for(@$fields){
+		my $type = $datatypes{$_};
+		my $data = $data->{$_};
+		if(grep (/^$type$/,@stringtypes)){
+			$sth->bind_param($paramnumber,$data);
+		}
+		if(grep (/^$type$/,@binarytypes)){
+			#note the reference to the large blob
+			$sth->bind_param($paramnumber,$$data,{ pg_type => DBD::Pg::PG_BYTEA });
+		}
+		$paramnumber++;
 	}
-	$paramnumber++;
-    }
-    my $res = $sth->execute() or do {
-	# report nicely the error
-	$g{db_error}=$sth->errstr; return undef;
-    };
-    if($res ne 1 and $res ne '0E0') {
-        die "Number of rows affected is not 1! ($res)";
-    }
-    return 1;
+	my $res = $sth->execute() or do {
+		# report nicely the error
+		$g{db_error}=$sth->errstr; return undef;
+	};
+	if($res ne 1 and $res ne '0E0') {
+		die "Number of rows affected is not 1! ($res)";
+	}
+	return 1;
 }
 
 sub DB_AddRecord($$$)
@@ -1020,8 +1021,7 @@ sub DB_AddRecord($$$)
 		$query .= '?'
 	}
 	$query   .= ")";
-        return DB_ExecQuery($dbh,$table,$query,\%dbdata,\@fields_list);
-
+	return DB_ExecQuery($dbh,$table,$query,\%dbdata,\@fields_list);
 }
 
 sub DB_UpdateRecord($$$)
@@ -1056,7 +1056,7 @@ sub DB_UpdateRecord($$$)
 	$query .= join(', ',@updates);
 	$query .= " WHERE ${table}_id = $record->{id}";
 
-        return DB_ExecQuery($dbh,$table,$query,\%dbdata,\@updatefields);
+	return DB_ExecQuery($dbh,$table,$query,\%dbdata,\@updatefields);
 }
 
 sub DB_GetCombo($$$)
@@ -1105,66 +1105,66 @@ sub DB_DeleteRecord($$$)
 
 sub DB_GetBlobName($$$$)
 {
-        my $dbh = shift;
+	my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
 	my $id = shift;
 
 	my $idcolumn = "${table}_id";
 	if($table =~ /\w+_list/){
-	  #tables that end with _list are actualy views and have their
-	  # id column as the first column of the view
-	  $idcolumn = $g{db_fields_list}{$table}[0];
+		#tables that end with _list are actualy views and have their
+		# id column as the first column of the view
+		$idcolumn = $g{db_fields_list}{$table}[0];
 	}
 
 	my $query = "Select substring($field,1,position(' '::bytea in $field)-1) from $table where $idcolumn=$id";
 	my $sth = $dbh->prepare($query);
 	$sth->execute() or return undef;
 	my $data = $sth->fetchrow_arrayref() or return undef;
-      	return $data->[0];
+	return $data->[0];
 }
 
 sub DB_GetBlobType($$$$)
 {
-        my $dbh = shift;
+	my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
 	my $id = shift;
 
 	my $idcolumn = "${table}_id";
 	if($table =~ /\w+_list/){
-	  #tables that end with _list are actualy views and have their
-	  # id column as the first column of the view
-	  $idcolumn = $g{db_fields_list}{$table}[0];
+		#tables that end with _list are actualy views and have their
+		# id column as the first column of the view
+		$idcolumn = $g{db_fields_list}{$table}[0];
 	}
 
 	my $query = "Select substring($field,position(' '::bytea in $field)+1,position('#'::bytea in $field)-(position(' '::bytea in $field)+1)) from $table where $idcolumn=$id";
 	my $sth = $dbh->prepare($query);
 	$sth->execute() or return undef;
 	my $data = $sth->fetchrow_arrayref() or return undef;
-      	return $data->[0];
+	return $data->[0];
 }
 
 sub DB_DumpBlob($$$$)
 {
-        my $dbh = shift;
+	my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
 	my $id = shift;
 
 	my $idcolumn = "${table}_id";
 	if($table =~ /\w+_list/){
-	  #tables that end with _list are actualy views and have their
-	  # id column as the first column of the view. 
-	  $idcolumn = $g{db_fields_list}{$table}[0];
+		#tables that end with _list are actualy views and have their
+		# id column as the first column of the view. 
+		$idcolumn = $g{db_fields_list}{$table}[0];
 	}
 	
 	my $query = "Select position('#'::bytea in $field)+1,octet_length($field) from $table where $idcolumn=$id";
 	my $sth = $dbh->prepare($query);
 	$sth->execute() or return -1;
 	my $data = $sth->fetchrow_arrayref() or return -1;
-      	my $startpos = $data->[0] || 0;
-      	my $strlength = $data->[1] || 0;
+	my $startpos = $data->[0] || 0;
+	my $strlength = $data->[1] || 0;
 	$sth->finish();
 	my $endpos = $strlength-($startpos-1);
 	my $dumpquery = "Select substring($field,?,?) from $table where $idcolumn=$id";
@@ -1172,15 +1172,15 @@ sub DB_DumpBlob($$$$)
 	my $blobdata;
 	$dumpsth->execute($startpos,$endpos) or return -1;
 	$blobdata = $dumpsth->fetchrow_arrayref() or return -1;
-	  # I know it is not nice to do the print here but I don't want to make the memory footprint
-	  # to large so returning the blob to a GUI routine is not possible.
+	# I know it is not nice to do the print here but I don't want to make the memory footprint
+	# to large so returning the blob to a GUI routine is not possible.
 	print $blobdata->[0];
 	return 1;
 }
 
 sub DB_RawField($$$$)
 {
-        my $dbh = shift;
+	my $dbh = shift;
 	my $table = shift;
 	my $field = shift;
 	my $id = shift;
@@ -1190,12 +1190,12 @@ sub DB_RawField($$$$)
 	my $sth = $dbh->prepare($query);
 	$sth->execute() or return undef;
 	my $data = $sth->fetchrow_arrayref() or return undef;
-      	return $data->[0];
+	return $data->[0];
 }
 
 sub DB_DumpTable($$$)
 {
-        my $dbh = shift;
+	my $dbh = shift;
 	my $table = shift;
 	my $view = defined $g{db_tables}{"${table}_list"} ?
 			"${table}_list" : $table;	
@@ -1205,9 +1205,9 @@ sub DB_DumpTable($$$)
 	# update the query to prevent listing binary data
 	my @select_fields = @fields;
 	for(@select_fields){
-	    if($g{db_fields}{$view}{$_}{type} eq 'bytea'){
-		$_ = "substring($_,1,position(' '::bytea in $_)-1)";
-	    }
+		if($g{db_fields}{$view}{$_}{type} eq 'bytea'){
+			$_ = "substring($_,1,position(' '::bytea in $_)-1)";
+		}
 	}
 
 	my $query = "SELECT ";
@@ -1218,60 +1218,56 @@ sub DB_DumpTable($$$)
 
 	my $first = 1;
 	for my $field (keys(%$atribs)){
-	  if($first){
-	    $query .= " where ";
-	  }else{
-	    $query .= " and ";
-	  }
-	  my $value = $atribs->{$field};
-	  my $type = $g{db_fields}{$view}{$field}{type};
-	  if($type eq 'date') {
-	    $query .= " $field = '$value'";
-	  }
-	  elsif($type eq 'bool') {
-	    $query .= " $field = '$value'";
-	  }
-	  else {
-	    $query .= " $field ~* '.*$value.*'";
-	  }
-	  	  
+		if($first){
+			$query .= " where ";
+		}else{
+			$query .= " and ";
+		}
+		my $value = $atribs->{$field};
+		my $type = $g{db_fields}{$view}{$field}{type};
+		if($type eq 'date') {
+			$query .= " $field = '$value'";
+		}
+		elsif($type eq 'bool') {
+			$query .= " $field = '$value'";
+		}
+		else {
+			$query .= " $field ~* '.*$value.*'";
+		}
 	}
-
-	#print STDERR "$query\n";
 
 	my $sth = $dbh->prepare($query) or return undef;
 	$sth->execute() or return undef;
 
-	my @row;
-	my $data;
+	my @row, $data;
 	
 	$data=$sth->rows."\n";
 	
 	$first = 1;
 	my $numcolumns = scalar @select_fields;
 	while(@row = $sth->fetchrow_array()) {
-	  $first = 1;
-	  for (0..$numcolumns-1){
-	    my $field=$row[$_];
-	    if(!$field||$field eq ""){
-	      $field = " ";
-	    }
-
-	    if(not $first){
-	      $data.="\t";
-	    }
-	    $first = 0;
-	    $field =~ s/\t/\&\#09\;/gm;
-	    $field =~ s/\n/\&\#10\;/gm;
-	    $field =~ s/[\r\f]//gm;
-
-	    $data.=$field;
-	  }
-	  $data.="\n";
+		$first = 1;
+		for (0..$numcolumns-1){
+			my $field=$row[$_];
+			if(!$field||$field eq ""){
+				$field = " ";
+			}
+			
+			if(not $first){
+				$data.="\t";
+			}
+			$first = 0;
+			$field =~ s/\t/\&\#09\;/gm;
+			$field =~ s/\n/\&\#10\;/gm;
+			$field =~ s/[\r\f]//gm;
+			
+			$data .= $field;
+		}
+		$data .= "\n";
 	}
 	$sth->finish();
 	if(length($data)>20000){
-	  $data= "Resultset exeeds desirable size.\n";
+		$data = "Resultset exeeds desirable size.\n";
 	}
 	return $data;
 }
