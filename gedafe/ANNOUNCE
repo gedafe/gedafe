@@ -41,6 +41,13 @@ Introduction
 Release Notes
 -------------
 
+  * PearlReports have been integrated with gedafe. It is now possible
+    to write perl modules (pearls) which will be picked up by gedafe
+    and presented in the "Entry" screen. The idea is to use this
+    facility for generating complex, structured (multi-level) reports.
+    Pearls have access to gedafes Webform generator as well a to the
+    database handle.
+
   * More widgets: the 'widget' attribute of the meta_fields
     can now specify more widgets and widgets can now have parameters.
     For example with 'idcombo(combo=...)' another combo-box can be
