@@ -154,7 +154,7 @@ sub Start(%)
 	
 	GUI_PostEdit(\%s, $user, $dbh);
 
-	if($action eq 'list') {
+	if($action eq 'list' or $action eq 'listrep') {
 		GUI_List(\%s, $user, $dbh);
 	}
 	elsif($action eq 'edit' or $action eq 'add' or $action eq 'reedit') {

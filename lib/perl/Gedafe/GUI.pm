@@ -450,8 +450,7 @@ sub GUI_ListTable($$$)
 
 	# user can edit only if they have sql UPDATE privilege, and
 	# this table is a real table, not a report (view)
-	my $can_edit = ($list->{acl} =~ /w/ and
-			!$g{db_tables}{$list->{spec}->{table}}{report});
+	my $can_edit = ($list->{acl} =~ /w/ and !$list->{is_report});
 	my $can_delete = $can_edit;
 
 	my %template_args = (
@@ -590,6 +589,7 @@ sub GUI_ListButtons($$$$)
 		TITLE => "$g{db_tables}{$list->{spec}{table}}{desc}",
 		TOP => $position eq 'top',
 		BOTTOM => $position eq 'bottom',
+		IS_REPORT => $list->{is_report}
 	);
 
 	my $next_refresh = NextRefresh;
@@ -689,23 +689,25 @@ sub GUI_List($$$)
 	$list->{totalrecords} = DB_GetNumRecords($s, \%spec)
 	  if $g{conf}{show_row_count};
 	
+	# is it a report (read-only)?
+	$list->{is_report} = 1 if $g{db_tables}{$table}{report};
+	
 	my $list_buttons = $g{conf}{list_buttons};
 	if(!$list_buttons){
 	  $list_buttons = 'both';
 	}
 
 	# top buttons
-	if($list_buttons eq 'top' || $list_buttons eq 'both'){
-	  GUI_ListButtons($s, $list, $g{db_tables}{$table}{report} ? 'listrep' : 'list', 'top');
+	if($list_buttons eq 'top' or $list_buttons eq 'both'){
+	  GUI_ListButtons($s, $list, 'list', 'top');
 	}
 
 	# display table
 	GUI_ListTable($s, $list, 'list');
 
 	# bottom buttons
-	if($list_buttons eq 'bottom' || $list_buttons eq 'both'){
-
-	  GUI_ListButtons($s, $list, $g{db_tables}{$table}{report} ? 'listrep' : 'list', 'bottom');
+	if($list_buttons eq 'bottom' or $list_buttons eq 'both'){
+	  GUI_ListButtons($s, $list, 'list', 'bottom');
 	}
 	delete $list->{displayed_recs};
 	delete $list->{totalrecords} if $g{conf}{show_row_count};
