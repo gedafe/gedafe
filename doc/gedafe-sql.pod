@@ -142,8 +142,6 @@ It may be empty if no special information has to be provided.
     meta_fields_field     NAME NOT NULL PRIMARY KEY,
     -- Use Widget X. At the moment there is only 'area'
     meta_fields_widget    TEXT,                      
-    -- Field is a reference to table X
-    meta_fields_reference TEXT,
     -- Copy forward in edit mask when adding several records
     meta_fields_copy      BOOLEAN,
     -- Use ORDER BY function(field) when sorting
@@ -153,11 +151,6 @@ It may be empty if no special information has to be provided.
 The B<meta_fields_widget> entry must either be B<NULL> or B<area>. Area
 will provide the user with a TEXTAREA widget to enter longer amount of
 text.
-
-The B<meta_fields_reference> entry must either be B<NULL> or the name
-of an other table which gets referenced from this field (Note:
-actually we should be able to pull this information from PostgreSQL,
-but we have no been able to do so thus far.)
 
 If you have a column which contains names like 'von Burg' or 'di Alfredi'
 and you want the column sorted by the second word, you can create a function
