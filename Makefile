@@ -4,7 +4,7 @@ SHELL=/bin/sh
 
 MAJOR  = 1
 MINOR  = 0
-MMINOR = 1pre2
+MMINOR = 1
 VERSION = $(MAJOR).$(MINOR).$(MMINOR)
 
 GNUTAR = gtar
@@ -19,6 +19,9 @@ tarball:  doc/gedafe-sql.txt doc/gedafe-user.txt doc/cpptemplate.txt
 	rm -rf gedafe-$(VERSION)
 	
 release-tag:
+	cvs tag v$(MAJOR)_$(MINOR)_$(MMINOR)
+
+release-tag-force:
 	cvs tag -F v$(MAJOR)_$(MINOR)_$(MMINOR)
 
 doc/cpptemplate.txt:

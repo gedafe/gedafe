@@ -19,10 +19,13 @@
 
 * searches are now case insensitive
 
-* gedafed has changed: you must replace it and restart it
+* gedafed has changed
 
-* app_site and app_path are not anymore needed in the startup script: delete
-  them.
+  -> replace gedafed and restart it
+
+* app_site and app_path are not anymore needed in the startup script
+
+  -> remove app_site and app_path from the startup scripts
 
 * all the templates have a new variable: DATABASE_DESC containing the comment set
   on the database. You thus can take the original example/template/header.html and
