@@ -289,18 +289,21 @@ sub DB_ReadTableAcls($$)
 			/(.*)=(.*)/;
 			my $who = $1; my $what = $2;
 			if($who eq '') {
+				# PUBLIC: assign permissions to all db users
 				for(values %db_users) {
 					$tables->{$data->[0]}{acls}{$_} =
 						DB_MergeAcls($tables->{$data->[0]}{acls}{$_}, $what);
 				}
 			}
 			elsif($who =~ /^group (.*)$/) {
+				# group permissions: assign to all db groups
 				for(@{$db_groups{$1}}) {
 					$tables->{$data->[0]}{acls}{$_} =
 						DB_MergeAcls($tables->{$data->[0]}{acls}{$_}, $what);
 				}
 			}
 			else {
+				# individual user: assign just to this db user
 				$tables->{$data->[0]}{acls}{$who} =
 					DB_MergeAcls($tables->{$data->[0]}{acls}{$who}, $what);
 			}
@@ -519,6 +522,7 @@ END
 				$f->{reference} = $m->{reference};
 				$f->{copy}      = $m->{copy};
 				$f->{sortfunc}  = $m->{sortfunc};
+				$f->{markup}    = $m->{markup};
 			}
 			if(! defined $f->{widget}) {
 				$f->{widget} = DB_Widget(\%fields, $f);

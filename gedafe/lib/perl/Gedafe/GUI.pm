@@ -52,6 +52,28 @@ require Exporter;
 	GUI_DumpTable
 );
 
+sub GUI_HTMLMarkup($)
+{
+	my $str = shift;
+
+	# e-mail addresses
+	my $emaddrchars = '\w.:/~-';
+	$str =~ s,([^\@$emaddrchars]|\A)([$emaddrchars]+\@(?:[\w-]+\.)+[\w-]+)([^\@$emaddrchars]|\Z),$1<A HREF="mailto:$2">$2</A>$3,gi;
+
+	my $urlchars = '\w.:/?~%&=\@\#-';
+
+	# http addresses with explicit "http://" or "https://"
+	$str =~ s,([^$urlchars]|\A)(https?://[$urlchars]+)([^$urlchars]|\Z),$1<A HREF="$2" TARGET="refwindow">$2</A>$3,gi;
+
+	# http addresses beginning with "www."
+	$str =~ s,([^$urlchars]|\A)(www\.[\w.:/?~%&=\#-]+)([^$urlchars]|\Z),$1<A HREF="http://$2" TARGET="refwindow">$2</A>$3,gi;
+
+	# http addresses ending in a common top-level domain
+	$str =~ s,([^$urlchars]|\A)([\w.-]+\.)(com|org|net|edu|gov|mil|au|ca|ch|de|uk|us)(:\d+)?(/[\w./?~%&=\#-]*)?([^$urlchars]|\Z),$1<A HREF="http://$2$3$4$5" TARGET="refwindow">$2$3$4$5</A>$6,gi;
+
+	return $str;
+}
+
 sub GUI_InitTemplateArgs($$)
 {
 	my ($s, $args) = @_;
@@ -357,19 +379,19 @@ sub GUI_ListTable($$$)
 
 	my @typelist = @{%{$list->{type}}}{@{$list->{fields}}};
 	# data
-	my $displayed = 0;
+	$list->{displayed_recs} = 0;
 	for my $row (@{$list->{data}}) {
-		$displayed++;
-		if($displayed%2) { $template_args{EVENROW}=1; }
-		else             { $template_args{ODDROW}=1; }
+		$list->{displayed_recs}++;
+		if($list->{displayed_recs}%2) { $template_args{EVENROW}=1; }
+		else                          { $template_args{ODDROW}=1; }
 
 		$template_args{ELEMENT}='tr';
 		print Template(\%template_args);
 		my $column_number = 0;
 		for my $d (@{$row->[1]}) {
 			my $type = $typelist[$column_number];
+			my $name = $list->{fields}->[$column_number];
 			if($type eq 'bytea' && $d ne '&nbsp;'){
-			    my $name = @{$list->{fields}}[$column_number];
 			    my $bloburl = MakeURL($s->{url}, {
 						action => 'dumpblob',
 						id => $row->[0],
@@ -379,10 +401,12 @@ sub GUI_ListTable($$$)
 			}
 			$template_args{ELEMENT}='td';
 			$template_args{DATA}=$d;
+			$template_args{MARKUP}=GUI_HTMLMarkup($d) if $d and $g{db_fields}{$list->{spec}->{table}}{$name}{markup};
 			print Template(\%template_args);
+			delete $template_args{DATA};
+			delete $template_args{MARKUP};
 		        $column_number++;
 		}
-		delete $template_args{DATA};
 
 		$template_args{ID} = $row->[0];
 		GUI_EditLink($s, \%template_args, $list, $row) if $can_edit;
@@ -392,8 +416,8 @@ sub GUI_ListTable($$$)
 		$template_args{ELEMENT}='xtr';
 		print Template(\%template_args);
 
-		if($displayed%2) { delete $template_args{EVENROW}; }
-		else             { delete $template_args{ODDROW}; }
+		if($list->{displayed_recs}%2) {delete $template_args{EVENROW};}
+		else                          {delete $template_args{ODDROW};}
 	}
 
 	# </TABLE>
@@ -438,6 +462,7 @@ sub GUI_ListButtons($$$$)
 	$template_args{PREV_URL}=$prev_url;
 	$template_args{NEXT_URL}=$next_url;
 
+	# calculate correct offset for last page of results
 	if ($g{conf}{show_row_count}) {
 		my $totalrecs = $template_args{NUM_RECORDS} = $list->{totalrecords};
 		my $lastoffset =
@@ -509,6 +534,9 @@ sub GUI_List($$$)
 
 	# bottom buttons
 	GUI_ListButtons($s, $list, $g{db_tables}{$table}{report} ? 'listrep' : 'list', 'bottom');
+
+	delete $list->{displayed_recs};
+	delete $list->{totalrecords} if $g{conf}{show_row_count};
 
 	# footer
 	GUI_Footer(\%template_args);

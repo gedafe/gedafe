@@ -9,5 +9,11 @@
 #elif ##DATA## ~ ^\d
     \ ALIGN="RIGHT" NOWRAP
 #endif
->##DATA##</TD>
+>
+#ifdef MARKUP
+    ##MARKUP##
+#else
+    ##DATA##
+#endif
+</TD>
 
