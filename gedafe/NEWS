@@ -1,0 +1,130 @@
+
+        News and upgrading information for Gedafe
+        =========================================
+
+(arrows indicate actions that you should make when upgrading)
+
+1.2.1 (2003-09-03)
+------------------------------------------------------------------------------
+  * New widget: combo (just the combo-box without text entry)
+
+  * Bugfixes: date widget didn't work.
+
+1.2.0 (2003-09-27)
+------------------------------------------------------------------------------
+  * PearlReports have been integrated with gedafe. It is now possible
+    to write perl modules (pearls) which will be picked up by gedafe
+    and presented in the "Entry" screen. The idea is to use this
+    facility for generating complex, structured (multi-level) reports.
+    Pearls have access to gedafes Webform generator as well a to the
+    database handle.
+
+  * Combo-boxes must always reference the 'id' of the table and not the
+    'hid' if the table has one. The old behaviour was confusing and was
+    thus changed, but you can still tell Gedafe to behave like that
+    by setting 'gedafe_compat' to '1.0' in the Start function.
+
+    -> Change all combo-boxes where the 'hid' is referenced in the
+       'id' field of the view to reference the 'id' of the table
+
+    OR
+
+    -> Put the following in the Start function of the cgi script:
+
+         gedafe_compat => '1.0'
+
+  * The 'filterfirst' attribute must now be set on the _list view if one
+    is used.
+
+    -> Change the meta_table_table field of all filterfirst attributes to
+       the name of the _list view instead of the table, if a list view is
+       present.
+    -> Since attributes in a _list view have no reference property, this must be
+       specified in meta_fields (check the docs)
+
+  * More widgets: the 'widget' attribute of the meta_fields
+    can now specify more widgets and widgets can now have parameters. For
+    example with 'idcombo(combo=...)' another combo-box can be selected
+    instead of the one chosen by Gedafe. See 'EDIT WIDGETS' in
+    gedafe-sql.pod for a description of all widgets.
+
+  * Blobs (files) can now be inserted into bytea columns if you have
+    Postgresql >= 7.2
+
+  * Referencing large tables can now be done trough a java
+    applet instead of a html select widget. This makes large (>100 rows or
+    a few kb) tables more easy to use. See documentation about 'isearch'
+    for details.
+    Please remember to set the 'isearch' value to point to your copy of
+    isearch.jar in your cgi script. It must be a relative address on the 
+    same server as the cgi script for java security reasons.
+
+  * Dates can now be entered with a special 'date' widget.
+
+  * Data can now be scanned for tokens resembling web objects (e.g.
+    e-mail addresses, http urls), and automatically marked up to be hyper
+    links. Set the 'markup' attribute to 1 in meta_fields for the desired
+    column.
+  
+  * Gedafe can now count the total number of results returned from the
+    database.  This is helpful for seeing the number of items found by a
+    search, and in skipping to the beginning end or of a result set.
+    When enabled, you will see extra navigation links "First", and "Last"
+    on every page, as well as the index of the rows shown in relation to
+    total rows.  To enable this feature, call Start() with the
+      'show_row_count' => 1,
+    parameter.  It is turned off by default due to slightly higher
+    database overhead.
+  
+  * If you have the Text::CSV_XS Perl module installed (available from CPAN),
+    gedafe automatically detects it, and gives the option of exporting data
+    either in CSV format (comma-separated-values), or in tab-delimited format.
+    CSV format is useful for data with embedded newlines characters.
+
+  * The meta_fields attribute 'align' can be used to change the alignment
+    of a coulumn. The default is right-aligned for numeric fields and
+    left-aligned otherwise.
+
+  * The buttons in the list view (with the arrows for navigation and 'ADD' to
+    add a new record) can now also appear at the top before the list. Use the
+    'list_buttons' option in the Start function to select where to display the
+    buttons. The value can be one of: top, bottom, both or none.
+
+1.0.6 (2002-03-17)
+------------------------------------------------------------------------------
+  * 'action=export' instead of 'action=list' or 'action=listrep' returns
+    a comma-separated-values listing of all rows of the table. You can use
+    the EXPORT_URL variable in the templates to reference the correct
+    URL.
+
+1.0.5 (2002-02-18)
+------------------------------------------------------------------------------
+  * The edit view now returns to the "Referer" if it is provided by the browser.
+    This makes it possible to jump internally directly to an edit view (from
+    the list view of another table for example)
+
+1.0.1 (2001-02-20)
+------------------------------------------------------------------------------
+  * The old pre-0.9.16 meta_tables and meta_fields structure is not anymore
+    supported.
+  
+  * New template: error.html used for unexpected internal errors.
+  
+    -> put the new error.html in your templates directories
+  
+  * The escaping characted for encoding data in reedit_data has changed
+    from '%' to '!', so any old pre-built urls with reedit_data set won't work.
+  
+  * searches are now case insensitive
+  
+  * gedafed has changed
+  
+    -> replace gedafed and restart it
+  
+  * app_site and app_path are not anymore needed in the startup script
+  
+    -> remove app_site and app_path from the startup scripts
+  
+  * all the templates have a new variable: DATABASE_DESC containing the
+    comment set on the database. You thus can take the original
+    example/template/header.html and use it for your application.

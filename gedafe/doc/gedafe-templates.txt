@@ -1,0 +1,201 @@
+Templates description
+---------------------
+
+---------------- LEGEND ---------------- 
+- VAR (for each page)
+* PAGE
+	- VAR (for the whole page)
+	> ELEMENT (template is printed)
+		- VAR (for this element)
+! loop / condition
+---------------- /LEGEND --------------- 
+
+For every element:
+
+- PAGE		page name
+- TITLE		title of the page
+- ELEMENT	element name
+- USER		user name (if available)
+- THEME		value set with 'theme=xxx' in the URL (if available)
+
+* login
+	> header
+	> login
+	> footer
+	
+* auth_error
+	> header
+	> header2
+	> auth_error
+	> footer
+
+stdheader =
+	> header
+	! for each table:
+		> header_table
+			- TABLE
+			- TABLE_DESC
+			- TABLE_URL
+
+		> header2
+
+stdfooter =
+	> footer
+
+* edit_error (database produced an error after an update or insert)
+	- ERROR	
+	- REEDIT_ACTION
+
+	= stdheader
+	> edit_error
+	= stdfooter
+
+* db_error (other database errors, not after an edit)
+	> db_error
+		- ERROR
+		- NEXT_URL
+
+* doubleform (duplicate form)
+	- NEXT_URL
+
+	= stdheader
+	> doubleform
+	= stdfooter
+
+* entry
+	=stdheader
+
+	> tables_list_header
+
+	! for each editable table:
+		> entrytable
+			- TABLE_DESC
+			- TABLE_URL
+
+	> reports_list_header
+
+	! for each report:
+		> entrytable
+			- TABLE_DESC
+			- TABLE_URL
+			- REPORT (defined)
+
+	=stdfooter
+
+
+* list
+	- TABLE
+	- URL
+	- ORDERBY
+	
+	> filterfirst
+		- FILTERFIRST_FIELD
+		- FILTERFIRST_FIELD_DESC
+		- FILTERFIRST_COMBO
+		- FILTERFIRST_HIDDEN
+		- FILTERFIRST_ACTION
+	
+	> search
+		- SEARCH_COMBO
+		- SEARCH_VALUE
+		- SEARCH_HIDDEN
+		- SEARCH_ACTION
+	
+	> table
+	> tr
+	! for each field:
+		> th
+			- DATA
+			- SORT_URL
+		> th_edit (only if user can edit)
+		> th_delete) (only if user can delete)
+	> xtr
+
+	! for each record:
+		- ID
+		- EVENROW or ODDROW defined
+		> tr
+		! for every field of the record:
+			> td
+				- DATA
+		> td_edit (if can edit)
+			- EDIT_URL
+		> td_delete (if can delete)
+			- DELETE_URL
+		> xtr
+	
+	> xtable
+	
+	> buttons
+		- PREV_URL
+		- NEXT_URL
+		- ADD_URL
+
+	=stdfooter
+	
+* listrep
+	- TABLE
+	- URL
+	- ORDERBY
+	
+	> filterfirst
+		- FILTERFIRST_FIELD
+		- FILTERFIRST_FIELD_DESC
+		- FILTERFIRST_COMBO
+		- FILTERFIRST_HIDDEN
+		- FILTERFIRST_ACTION
+	
+	> search
+		- SEARCH_COMBO
+		- SEARCH_VALUE
+		- SEARCH_HIDDEN
+		- SEARCH_ACTION
+	
+	> table
+	> tr
+	! for each field:
+		> th
+			- DATA
+			- SORT_URL
+	> xtr
+
+	! for each record:
+		- ID
+		- EVENROW or ODDROW defined
+		> tr
+		! for every field of the record:
+			> td
+				- DATA
+		> xtr
+	
+	> xtable
+	
+	> buttons
+		- PREV_URL
+		- NEXT_URL
+
+	=stdfooter
+
+* edit
+	- TABLE
+	- ID
+	- ACTION (= add | edit)
+	- REEDIT (defined if reediting after an error)
+	=stdheader
+	> editform_header
+	! for each field:
+		- FIELD
+		> editfield
+			- LABEL
+			- INPUT
+			- TWOCOL (alternating 0 and 1 for each field)
+	> editform_footer
+	=stdfooter
+
+* delete
+	- TABLE
+	- ID
+	- NEXT_URL
+	=stdheader
+	> deleteok
+	=stdfooter

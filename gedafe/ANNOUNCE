@@ -1,0 +1,92 @@
+Tobias Oetiker, David Schweikert, Fritz Zaucker, Adi Fairbank, and
+Freek Zindel are proud to announce:
+                _        __        _   ____    ___
+  __ _  ___  __| | __ _ / _| ___  / | |___ \  / _ \
+ / _` |/ _ \/ _` |/ _` | |_ / _ \ | |   __) || | | |
+| (_| |  __/ (_| | (_| |  _|  __/ | |_ / __/ | |_| |
+ \__, |\___|\__,_|\__,_|_|  \___| |_(_)_____(_)___/
+ |___/
+          #### Gedafe (the Generic Database Front-End) 1.2.0 ####
+
+
+Introduction
+------------
+
+    Gedafe (Generic Database Front-End) is an application independent
+    end-user web front-end for databases. Application independant means,
+    that the front-end doesn't have any information about the structure
+    and contents of the database.
+
+    The idea behind Gedafe is to put all the application logic into the
+    database, along with meta-information on how to present the data.
+    The front-end then gathers this information and uses it to build the
+    user interface. This approach greatly reduces development time since
+    you only have to develop the application at the database level and
+    the web front-end comes for free.
+
+    And there is more:
+  
+    * Gedafe uses a flexible templating system. It allows you
+      customize the look of the user interface to a large degree.
+
+    * Gedafe generated interfaces support "deep linking". This
+      means that you can bookmark every page as it is presented.
+
+    * At the moment Gedafe works only with PostgreSQL. But the
+      structure of the application does not depend on PostgreSQL.
+
+    * Gedafe is *NOT* yet another database-administration front-end
+      with table editing ability. It is a real user interface.
+
+Release Notes
+-------------
+
+  * PearlReports have been integrated with gedafe. It is now possible
+    to write perl modules (pearls) which will be picked up by gedafe
+    and presented in the "Entry" screen. The idea is to use this
+    facility for generating complex, structured (multi-level) reports.
+    Pearls have access to gedafes Webform generator as well a to the
+    database handle.
+
+  * More widgets: the 'widget' attribute of the meta_fields
+    can now specify more widgets and widgets can now have parameters.
+    For example with 'idcombo(combo=...)' another combo-box can be
+    selected instead of the one chosen by Gedafe.
+
+  * Blobs (files) can now be inserted into bytea columns if you have
+    Postgresql >= 7.2
+
+  * Referencing large tables can now be done trough a java applet
+    instead of a html select widget. This makes large (>100 rows or a
+    few kb) tables more easy to use.
+
+  * Dates can now be entered with a special 'date' widget.
+
+  * Data can now be scanned for tokens resembling web objects (e.g.
+    e-mail addresses, http urls), and automatically marked up to be
+    hyper links. Set the 'markup' attribute to 1 in meta_fields for the
+    desired column.
+  
+  * Gedafe can now count the total number of results returned from the
+    database.  This is helpful for seeing the number of items found by a
+    search, and in skipping to the beginning end or of a result set.
+  
+  * If you have the Text::CSV_XS Perl module installed (available from CPAN),
+    gedafe automatically detects it, and gives the option of exporting data
+    either in CSV format (comma-separated-values), or in tab-delimited format.
+    CSV format is useful for data with embedded newlines characters.
+
+  * The meta_fields attribute 'align' can be used to change the alignment
+    of a coulumn.
+
+  * The buttons in the list view (with the arrows for navigation and 'ADD' to
+    add a new record) can now also appear at the top before the list.
+
+Availability
+------------
+
+    Gedafe is released under the GNU General Public License.
+    Read more about it and download at
+
+    >> http://isg.ee.ethz.ch/tools/gedafe <<
+

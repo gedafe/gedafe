@@ -1,0 +1,40 @@
+Bugs
+----
+- Database errors sometimes do not get printed
+
+Documentation
+-------------
+
+Small features
+--------------
+- add a widget for referencing fields where only
+  the combo-box is wanted
+- improve README (put what additional software is needed)
+- TUTORIAL ?
+- meta_database, default_hide
+- Better error reporting when just permissions problems on meta_tables
+  for example -> Authentication error
+- Show error directly in the edit view where you can correct the mistake, do
+  not use two pages
+- edit/delete on the left (selectable with a meta attribute, wide tables make
+  the buttons difficult to access)
+- meta_color field to select the color of the record in the list view (see
+  mailing list)
+- edit mask (patch by Johannes Poehlmann) see mailing list
+
+Big features
+------------
+- user management
+- multi-language
+- rewrite Text::CPPTemplate
+  - url in templates
+- make nicer templates
+- multi-level combos
+- editable views
+- drop naming rule (table_field)
+- implement m:n relations (lists in edit forms)
+
+Internal changes
+----------------
+- move GUI_Header, GUI_Footer, etc. to Layout.pm
+- move GUI_CheckFormID to Util.pm
