@@ -420,7 +420,7 @@ END
 		$query = <<'END';
 SELECT a.attname, d.description
 FROM pg_class c, pg_attribute a, pg_description d
-WHERE c.relname = 'product' AND a.attnum > 0
+WHERE c.relname = ? AND a.attnum > 0
 AND a.attrelid = c.oid
 AND a.oid = d.objoid
 END
