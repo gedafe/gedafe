@@ -70,6 +70,7 @@ my %type_widget_map = (
 	'time'      => 'text(size=12)',
 	'timestamp' => 'text(size=22)',
 	'timestamptz' => 'text(size=28)',
+	'int2'      => 'text(size=6)',
 	'int4'      => 'text(size=12)',
 	'int8'      => 'text(size=12)',
 	'numeric'   => 'text(size=12)',
@@ -990,6 +991,7 @@ sub DB_ExecQuery($$$$$)
 		date
 		time
 		timestamp
+		int2
 		int4
 		int8
 		numeric

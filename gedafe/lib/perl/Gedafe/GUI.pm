@@ -90,6 +90,7 @@ sub GUI_WidgetWrite_Date($$$);
 my %numeric_types = (
 	time      => 1,
 	timestamp => 1,
+	int2      => 1,
 	int4      => 1,
 	int8      => 1,
 	numeric   => 1,
