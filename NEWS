@@ -4,6 +4,9 @@
 
 (arrows indicate actions that you should make when upgrading)
 
+1.2.0
+-----
+
 1.0.6
 -----
 * 'action=export' instead of 'action=list' or 'action=listrep' returns
