@@ -68,7 +68,9 @@ INSERT INTO meta_fields VALUES (DEFAULT,'customer', 'customer_address', 'widget'
 INSERT INTO meta_fields VALUES (DEFAULT,'customer', 'customer_email', 'markup', 1);
 
 INSERT INTO meta_tables VALUES (DEFAULT,'customer', 'longcomment','Our lovely Customers');
-INSERT INTO meta_tables VALUES ('customer','editmask','mask_customer.html');
+INSERT INTO meta_tables VALUES (DEFAULT, 'customer','editmask','mask_customer.html');
+INSERT INTO meta_tables VALUES (DEFAULT, 'customer','quicklink(1)',
+	'foot("http://isg.ee.ethz.ch/tools/gedafe/","","Gedafe Homepage Quicklink") ');
 
 -- combo-box
 DROP VIEW customer_combo;

@@ -4,6 +4,17 @@
 
 (arrows indicate actions that you should make when upgrading)
 ------------------------------------------------------------------
+HEAD    (2004-03-31)
+
+	* Added quicklinks
+
+	   quicklinks are user-defined links put at the bottom of 
+	   list views. See doc/gedafe-sql.pod
+
+	* fixed an error in example/demo1.sql to make the editmask
+	  example work.
+		Johannes
+------------------------------------------------------------------
 HEAD    (2004-03-30)
 	Javascript protection enabled on all tables.
 	See gedafe-javascript.pod for details.
