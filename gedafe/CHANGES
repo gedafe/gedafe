@@ -1,3 +1,7 @@
+2001-04-11
+----------
+* fix reporting of errors when <TABLE> is open
+
 2001-04-08
 ----------
 * add DIE handler and use standard 'die' for internal error reporting,
