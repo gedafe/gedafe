@@ -268,8 +268,8 @@ section of the <td> tag. It is therefor good practice to put double
 quotes around left,right and center. e.g.: "LEFT" "RIGHT" "CENTER".
 
 When not specified the alignment defaults to "LEFT" unless
-the data contains only dots and digits, in that case it defaults to
-"RIGHT" NOWRAP.
+the column type is in [numeric,date,time,timestamp,int4,int8,float8].
+In that case, the alignment is "RIGHT" NOWRAP.
 
  
 =back
