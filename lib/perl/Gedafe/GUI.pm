@@ -299,7 +299,7 @@ sub GUI_FilterFirst($$$$)
 	if(defined $filterfirst_field)
 	{
 		if(not defined $g{db_fields}{$view}{$filterfirst_field}{ref_combo}) {
-			Error($s, 'combo not found for $filterfirst_field.');
+			Error($s, "combo not found for $filterfirst_field.");
 		}
 		else {
 			my $filterfirst_combo = GUI_MakeCombo($dbh, $view, $filterfirst_field, "combo_filterfirst", $filterfirst_value);
