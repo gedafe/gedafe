@@ -69,6 +69,9 @@ Release Notes
     either in CSV format (comma-separated-values), or in tab-delimited format.
     CSV format is useful for data with embedded newlines characters.
 
+  * The meta_fields attribute 'align' can be used to change the alignment
+    of a coulumn.
+
 Availability
 ------------
 
