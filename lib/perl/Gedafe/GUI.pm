@@ -190,7 +190,7 @@ sub GUI_InitTemplateArgs($$)
 	$list_rows_print_flag = 0 unless ($list_rows_print_flag == 1);
 
 	#print STDERR 
-	"#$list_rows_urlval#, #$list_rows_def#,#$list_rows_print_flag# \n";
+	# "#$list_rows_urlval#, #$list_rows_def#,#$list_rows_print_flag# \n";
 
 	if ( $list_rows_print_flag ){
 		$args->{PRINT_TOGGLE_URL}=MakeURL($s->{url}, {
@@ -617,7 +617,48 @@ sub GUI_FilterFirst($$$$)
 	return ($ff_field, $ff_value);
 }
 
-sub GUI_Search($$$)
+sub GUI_Search($$$){
+	if($g{conf}{traditional_search} || !Gedafe::Search::Search_available()){
+		return GUI_TraditionalSearch(shift,shift,shift);
+	}else{
+		return GUI_ParsedSearch(shift,shift,shift);
+	}
+}
+
+sub GUI_ParsedSearch($$$){
+	my $s = shift;
+	my $q = $s->{cgi};
+	my $view = shift;
+	my $template_args = shift;
+	my $search_value = $q->url_param('search_value') || '';
+
+	$search_value =~ s/^\s*//; $search_value =~ s/\s*$//;
+
+	my $search_hidden = '';
+	foreach($q->url_param) {
+		next if /^search/;
+		next if /^button/;
+		next if /^offset$/;
+		$search_hidden .= "<INPUT TYPE=\"hidden\" NAME=\"$_\" VALUE=\"".$q->url_param($_)."\">\n";
+	}
+	$template_args->{ELEMENT} = 'search';
+	$template_args->{SEARCH_ACTION} = $q->url;
+	$template_args->{SEARCH_COMBO} = "";
+	$template_args->{SEARCH_HIDDEN} = $search_hidden;
+	$template_args->{SEARCH_VALUE} = $search_value;
+	$template_args->{SEARCH_SHOWALL} = MakeURL(MyURL($q), { search_value=>'', search_button=>'', search_field=>'' });
+	print Template($template_args);
+	delete $template_args->{ELEMENT};
+	delete $template_args->{SEARCH_ACTION};
+	delete $template_args->{SEARCH_COMBO};
+	delete $template_args->{SEARCH_HIDDEN};
+	delete $template_args->{SEARCH_VALUE};
+	delete $template_args->{SEARCH_SHOWALL};
+	return ("###PARSED SEARCH###", $search_value);
+}
+
+
+sub GUI_TraditionalSearch($$$)
 {
 	my $s = shift;
 	my $q = $s->{cgi};

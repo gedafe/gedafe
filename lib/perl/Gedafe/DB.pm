@@ -11,6 +11,8 @@ use strict;
 
 use Gedafe::Global qw(%g);
 
+use Gedafe::Search qw(Search_parse);
+
 use DBI;
 use DBD::Pg 1.20; # 1.20 has constants for data types
 
@@ -865,7 +867,10 @@ sub DB_FetchListSelect($$)
 	{
 		my $type = $g{db_fields}{$v}{$spec->{search_field}}{type};
 
-		if($spec->{search_field}=~/meta_rc_(.*)/){
+		if($spec->{search_field} eq '###PARSED SEARCH###'){
+		    print STDERR ">>>> $spec->{search_field}\n";
+		    $query.= " WHERE ".Search_parse($v,$spec->{search_value});
+		}elsif($spec->{search_field}=~/meta_rc_(.*)/){
 		    $query .= " WHERE $select_fields[0] in (select $spec->{table}_id from $spec->{table} WHERE $1 = ?)";
 			push @query_parameters, "$spec->{search_value}";
 		}elsif($type eq 'date') {
