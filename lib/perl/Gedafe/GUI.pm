@@ -603,11 +603,8 @@ sub GUI_PostEdit($$$)
 	for my $field (@{$g{db_fields_list}{$table}}) {
 		my $f = $g{db_fields}{$table}{$field};
 		my $value = GUI_WidgetRead($s, $f);
-	}
-
-	foreach($q->param) {
-		if(/^field_(.*)/) {
-			$record{$1} = $q->param($_);
+		if(defined $value) {
+			$record{$field} = $value;
 		}
 	}
 
