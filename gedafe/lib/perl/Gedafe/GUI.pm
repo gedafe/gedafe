@@ -56,16 +56,18 @@ sub GUI_DB2HTML($$)
 
 	# undef -> ''
 	$str = '' unless defined $str;
+
 	# trim space
 	$str =~ s/^\s+//;
 	$str =~ s/\s+$//;
 
-	if($type eq 'bool') {
-		$str = ($str =~ /^(t|true|y|yes|TRUE|1)$/ ? 'yes' : 'no');
+	if($type eq 'text') {
+		$str =~ s/\n/<BR>/;
 	}
 	if($str eq '') {
 		$str = '&nbsp;';
 	}
+
 	return $str;
 }
 
@@ -1131,7 +1133,8 @@ sub GUI_MakeCombo($$$$$)
 		foreach(@combo) {
 			my $id = $_->[0];
 			$id=~s/^\s+//; $id=~s/\s+$//;
-			my $text = "$_->[0] -- $_->[1]";
+			#my $text = "$_->[0] -- $_->[1]";
+			my $text = $_->[1];
 			if($value eq $id) {
 				$str .= "<OPTION SELECTED VALUE=\"$id\">$text</OPTION>\n";
 			}
