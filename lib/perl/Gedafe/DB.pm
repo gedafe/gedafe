@@ -705,7 +705,6 @@ END
 		field: for my $field (keys %{$fields{$table}}) {
 			my $f = $fields{$table}{$field};
                         if ($field eq 'meta_bgcolour'){
-                               ###$g{db_tables}{$table}{meta}{linecolourfield}
                                $g{db_tables}{$table}{bgcolor_field_index}
                                 =  $f->{order}-1; # calculate nr of column
                                $f->{hide_list}=1; # suppress color column
@@ -724,21 +723,18 @@ END
 				$f->{markup}    = $m->{markup};
 				$f->{align}     = $m->{align};
 				$f->{hide_list} = $m->{hide_list};
+				$f->{order}     = $m->{order} if defined $m->{order};
 				if  ( defined $m->{bgcolor_field} 
 				      and $m->{bgcolor_field} == 1 ){
 				   # calculate nr of column 
 				   # and override meta_bgcolor field
-				   ###$g{db_tables}{$table}{meta}{linecolourfield}
 				   $g{db_tables}{$table}{bgcolor_field_index}
 				    =  $f->{order}-1 ;
                                    $f->{hide_list}=1; # suppress color column
 
 				}
 			}
-			#if(! defined $f->{widget}) {
 			$f->{widget} = DB_Widget(\%fields, $f);
-			#}
-				
 		}
 	}
 

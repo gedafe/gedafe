@@ -726,10 +726,23 @@ sub GUI_Search($$$){
 	my $search_fields = GUI_ReadSearchSpec($s);
 	
 	my @fields = @{$g{db_fields_list}{$view}};
-	# put the ID field at the end and with a special name (it is not a
-	# shown field but it could be useful to search by it)
-	my $id_field = shift @fields;
-	push @fields, $id_field;
+	# put hidden fields at the end and with a special name
+	my %hidden_fields;
+	{
+		my $i;
+		my @non_hidden_fields;
+		for my $f (@fields) {
+			if($g{db_fields}{$view}{$f}{hide_list}) {
+				$hidden_fields{$f} = $i++;
+			}
+			else {
+				push @non_hidden_fields, $f;
+			}
+		}
+		@fields = @non_hidden_fields;
+		push @fields, sort { $hidden_fields{$a} <=> $hidden_fields{$b} }
+			keys %hidden_fields;
+	}
 
 	# add 'All Columns' pseudo-field
 	unshift @fields, '#ALL#';
@@ -749,7 +762,7 @@ sub GUI_Search($$$){
 			my $selected = $f eq $search_elem->{field} ? ' SELECTED' : '';
 			my $desc = $g{db_fields}{$view}{$f}{desc};
 			$desc = 'All Columns' if $f eq '#ALL#';
-			$desc = $f if $f eq $id_field;
+			$desc = "$f (hidden)" if defined $hidden_fields{$f};
 			$search_field_options .=
 				"<OPTION$selected VALUE=\"$f\">$desc</OPTION>\n";
 		}
