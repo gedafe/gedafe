@@ -27,7 +27,6 @@ require Exporter;
 	UniqueFormEnd
 	NextRefresh
 );
-use Data::Dumper;
 
 sub Error($$) {
 	my $s = shift;

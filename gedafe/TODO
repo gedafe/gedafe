@@ -1,6 +1,5 @@
 Bugs
 ----
-- reedit doesn't work with ','. Encode the comma...
 - searching booleans doesn't work
 # - none known :-)
 
