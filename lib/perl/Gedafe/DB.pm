@@ -408,12 +408,14 @@ sub DB_ReadTableAcls($$)
 		next unless defined $data->[1];
 		next unless defined $tables->{$data->[0]};
 		my $acldef = $data->[1];
+		# example: {ymca_root=arwdRxt/ymca_root,"group ymca_admin=arwdRxt/ymca_root","group ymca_user=r/ymca_root"}
 		$acldef =~ s/^{(.*)}$/$1/;
 		my @acldef = split(',', $acldef);
 		map { s/^"(.*)"$/$1/ } @acldef;
 		acl: for(@acldef) {
-			/(.*)=(.*)/;
-			my $who = $1; my $what = $2;
+			/(.*)=([^\/]+)/ or next;
+			my $who = $1; # user or group
+			my $what = $2; # permissions
 			if($who eq '') {
 				# PUBLIC: assign permissions to all db users
 				for(values %db_users) {
