@@ -1420,7 +1420,68 @@ sub GUI_WidgetRead($$$)
 	elsif($w eq 'format_timestamp') {
 		$value = DB_Format($dbh, 'char_to_timestamp', $warg->{template}, $value);
 	}
-
+        elsif($w eq 'file2fs'){
+                my $currentfile = $value;
+                die "invalid current filename: $currentfile\n" if $currentfile =~ m|\.\.|;
+                my $upload = $q->param("file_update_$input_name");                                              
+                
+                my $root = $g{conf}{file2fs_dir};
+                
+                die "file2fs_dir is not configured in your gedafe cgi wrapper\n"
+                    unless $g{conf}{file2fs_dir};
+                
+                die "file2fs_dir ($g{conf}{file2fs_dir}) does not point to a directory\n"
+                    unless -d $g{conf}{file2fs_dir};
+                
+                # if delete is active or if a new file is supplied
+                if ($q->param("file_delete_$input_name") or $upload){
+                        unlink $root."/".$currentfile if -f $root."/".$currentfile;
+                        $value = undef;
+                } 
+                
+                if ($upload){
+                        # make sure the target directory exists
+                        # ifa folks do not want real filenames for uploaded files they consider it a security risk
+                        # build a name based on table_field_id.ext
+                        my $ext = ( $upload =~ /\.([^.\s]+)\s*$/) ? $1 : 'bin';
+                        $upload = time().".".$ext;
+                        my $targetdir = '/';
+                        for ( split /\//, $warg->{'uploadpath'} ){
+                                next if $_ eq '..';
+                                $targetdir .= "/$_";
+                                next if -d "/$root.$targetdir";
+                                mkdir "/$root$targetdir" or die "mkdir $root$targetdir: $!\n";
+                        };
+                        $upload =~ s|^.*/||;
+                        $upload =~ s|[^-_.A-Za-z0-9]||g;
+                        my $fh = $q->upload("file_update_$input_name") # - # fix highliting for 
+                            or die "reading uploaded file\n";
+                        my $unique=$$.time();
+                        $value="$targetdir/$upload";                    
+                        $value =~ s|//+|/|g;
+                        # make sure we have a unique filename for the upload
+                        # there should be no race here ... right ?              
+                        while (not symlink $$,"/$root$value"){
+                                my $num = int(rand(999));
+                                $value =~ s/(?:\.\d+.)?\.([^.]*)$/.$num.$1/;
+                        };
+                        die "ERROR: somehow tobi did not get the unique file code right.\n"
+                            unless readlink "/$root$value" == $$;
+                        open(FILE,">/$root$value.tmp") 
+                            || die "writing $targetdir/$upload: $!\n";
+                        binmode FILE;
+                        my $buff;
+                        while (read($fh,$buff,2048)) {
+                                print FILE $buff or die "writing to $targetdir/$upload: $!\n";
+                        }
+                        close(FILE);
+                        close($fh);
+                        # delete the old file if we have not died yet
+                        unlink $root."/".$currentfile if -f $root."/".$currentfile;
+                        # and now we replace the link with our stuff ... 
+                        rename "/$root$value.tmp","/$root$value";
+                }
+        }
 	# if it's a combo and no value was specified in the text field...
 	if($w eq 'idcombo' or $w eq 'hidcombo' or $w eq 'combo') {
 		if(not defined $value or $value =~ /^\s*$/) {

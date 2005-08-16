@@ -553,6 +553,30 @@ web-server trying to execute the java archive instead of serving it.
 Make sure that the 'isearch' variable in your cgi-script is set to point
 to the web address of the isearch.jar java archive.
 
+=item file2fs
+
+If you want to handle big files with your gedafe frontend and you do not
+want to store them in the database but rather in external file, this widget
+is for you. It presents a file-upload box in the browser and stores the
+uploaded file on the machine where your gedafe frontend is running.
+
+To make this work you have to 
+Sepcify the root directory for your uploads in the gedafe.cgi with the
+I<file2fs_dir> property.
+
+The I<files2fs> widget supports the  optional I<uploadpath> property
+which allows you to specify a subdirectory below I<file2fs_dir> which
+the uploaded file will be stored.
+
+ file2fs(uploadpath=budgets)
+
+Gedafe will make sure your upload will not overwrite any other file present
+in the directory. The stored filename will be relative to I<file2fs_dir> so
+that files will still be found even when you modify the I<uploadpath>.
+
+If you upload a new file and there is already one noted in the database, the
+old file will be removed.
+
 =back
 
 =head1 REPORTS

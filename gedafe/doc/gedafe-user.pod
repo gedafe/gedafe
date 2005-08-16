@@ -123,6 +123,7 @@ as follows:
         oyster_dir      => '/usr/local/gedafe/example/myoysters',
     	list_buttons   => 'both',
 	edit_buttons_left => 1,
+        file2fs_dir     => '/var/gedafe/upload_dir',
  );
 
 Gedafe gathers information about the database structure when it is
@@ -210,6 +211,12 @@ object oriented perl modules which allow developers to implement
 mini-applications while concentrating on the task at hand rather than the
 gotcha's of html-based software engineering.
 See F<gedafe-oysters.pod> for more information.
+
+=item file2fs_dir
+
+If you use the file2fs widet for uploading files you have to specify the
+root directory for the uploads otherwhise uploads will be disabled. See the
+file2fs widget for more information.
 
 =item schema
 

@@ -555,7 +555,11 @@ sub DB_ParseWidget($)
 		$t =~ /((FM|TH|th|FX|SP)?(HH|HH12|HH24|MI|SS|MS|US|SSS|AM|[aApP]\.?[mM]\.?|Y,YYY|Y{1,4}|[bB]\.?[cC]\.?|[aA]\.?[dD]\.?|MONTH|[mM]onth|month|MON|[mM]on|MM|DAY|[dD]ay|D[yY]|dy|D{1,3}|WW?|IW|CC|J|Q|RM|rm|TZ|tz))+/  or
 			die "widget $widget: template '$t' doesn't seem to be valid\n";
 	}
-
+        if($type eq 'file2fs') {
+                defined $g{conf}{file2fs_dir} or
+                        die "widget $widget: mandatory conf property file2fs_dir is not set in the cgi wrapper";
+        }
+                                                        
 	return ($type, \%args);
 }
 
@@ -1401,6 +1405,37 @@ sub DB_DeleteRecord($$$)
 	my $dbh = shift;
 	my $table = shift;
 	my $id = shift;
+        my @deletes;
+        # before we remove the record, lets se if there are any uploads
+        # mentioned in an fs2file widget left
+        for my $field (keys %{$g{db_fields}{$table}}){
+            next unless $g{db_fields}{$table}{$field}{widget};
+            my ($type,$warg)=DB_ParseWidget($g{db_fields}{$table}{$field}{widget});
+            next unless $type eq 'file2fs';
+            my $root = "/$g{conf}{file2fs_dir}";
+            $root =~ s|//+|/|g;
+            $root =~ s|(.)/+$|$1|g;
+            my $prefix = "/$warg->{uploadpath}";
+            $prefix =~ s|//+|/|g;
+            $prefix =~ s|(.)/+$|$1|g;
+            my $pathref = $dbh->selectcol_arrayref("SELECT $field from $table WHERE ${table}_id = $id");
+            my $path = "/$pathref->[0]";
+            $path =~ s|//+|/|g;
+            $path =~ s|(.)/+$|$1|g;
+            # do not touch fields refering files that are NOT in the
+            # directory specified by the uploadpath parameter of the file2fs widget
+            next unless $path =~ m|^$prefix/|;
+            # skip if we can not write the directory where the referenced file is stored
+            next unless -w "$root$prefix";
+            next unless -d "$root$prefix";
+            # skip if the file does not exist;
+            next unless -f "$root$path";
+            # skip if someone tries to go UP
+            # or has two dots in the filename for some
+            # other reason
+            next if $path =~ m{\.\.};
+            push @deletes, "$root$path";
+        }
 
 	my $query = "DELETE FROM $table WHERE ${table}_id = $id";
 
