@@ -2324,6 +2324,22 @@ sub GUI_WidgetWrite($$$$)
 		$out .= "<br>Enter filename to update.<br><INPUT TYPE=\"file\" NAME=\"$input_name\">";
 		return $out;
 	}
+        elsif($w eq 'file2fs'){
+               my $out ='';
+               if($value){
+                       $out .= <<DIALOG;
+Uploaded File: <b>$value</b> Delete? <INPUT TYPE="checkbox" NAME="file_delete_$input_name"><br/>
+Replace File: <INPUT TYPE="file" NAME="file_update_$input_name">
+DIALOG
+               } else {
+                       $out .= <<DIALOG;
+Upload File: <INPUT TYPE="file" NAME="file_update_$input_name">
+DIALOG
+               }
+               $out .= "<INPUT TYPE=\"hidden\" NAME=\"$input_name\" VALUE=\"$value\"></INPUT>";
+
+               return $out;
+        }
 	elsif($w eq 'pluginfile'){
 		my $out;
 		my $filename = $value ne '' ? $value->[1] : "(none)";
