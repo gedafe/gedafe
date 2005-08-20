@@ -1792,9 +1792,8 @@ sub DB_GetMNCombo($$$$$)
 	my $bid = $mn->{btable}."_id";
 
 	# FIXME: this really should go to the widget code in GUI! argh...
-	my $mncombo_view = $g{db_fields}{$table}{$vfield}{widget};
-	$mncombo_view =~ s/^(\s)*mncombo\((\s)*combo(\s)*=(\s)*//;
-	$mncombo_view =~ s/(\s)*\)(\s)*$//;
+	$g{db_fields}{$table}{$vfield}{widget} =~ m/mncombo\(.+combo\s*=\s*([^\s,]+)/;
+	my $mncombo_view = $1
 	
 	my  $query = "";
 	if ((not defined  $mncombo_filter and $op eq ' not in ') or (defined  $mncombo_filter)){
