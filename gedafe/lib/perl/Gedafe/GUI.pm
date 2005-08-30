@@ -631,7 +631,6 @@ sub GUI_ReadSearchSpec($)
 {
 	my $s = shift;
 	my $q = $s->{cgi};
-	my $fieldcount = 1;
 
 	# search_spec contains one element per searched line in the GUI
 	# each line has the form:
@@ -645,15 +644,15 @@ sub GUI_ReadSearchSpec($)
 	#             ]
 	# }
 	my @search_spec = ();
-	while(my $field=$q->url_param('search_field'.$fieldcount)) {
+	for my $param ( grep /^search_field\d+$/, $q->url_param() ) { 
+                $param =~ /^search_field(\d+)/;
+    	        my $cnt = $1;
+                my $field = $q->url_param($param);
 		$field =~ s/^\s*//; $field =~ s/\s*$//;
-		my $value = $q->url_param('search_value'.$fieldcount) || '';
-		$value = "" if($q->url_param('search_clear'.$fieldcount));
+		my $value = $q->url_param('search_value'.$cnt) || '';
 		$value =~ s/^\s+//; $value =~ s/\s+$//;
-		$fieldcount++;
 		$value or next;
-
-		my %search_element = ( field => $field, value => $value );
+		my %search_element = ( cnt=>$cnt, field => $field, value => $value );
 		my $join_op = '';
 
 		while($value !~ /\G\z/gc) {
@@ -725,7 +724,7 @@ sub GUI_Search($$$){
 	my $template_args = shift;
 	my $search_fields = GUI_ReadSearchSpec($s);
 	
-	my @fields = @{$g{db_fields_list}{$view}};
+	my @fields = @{$g{db_real_fields_list}{$view}};
 	# put hidden fields at the end and with a special name
 	my %hidden_fields;
 	{
@@ -755,8 +754,10 @@ sub GUI_Search($$$){
 	print Template($template_args);
 	delete $template_args->{SEARCH_ACTION};
 
-	my $counter = 1;
-	for my $search_elem (@$search_fields, { field => '#ALL#', value => '' } ){
+	my @allsearch;
+	my $last_cnt = 0;
+	my $counter=1;
+	for my $search_elem ((sort { $a->{cnt} <=> $b->{cnt}} @$search_fields), { field => '#ALL#', value => '' } ){
 		my $search_field_options='';
 		foreach my $f (@fields) {
 			my $selected = $f eq $search_elem->{field} ? ' SELECTED' : '';
@@ -766,15 +767,16 @@ sub GUI_Search($$$){
 			$search_field_options .=
 				"<OPTION$selected VALUE=\"$f\">$desc</OPTION>\n";
 		}
-
+		my $counter00=sprintf("%03d", $search_elem->{cnt} || ($last_cnt+1));
+		$last_cnt = $counter00;
 		$template_args->{ELEMENT} = 'field';
-		$template_args->{SEARCH_FIELD_NAME}    = 'search_field'.$counter;
+		$template_args->{SEARCH_FIELD_NAME}    = 'search_field'.$counter00;
 		$template_args->{SEARCH_FIELD_OPTIONS} = $search_field_options;
-		$template_args->{SEARCH_VALUE_NAME}    = 'search_value'.$counter;
+		$template_args->{SEARCH_VALUE_NAME}    = 'search_value'.$counter00;
 		$template_args->{SEARCH_VALUE_VALUE}   = $search_elem->{value};
 		$template_args->{SEARCH_CLEAR_URL}     = MakeURL($s->{url}, {
-								"search_field$counter" => undef,
-								"search_value$counter" => undef,
+								"search_field".$counter00 => undef,
+								"search_value".$counter00 => undef,
 							});
 		delete $template_args->{SEARCH_CLEAR_URL} if $counter == $#$search_fields+2;
 		$template_args->{SEARCH_BUTTON} = 1 if $counter == $#$search_fields+2;
