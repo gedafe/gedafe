@@ -1,0 +1,197 @@
+
+function compareText (option1, option2) {
+  return option1.text < option2.text ? -1 :
+    option1.text > option2.text ? 1 : 0;
+}
+function compareValue (option1, option2) {
+  return option1.value < option2.value ? -1 :
+    option1.value > option2.value ? 1 : 0;
+}
+function compareTextAsFloat (option1, option2) {
+  var value1 = parseFloat(option1.text);
+  var value2 = parseFloat(option2.text);
+  return value1 < value2 ? -1 :
+    value1 > value2 ? 1 : 0;
+}
+function compareValueAsFloat (option1, option2) {
+  var value1 = parseFloat(option1.value);
+  var value2 = parseFloat(option2.value);
+  return value1 < value2 ? -1 :
+    value1 > value2 ? 1 : 0;
+}
+function sortSelect (select, compareFunction) {
+  if (!compareFunction)
+    compareFunction = compareText;
+  var options = new Array (select.options.length);
+  for (var i = 0; i < options.length; i++)
+    options[i] = 
+      new Option (
+        select.options[i].text,
+        select.options[i].value,
+        select.options[i].defaultSelected,
+        select.options[i].selected
+      );
+  options.sort(compareFunction);
+  select.options.length = 0;
+  for (var i = 0; i < options.length; i++)
+    select.options[i] = options[i];
+}
+
+function move(theASel,theBSel)
+{  
+    theBSel[theBSel.options.length] = new Option(theASel.options[theASel.selectedIndex].text,theASel.options[theASel.selectedIndex].value,theASel.options[theASel.selectedIndex].defaultSelected,theASel.options[theASel.selectedIndex].selected);
+    
+    theASel[theASel.selectedIndex] = null;
+    //sortSelect(theBSel,compareText);
+}
+
+function moveUp(theASel)
+{  
+    curentIndex = theASel.selectedIndex;
+    prevIndex = curentIndex - 1;
+    if (curentIndex > 0) {
+        tempItem = new Array(2);
+        tempItem[0] = new Option(theASel.options[prevIndex].text,theASel.options[prevIndex].value);
+        tempItem[1] = new Option(theASel.options[curentIndex].text,theASel.options[curentIndex].value);
+        
+        theASel.options[curentIndex] = tempItem[0];
+        theASel.options[prevIndex] = tempItem[1];
+        theASel.options[prevIndex].selected = true;
+    }
+    
+}
+
+function moveDown(theASel)
+{  
+    curentIndex = theASel.selectedIndex;
+    nextIndex = curentIndex + 1;
+    if (curentIndex < theASel.options.length - 1) {
+        tempItem = new Array(2);
+        tempItem[0] = new Option(theASel.options[nextIndex].text,theASel.options[nextIndex].value);
+        tempItem[1] = new Option(theASel.options[curentIndex].text,theASel.options[curentIndex].value);
+        
+        theASel.options[curentIndex] = tempItem[0];
+        theASel.options[nextIndex] = tempItem[1];
+        theASel.options[nextIndex].selected = true;
+    }
+    
+}
+
+function deselect(theCombo, index)
+{
+    var len = theCombo.options.length - 1;
+    var temp;
+    ind = index ;
+    for( var i = 0; i < index ; i++ ){
+          temp = theCombo.options[0];
+          theCombo.options[0] = null;
+          theCombo.options[len] = temp; 
+          theCombo.options[len].selected = false;
+    }
+}
+
+
+function findInWord(field, select, property, forcematch){
+    var found = false;
+    for(var i = 0;i < select.options.length;i++){
+        
+        if ( select.options[i][property].toUpperCase().indexOf(field.value.toUpperCase(),0) != -1){
+            found=true;break;
+        }
+    }
+    if(found){
+        select.selectedIndex = i;
+    }else{
+        select.selectedIndex = -1;
+    }
+/* This here would write the selected data into the field but it then
+   prevents substring search ... this is a ui design problem that is not simple
+   to solve ... we drop this for now
+--------------------------------------- */
+/*
+    if(field.createTextRange){
+        if(forcematch && !found){
+            field.value=field.value.substring(0,field.value.length-1);
+            return;
+        }
+        var cursorKeys ="8;46;37;38;39;40;33;34;35;36;45;";
+        if(cursorKeys.indexOf(event.keyCode+";") == -1){
+            var r1 = field.createTextRange();var oldValue = r1.text;
+            var newValue = found ? select.options[i][property] : oldValue;
+            if(newValue != field.value){
+                field.value = newValue;
+                var rNew = field.createTextRange();
+                rNew.moveStart('character', oldValue.length) ;
+                rNew.select();
+            }
+        }
+    }
+*/    
+}
+
+
+function selectMe(theCombo, searchValue)
+{
+    if (searchValue == "")
+        sortSelect(theCombo,compareText);
+    else{
+    var n = theCombo.options.length;
+    var comp = 0;
+    var item = -1;
+    var itemup = -1;
+    var itemdown = -1;
+    
+    for ( var i=0 ; i< n; i++ ){
+       if (theCombo.options[i].text >= searchValue){
+            itemup = i;    
+            break;  
+       }
+    }
+    
+    var top = getTop(theCombo);
+    if (itemup == 0 && top>0 ){
+        for ( var i=top ; i < n; i++ ){
+           if (theCombo.options[i].text >= searchValue){
+                item = i;    
+                break;  
+           }
+        }
+        if (item == n-1)
+            item = itemup;
+    }else
+        item=itemup;
+    
+    deselect(theCombo, item);
+    theCombo.selectedIndex = 0;
+    theCombo.options[0].focus();
+    theCombo.options[0].selected = true;
+    }
+}
+
+function getTop(theCombo)
+{
+    var len = theCombo.options.length - 1;
+    var minval = theCombo.options[0].text;
+    var index = 0;
+    
+    if (minval > theCombo.options[len].text){
+        for ( var i=0 ; i<len; i++ ){   
+           if (theCombo.options[i+1].text < theCombo.options[i].text){
+                index = i+1;    
+                break;  
+           }
+        }
+    }
+    return index;
+}
+
+
+
+function selectALL(theCombo)
+{
+    for( var i = 0; i < theCombo.options.length; i++ ){
+        theCombo.options[i].selected = true;
+    }
+}
+
+

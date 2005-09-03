@@ -237,10 +237,6 @@ sub GUI_InitTemplateArgs($$)
 				 datastate=>'',
 				},['search.*']);
 
-
-
-	
-
 	$args->{ENTRY_URL}=$entry_url;
 	$args->{REFRESH_ENTRY_URL}=MakeURL($entry_url, {
 				refresh => $refresh,
@@ -252,6 +248,13 @@ sub GUI_Header($$)
 	my ($s, $args) = @_;
 
 	$args->{ELEMENT}='header';
+
+	# lets see if we have to include the mncombo javascript
+	my $fields = $g{db_fields}{$args->{TABLE}};
+	if (ref $g{db_virtual_fields_list}{$args->{TABLE}} eq 'ARRAY' and @{$g{db_virtual_fields_list}{$args->{TABLE}}}){
+		$args->{HEAD_SCRIPT} =
+		    Template({PAGE => 'mncombo', ELEMENT=>'mncombo_javascript'});
+	}
 	print Template($args);
 
 	$args->{ELEMENT}='header_table';
@@ -434,7 +437,7 @@ sub GUI_Entry($$$)
 
 	my $refresh = NextRefresh();
 
-	my $actualschema = $q->url_param('schema'); 
+	my $actualschema = $q->url_param('schema'); #-
 	$actualschema  = $g{conf}{schema} unless defined $actualschema;
 	
 
@@ -450,7 +453,8 @@ sub GUI_Entry($$$)
 	$template_args{ELEMENT}='tables_list_header',
 	print Template(\%template_args);
 
-	$template_args{ELEMENT}='entrytable';
+	$template_args{ELEMENT}='entrytable_start';
+	print Template(\%template_args);
 
 	my $tablelistref;
 	if ( defined $actualschema ){
@@ -461,15 +465,29 @@ sub GUI_Entry($$$)
 	$tablelistref    =  \@{$g{db_tables_list}} unless 
 		scalar @{$tablelistref}  > 0;
 
-	foreach my $t (sort {$g{db_tables}{$a}{desc} cmp $g{db_tables}{$b}{desc}}  @{$tablelistref}) {
-		next if $g{db_tables}{$t}{hide};
-		next if $g{db_tables}{$t}{report};
-		if(defined $g{db_tables}{$t}{acls}{$user} and
-			$g{db_tables}{$t}{acls}{$user} !~ /r/) { next; }
+	$template_args{ELEMENT}='entrytable';
+        my @entrytables = grep { not $g{db_tables}{$_}{hide} 
+                                 and not $g{db_tables}{$_}{report}
+                                 and not (
+                                     $g{db_tables}{$_}{acls}{$user} and
+                                     $g{db_tables}{$_}{acls}{$user} !~ /r/ )
+                                  } 
+                          sort {$g{db_tables}{$a}{desc} cmp $g{db_tables}{$b}{desc}}  @{$tablelistref};
+        my $entrycnt=0;
+        my $part;
+        my $prevpart;
+	foreach my $t (@entrytables) {
 		my $longcomment= $g{db_tables}{$t}{meta}{longcomment};
 		my $desc = $g{db_tables}{$t}{desc};
 		$desc =~ s/ /&nbsp;/g;
 		$template_args{TABLE_DESC}=$desc;
+		$prevpart = $part;
+		$part = $entrycnt/($#entrytables) ;
+		# make sure we always fall on some sensible values
+		for (qw(0.25 0.33 0.5 .66 0.75)){
+                  $part=$_ if $prevpart and $prevpart < $_ and $part > $_;
+                }
+		$template_args{TABLE_ENTRYPART}=$part;
 		$template_args{TABLE_LONGCOMMENT}=$longcomment;
 		$template_args{TABLE_URL}= MakeURL($s->{url}, {
 					action => 'list',
@@ -477,12 +495,20 @@ sub GUI_Entry($$$)
 					refresh => $refresh,
 				});
 		print Template(\%template_args);
+	        $entrycnt++;
+	        
 	}
 	delete $template_args{TABLE_DESC};
 	delete $template_args{TABLE_LONGCOMMENT};
 	delete $template_args{TABLE_URL};
 
+	$template_args{ELEMENT}='entrytable_end';
+	print Template(\%template_args);
+
 	$template_args{ELEMENT}='reports_list_header';
+	print Template(\%template_args);
+
+	$template_args{ELEMENT}='entrytable_start';
 	print Template(\%template_args);
 
 	$template_args{ELEMENT}='entrytable';
@@ -507,6 +533,11 @@ sub GUI_Entry($$$)
 		delete $template_args{TABLE_LONGCOMMENT};
 	}
 
+	$template_args{ELEMENT}='entrytable_end';
+	print Template(\%template_args);
+
+	#### pearls ###################################
+	
 	if(defined $g{pearls} and scalar %{$g{pearls}}) {
 		$template_args{ELEMENT}='pearls_list_header';
 		print Template(\%template_args);
@@ -538,6 +569,7 @@ sub GUI_Entry($$$)
 		}
 	}
 
+	##### oysters ################################
 	if(defined $g{oysters} and scalar %{$g{oysters}}) {
 		$template_args{ELEMENT}='oyster_list_header';
 		print Template(\%template_args);
@@ -586,7 +618,7 @@ sub GUI_FilterFirst($$$$)
 	my $ff_combo_name = "${ff_ref}_combo" unless not defined $ff_ref;
 
 	if(!defined $ff_ref or !defined $g{db_tables}{$ff_combo_name}) {
-		die "combo not found for $ff_field (reference: ${ff_ref})";
+		die "combo ($ff_combo_name) not found for $ff_field (reference: ${ff_ref})";
 	}
 
 	my $ff_combo = GUI_MakeCombo($dbh, $ff_combo_name, "combo_filterfirst", $ff_value);
@@ -1030,10 +1062,9 @@ sub GUI_ListTable($$$)
 			#}
 			if($c->{type} eq 'date' && 
 			   $g{db_fields}{$table}{$field}{widget}){
-				my ($w,$args) = 
-				    DB_ParseWidget($g{db_fields}{$table}{$field}{widget});
+				my $w = $g{db_fields}{$table}{$field}{widget_type};
 				if($w eq 'localdate'){
-					$d = GUI_FormatDate($d,$args->{'format'});
+					$d = GUI_FormatDate($d,$g{db_fields}{$table}{$field}{widget_args}{format});
 				}
 			}
 
@@ -1338,7 +1369,8 @@ sub GUI_WidgetRead($$$)
 	my $q = $s->{cgi};
 	my $dbh = $s->{dbh};
 
-	my ($w, $warg) = DB_ParseWidget($widget);
+
+	my ($w, $warg) = DB_ParseWidget($widget,$q->url_param('table'));
 
 	my $value = $q->param($input_name);
 	
@@ -1483,6 +1515,9 @@ sub GUI_WidgetRead($$$)
                         # and now we replace the link with our stuff ... 
                         rename "/$root$value.tmp","/$root$value";
                 }
+        } elsif ($w eq 'mncombo') {
+		my @values = $q->param("${input_name}"); #-
+		$value = [ @values ];
         }
 	# if it's a combo and no value was specified in the text field...
 	if($w eq 'idcombo' or $w eq 'hidcombo' or $w eq 'combo') {
@@ -1522,6 +1557,7 @@ sub GUI_PostEdit($$$)
 			GUI_Header($s, \%template_args);
 			$template_args{ELEMENT}='db_error';
 			$template_args{ERROR}=$g{db_error};
+			delete $g{db_error}; # we are done with this error!
 			$template_args{NEXT_URL}=MyURL($q);
 			print Template(\%template_args);
 			GUI_Footer(\%template_args);
@@ -1623,12 +1659,13 @@ sub GUI_Edit($$$)
 	# Initialise values
 	my $fields = $g{db_fields}{$table};
 	my @fields_list = @{$g{db_fields_list}{$table}};
+	my @virtual_fields_list = @{$g{db_virtual_fields_list}{$table}};
+
 	my %values = ();
 	if($reedit) {
-		%values = %{DataTree($q->param('reedit_data'))};
+		%values = %{DataTree($q->param('reedit_data'))}; #-
 	}
 	elsif($action eq 'edit') {
-		my %record = ();
 		DB_GetRecord($dbh,$table,$id,\%values);
 	}
 	elsif($action eq 'add') {
@@ -1745,6 +1782,17 @@ end
 	        #undef %template_form_args;
 	}
 
+	# make sure all relevant entries in the nmcombo are selected on submission
+	# of the form.
+	if (@virtual_fields_list) {
+		print "<script>\n<!--\n\n";
+		print "function selectInALLCombos(){\n";
+		for ( @virtual_fields_list ) {
+			print "selectALL(document.editform.field_$_);\n";
+		}
+		print "}\n\n-->\n</script>\n";
+	}
+
 	# Fields
 	$template_args{ELEMENT} = 'editform_footer';
 	print Template(\%template_args);
@@ -1790,7 +1838,7 @@ sub GUI_Pearl($)
 	GUI_Header($s, \%template_args);
 
 	# FORM
-	FormStart($s, $q->url);
+	FormStart($s, $q->url); #-
 	print "<INPUT TYPE=\"hidden\" NAME=\"action\" VALUE=\"runpearl\">\n";
 	print "<INPUT TYPE=\"hidden\" NAME=\"pearl\" VALUE=\"$pearl\">\n";
 	print "<INPUT TYPE=\"hidden\" NAME=\"refresh\" VALUE=\"".NextRefresh()."\">\n";
@@ -1840,7 +1888,7 @@ sub GUI_MakeCombo($$$$;$)
 	my $str;
 
 	my @combo;
-	if(not defined DB_GetCombo($dbh,$combo_view,\@combo)) {
+	if(not defined DB_GetCombo($dbh,$combo_view,undef,undef,\@combo)) {
 		return undef;
 	}
 
@@ -1875,7 +1923,7 @@ sub GUI_MakeRadio($$$$$$)
 
 	my @combo;
 	#die "GUI_MakeRadio vor DB_GetCombo, $dbh , $combo_view, \@combo)";
-	if(not defined DB_GetCombo($dbh,$combo_view,\@combo)) {
+	if(not defined DB_GetCombo($dbh,$combo_view,undef,undef,\@combo)) {
 		return undef;
 	}
 
@@ -1988,7 +2036,7 @@ sub GUI_DumpJSIsearch($$$){
 	my $jsfooter = "//-->\n</script>\n";
        
 
-	my @fields_list = @{$g{db_fields_list}{$view}};	
+	my @fields_list = @{$g{db_real_fields_list}{$view}};
 
 	#will hold the number of the id of hid
 	#column from which to return values.
@@ -2206,7 +2254,7 @@ sub GUI_WidgetWrite($$$$)
 
 	if(not defined $value) { $value = ''; }
 
-	my ($w, $warg) = DB_ParseWidget($widget);
+	my ($w, $warg) = DB_ParseWidget($widget,$q->url_param('table'));
 
 	if($w eq 'format_number') {
 		$value = DB_Format($dbh, 'number_to_char', $warg->{template}, $value);
@@ -2229,7 +2277,7 @@ sub GUI_WidgetWrite($$$$)
 	}
 	elsif($w eq 'text' or $w eq 'format_number' or $w eq 'format_date' or $w eq 'format_timestamp')
 	{
-		my $size = defined $warg->{size} ? $warg->{size} : '20';
+		my $size = defined $warg->{size} ? $warg->{size} : ($w eq 'text' ? '60' : '20');		
 		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"$size\" VALUE=\"".$escval."\">";
 	}
 	elsif($w eq 'hidden') {
@@ -2359,7 +2407,11 @@ DIALOG
 	}
 	elsif($w eq 'date') {
 		return GUI_WidgetWrite_Date($input_name, $warg, $value);
+
+	}elsif($w eq 'mncombo') {
+                return GUI_MakeMNCombo($s, $dbh,  $input_name, $warg, $value);
 	}
+
 
 	return "Unknown widget: $w";
 }
@@ -2535,7 +2587,7 @@ sub GUI_DumpTable($$){
 	my $view = defined $g{db_tables}{"${table}_list"} ?
 			"${table}_list" : $table;
 
-	my @fields_list = @{$g{db_fields_list}{$view}};
+	my @fields_list = @{$g{db_real_fields_list}{$view}};
 	for (@fields_list){
 		if(not $first){
 			$data.="\t";
@@ -2732,6 +2784,40 @@ sub GUI_Oyster($)
 	GUI_Footer(\%template_args);
 }
 
+
+sub GUI_MakeMNCombo($$$$$)
+{
+
+        my ($s, $dbh, $input_name, $warg, $value_array) = @_;
+	my $combo_view = $warg->{combo};
+	my $table = $warg->{__table};
+        my $q = $s->{cgi}; # =
+	my $record_id = $q->param('id'); # - record id in edit mode
+
+	my @combo_data; # 2d array with 3 columns id,text,IsSelected
+
+	DB_GetCombo($dbh,$combo_view,$warg,$record_id,\@combo_data);
+        my @selected_list = map { $_->[2] ? [$_->[0],$_->[1]] : () } @combo_data;
+	# allow for the list of available items to be overwritten	
+	@selected_list =  map { my $v = $_; ( grep {$v->[0] == $_} @$value_array ) ? [$_->[0],$_->[1]] : () } @combo_data 
+	   if $value_array and ref $value_array eq 'ARRAY';
+
+        my @available_list = map { my $v = $_; ( grep {$v->[0] == $_->[0]} @selected_list ) ? () : [$_->[0],$_->[1]]} @combo_data;
+
+        my $selected_html = join "\n", map { qq{<option value="$_->[0]">$_->[1]</option> } } @selected_list;
+        my $available_html = join "\n", map { qq{<option value="$_->[0]">$_->[1]</option> } } @available_list;
+
+        my %template_args = (
+                PAGE => 'mncombo',
+                ELEMENT => 'mncombo_widget',
+                FIELD_NAME => "$input_name",
+                NEW_TO_CHOOSE_LIST => $available_html,
+                ALREADY_SELECTED_LIST => $selected_html
+        );
+	$template_args{WITH_ORDER} = 'true' if $g{db_fields}{$warg->{mntable}}{$warg->{mntable}."_order"};
+
+        return Template(\%template_args);
+}
 
 1;
 # Emacs Configuration

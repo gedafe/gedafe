@@ -5,7 +5,13 @@
 #else
 Gedafe
 #endif
-</TITLE></HEAD>
+</TITLE>
+#ifdef HEAD_SCRIPT
+<script>
+##HEAD_SCRIPT##
+</script>
+#endif
+</HEAD>
 <BODY  text="#000000" link="#0000FF" 
 #if ##USER## = admin
 
