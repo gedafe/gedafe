@@ -1,11 +1,11 @@
 <TABLE ALIGN="CENTER" BORDER=0 CELLPADDING="0" CELLSPACING="0" BGCOLOR="#ffffff"><TR><TD>
 #ifdef BUTTON_LABEL
-  <INPUT TYPE="submit" NAME="button_update" VALUE="##BUTTON_LABEL##">  
+  <INPUT TYPE="submit" NAME="button_update" VALUE="##BUTTON_LABEL##" onClick="selectInALLCombos();">  
 #else
 #if ##ACTION## = add
-  <INPUT TYPE="submit" NAME="button_update" VALUE="Add">
+  <INPUT TYPE="submit" NAME="button_update" VALUE="Add" onClick="selectInALLCombos();">
 #else
-  <INPUT TYPE="submit" NAME="button_update" VALUE="Update">
+  <INPUT TYPE="submit" NAME="button_update" VALUE="Update" onClick="selectInALLCombos();">
 #endif
 #endif
 <INPUT TYPE="reset" VALUE="Reset">

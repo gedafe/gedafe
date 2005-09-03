@@ -1,0 +1,59 @@
+<table class="mncombo" border="0" cellspacing="0" cellpadding="0" style="width: 650px;">
+<tr>
+#ifdef WITH_ORDER
+
+<td>
+	<table>
+	<tr><td>
+		<INPUT TYPE=button NAME="direction_up" VALUE="Up" onClick="moveUp(document.editform.##FIELD_NAME##);"/>
+	</td></tr>
+	<tr><td>
+		<INPUT TYPE=button NAME="direction_down" VALUE="Down" onClick="moveDown(document.editform.##FIELD_NAME##);"/>
+	</td></tr>
+	</table>
+	
+</td>
+
+#endif
+
+<td valign="top" style="width: 300px;">
+	Already Selected:<br/>
+	<select name="##FIELD_NAME##" 
+	        size="5" 
+	        style="width: 300px;" 
+	        onDblClick="move(document.editform.##FIELD_NAME##,document.editform.##FIELD_NAME##_pool);sortSelect(document.editform.##FIELD_NAME##_pool,compareText);" 
+	        multiple="multiple" >
+##ALREADY_SELECTED_LIST##
+	</select>
+
+</td>
+<td valign="middle" align="center" style="width:  50px;">
+	<INPUT TYPE="button" 
+	       NAME="entry_remove"
+	       VALUE="-->" 
+	       onClick="move(document.editform.##FIELD_NAME##,document.editform.##FIELD_NAME##_pool);sortSelect(document.editform.##FIELD_NAME##_pool,compareText);" 
+        />
+	<br/>
+	<INPUT TYPE="button" 
+               NAME="entry_add"
+	       VALUE="<--"
+	       onClick="move(document.editform.##FIELD_NAME##_pool,document.editform.##FIELD_NAME##);"
+	/>
+</td>
+<td  valign="top" style="width: 300px;">
+	New to Choose:<br>
+
+	<select NAME="##FIELD_NAME##_pool" 
+	        size="5"
+                style="width: 300px;"
+                onDblClick="move(document.editform.##FIELD_NAME##_pool,document.editform.##FIELD_NAME##);"
+		onChange="document.editform.##FIELD_NAME##_filter.value=this[this.selectedIndex].text">
+##NEW_TO_CHOOSE_LIST##
+	</select><br>
+
+	
+	<INPUT TYPE="text" VALUE="" NAME="##FIELD_NAME##_filter" onKeyUp="findInWord(this,this.form.##FIELD_NAME##_pool,'text',true);"/>
+</td></tr>
+</table>
+
+

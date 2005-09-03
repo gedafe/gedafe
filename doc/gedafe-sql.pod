@@ -448,6 +448,12 @@ Use floating values to move your fields around without having to change everythi
 Note that the *_id field is normally first and does not show up in edit view anyway, take this into account
 when counting.
 
+=item desc
+
+The labels in table headers and edit forms are normally pulled from whatever
+you set with the COMMENT command. You can override this with the 'desc'
+setting.
+
 =item widget
 
 Override Gedafe's automatically selected widget (element in the edit form to
@@ -576,6 +582,102 @@ that files will still be found even when you modify the I<uploadpath>.
 
 If you upload a new file and there is already one noted in the database, the
 old file will be removed.
+
+=item mncombo(mntable=publauthors[,combo=publauthors_combo])
+
+If you have two tables with an m:n relationship,
+
+  --------------  M                    N  --------
+ | publications | ---------------------- | author |
+  --------------                          --------
+ (publication_id)                       (author_id)
+
+this is normally implemented in sql databases by creating a third
+table that holds the mn information, potentially with added meta
+information.
+
+  -------------  1  M  ------------  N  1  --------
+ | publication | ---- | publauthor | ---- | author |
+  -------------        ------------        --------
+ (publication_id)  (publication,author)  (author_id)
+
+by default, gedafe would require you to edit the publauthor table
+seperately, entering all the valid publication/author
+combinations. This is not very user friendly. This is where mncombo
+comes in. Mncombo is a 'virtual widget' it can display the information
+of the mn-table in either the left or the right side table. This would
+enable you to select a list of author when entering a new
+publication. The mncombo widget would display two lists, one with all
+the authors and the other one with the authors you have selected for
+the particular publication.
+
+The implementation of mncombo supports an optional sorting field so
+that the authors in our example can not only be asigned to a
+publication but also sorted.
+
+The structure of the publauthor table must be:
+
+  publauthor_id	         SERIAL NOT NULL PRIMARY KEY,
+  publauthor_publication INT NOT NULL REFERENCES publication ON DELETE CASCADE, 
+  publauthor_author      INT NOT NULL REFERENCE author,
+  publauthor_order       INT NOT NULL DEFAULT 0 -- optional,
+  UNIQUE(publauthor_publication,publauthor_author),
+
+Note the B<ON DELETE CASCADE> bit, it makes sure all the entries in the
+publauthor table refering to a publication that gets deleted are removed
+along with it. Without this setting, you would first have to remove all the
+authors from virtual combo before you could remove a publication. By NOT
+putting the same CASCADE on the _author field, we can ensure that no author
+gets removed from the database as long as he is listed as the author of a
+publication.
+
+To tell gedafe about the virtual publication_authors field
+(represented by the mncombo widget) you would add the following to the
+meta_fields table:
+
+ INSERT INTO meta_fields VALUES(
+   'publication', 'publication_authors',
+   'widget', 'mncombo(mntable=publauthors)'
+ )
+
+You may not want the publauthor table to show up directly in the UI:
+
+ INSERT INTO meta_tables VALUES(
+   'publauthor','hide','1' 
+ )
+
+Gedafe has to know how to present the list of authors in the
+interface so you have to create an B<author_combo> view. If you want
+to use another view you can specify this via the optional combo
+argument of the mncombo widget.
+
+To specify the position of the virtual
+publication_authors field in the publication form use:
+
+ INSERT INTO meta_fields VALUES (
+   'publication','publication_authors','order','3'
+ )
+
+You may also want to specify a friendly label for the virtual field:
+
+ INSERT INTO meta_fields VALUES (
+   'publication','publication_authors','desc','Authors'
+ )
+
+Note, that it is possible to use mncombo even in self-referencing setups.
+The problem is that in this setup an mn-table can encode even the direction
+of the relation ship. Person A can be owe person B as well as person B can
+owe person A and it is not the same thing. So while both id columns of the
+mn-table reference the same table, it is important to know which is which. 
+
+Normally it is enough for gedafe to look at the table a column references to
+figure out the setup. In the selfreferencing case the nameing of the columns
+will be taken into account too. The rule is to use the column whoes name ends in
+B<_${TABLE}> as the left hand column.
+
+The mncombo widget is implemented using the javascript in
+mncombo_javascript.html this gets loaded via the ##HEAD_SCRIPT## element in
+the header.html template.
 
 =back
 
