@@ -4,5 +4,13 @@
     <td width="70%">##TABLE_INFO##</td></tr>
 </table>
 #else
-<DIV><A href="##TABLE_URL##">##TABLE_DESC##</A></DIV>
+
+#ifdef TABLE_ENTRYPART
+#if ##TABLE_ENTRYPART## = 0.5
+</ul></td><td>&nbsp;&nbsp;&nbsp;<td valign="top"><ul>
+#endif
+#endif
+
+<li><A href="##TABLE_URL##">##TABLE_DESC##</A></li>
+
 #endif
