@@ -11,9 +11,19 @@
   * Much improved search functionality. It is now possible to search on
     multiple fields, on all fields at once and using special operators
 
-  * New widgets: format_number, format_date, format_timestamp.
+  * New widgets 1: format_number, format_date, format_timestamp.
     Just like normal text fields, but the values get converted with
     PostgreSQL's to_char/to_number/to_timestamp/to_date formatting functions
+
+  * New widgets 2: file2fs lets you upload files which endup in a local directory
+
+  * New widgets 3: mncombo for representing mn-relationships
+
+  * New Incremental Search System.
+
+  * Two column layout for Entry Page.
+
+  * Toggle for showing all entries from a table in list view.
 
 1.2.1 (2003-09-03)
 ------------------------------------------------------------------------------
