@@ -549,7 +549,7 @@ sub GUI_Entry($$$)
 			if (ref $g{pearls}{$t}) {
 				@template_args{qw(TABLE_DESC TABLE_INFO)}=($g{pearls}{$t}->info);
 				$template_args{TABLE_URL}= MakeURL($s->{url}, {
-					action => 'configpearl',
+					action => scalar @{$g{pearls}{$t}->template()} ? 'configpearl' : 'runpearl',
 					pearl=> $t,
 					table  => undef,
 					refresh => $refresh,
