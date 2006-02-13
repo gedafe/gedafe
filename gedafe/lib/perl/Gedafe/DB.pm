@@ -74,26 +74,6 @@ sub DB_UpdateRecord($$$);
 sub DB_Widget($$);
 sub DB_filenameSql($);
 
-my %type_widget_map = (
-	'date'      => 'text(size=12)',
-	'time'      => 'text(size=12)',
-	'timestamp' => 'text(size=22)',
-	'timestamptz' => 'text(size=28)',
-	'int2'      => 'text(size=6)',
-	'int4'      => 'text(size=12)',
-	'int8'      => 'text(size=12)',
-	'numeric'   => 'text(size=12)',
-	'float4'    => 'text(size=12)',
-	'float8'    => 'text(size=12)',
-	'bpchar'    => 'text(size=40)',
-	'money'     => 'text(size=12)', # money data type
-	'text'      => 'text',
-	'name'      => 'text(size=20)',
-	'bool'      => 'checkbox',
-	'bytea'     => 'file',
-);
-
-
 sub DB_Init($$)
 {
 	my ($user, $pass) = @_;
@@ -492,8 +472,7 @@ sub DB_Widget($$)
 
 	return $f->{widget} if defined $f->{widget};
 
-	# HID and combo-boxes
-	if($f->{type} eq 'int4' or $f->{type} eq 'int8') {
+	if($f->{type} eq 'numeric' or $f->{type} eq 'integer') {
 		if(defined $f->{reference}) {
 			my $r  = $f->{reference};
 			my $rt = $g{db_tables}{$r};
@@ -512,21 +491,36 @@ sub DB_Widget($$)
 			}
 			return "text";
 		}
-		return $type_widget_map{$f->{type}};
+		return 'text(size=12)';
 	}
-	elsif($f->{type} eq 'varchar') {
-		my $len = $f->{atttypmod}-4;
-		if($len <= 0) {
-			return 'text';
-		}
-		else {
+	elsif($f->{type} eq 'character' or $f->{type} eq 'text') {
+		if(defined $f->{type_args}) {
+			my $len = $f->{type_args};
 			return "text(size=$len,maxlength=$len)";
 		}
+		else {
+			if($f->{type} eq 'text') {
+				return "text(size=60)";
+			}
+			else {
+				return "text(size=20)";
+			}
+		}
+	}
+	elsif($f->{type} eq 'date' or $f->{type} eq 'time') {
+		return 'text(size=12)';
+	}
+	elsif($f->{type} eq 'timestamp') {
+		return 'text(size=22)';
+	}
+	elsif($f->{type} eq 'boolean') {
+		return 'checkbox';
+	}
+	elsif($f->{type} eq 'bytea') {
+		return 'file';
 	}
 	else {
-		my $w = $type_widget_map{$f->{type}};
-		defined $w or die "unknown widget for type $f->{type} ($f->{table}:$f->{field}).\n";
-		return $w;
+		die "unknown widget for type $f->{type} ($f->{table}:$f->{field}).\n";
 	}
 }
 
@@ -622,32 +616,56 @@ sub DB_ReadFields($$$)
 
 	# fields
 	$query = <<'END';
-SELECT a.attname, t.typname, a.attnum, a.atthasdef, a.atttypmod, a.attnotnull
-FROM pg_class c, pg_attribute a, pg_type t
-WHERE c.relname = ? AND a.attnum > 0
-AND a.attrelid = c.oid AND a.atttypid = t.oid
+SELECT c.relname, a.attname,
+       format_type(a.atttypid, a.atttypmod),
+       a.attnum,
+       a.atthasdef,
+       a.attnotnull
+FROM pg_class c, pg_attribute a, pg_namespace n
+WHERE a.attnum > 0
+AND a.attrelid = c.oid
+AND (c.relkind = 'r' OR c.relkind = 'v')
+AND c.relname !~ '^pg_'
 AND a.attname != ('........pg.dropped.' || a.attnum || '........')
-ORDER BY a.attnum
+AND c.relnamespace = n.oid
+AND n.nspname != 'information_schema'
 END
 	$sth = $dbh->prepare($query);
-	for my $table (keys %$tables) {
-		$sth->execute($table) or die $sth->errstr;
-		my $order = 1;
-		while ($data = $sth->fetchrow_arrayref()) {
-			if($data->[0] eq 'meta_sort') {
-				$tables->{$table}{meta_sort}=1;
-			}
-			else {
-				$fields{$table}{$data->[0]} = {
-					field => $data->[0],
-					order => $order++,
-					type => $data->[1],
-					attnum => $data->[2],
-					atthasdef => $data->[3],
-					atttypmod => $data->[4],
-					attnotnull => $data->[5]
-				};
-			}
+	$sth->execute() or die $sth->errstr;
+	while ($data = $sth->fetchrow_arrayref()) {
+		my ($table, $field, $type_formatted, $attnum, $atthasdef,
+		    $attnotnull) = @$data;
+		defined $tables->{$table} or next;
+		if($field eq 'meta_sort') {
+			$tables->{$table}{meta_sort}=1;
+		}
+		else {
+			$type_formatted =~ m{^([^\(]+)(?:\((.*)\))?$} or
+				warn "WARNING: can't parse type definition $type_formatted\n";
+			my ($type, $type_args) = ($1, $2);
+			# character varying -> character
+			$type =~ s/^character varying$/character/;
+			# bpchar -> character
+			$type =~ s/^bpchar$/character/;
+			# name -> character
+			$type =~ s/^name$/character/;
+			# double precision -> numeric
+			$type =~ s/^double precision$/numeric/;
+			# real  -> numeric
+			$type =~ s/^real$/numeric/;
+			# bigint -> integer
+			$type =~ s/^bigint$/integer/;
+			# timestamp xxxx -> timestamp
+			$type =~ s/^timestamp.*/timestamp/;
+			$fields{$table}{$field} = {
+				field      => $field,
+				order      => $attnum,
+				type       => $type,
+				type_args  => $type_args,
+				attnum     => $attnum,
+				atthasdef  => $atthasdef,
+				attnotnull => $attnotnull,
+			};
 		}
 	}
 	$sth->finish;
@@ -862,7 +880,7 @@ sub DB_DB2HTML($$)
 	$str =~ s/^\s+//;
 	$str =~ s/\s+$//;
 
-	if($type eq 'bool') {
+	if($type eq 'boolean') {
 		$str = ($str ? 'yes' : 'no');
 	}
 	if($type eq 'text' and $str !~ /<[^>]+>/) { #make sure the text does not contain html
@@ -903,7 +921,7 @@ sub DB_SearchWhere($$)
 			my @fieldlist = ();
 			for my $f (@{$g{db_real_fields_list}{$view}}) {
 				next if($g{db_fields}{$view}{$f}{type} eq 'bytea');
-				next if($g{db_fields}{$view}{$f}{type} eq 'bool');
+				next if($g{db_fields}{$view}{$f}{type} eq 'boolean');
 				push @fieldlist, "COALESCE(${f}::text, '')";
 			}
 			$field = '('.join("||' '||",@fieldlist).')::text';
@@ -1276,7 +1294,7 @@ sub DB_PrepareData($$)
 	#s/\\/\\\\/g;
 	#s/'/\\'/g;
 
-	if($type eq 'bool') {
+	if($type eq 'boolean') {
 		$_ = ($_ ? '1' : '0');
 	}
 
@@ -1701,7 +1719,7 @@ sub DB_DumpTable($$$)
 		if($type eq 'date') {
 			$query .= " $field = '$value'";
 		}
-		elsif($type eq 'bool') {
+		elsif($type eq 'boolean') {
 			$query .= " $field = '$value'";
 		}
 		else {
@@ -1784,7 +1802,7 @@ sub DB_DumpJSITable($$$)
 		if($type eq 'date') {
 			$query .= " $field = '$value'";
 		}
-		elsif($type eq 'bool') {
+		elsif($type eq 'boolean') {
 			$query .= " $field = '$value'";
 		}
 		else {
