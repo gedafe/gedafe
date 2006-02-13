@@ -108,14 +108,9 @@ sub GUI_FormatDate($$);
 
 
 my %numeric_types = (
-	time      => 1,
-	timestamp => 1,
-	int2      => 1,
-	int4      => 1,
-	int8      => 1,
+	integer   => 1,
 	numeric   => 1,
-	float4    => 1,
-	float8    => 1,
+	timestamp => 1,
 	money     => 1,
 );
 
@@ -2277,8 +2272,9 @@ sub GUI_WidgetWrite($$$$)
 	}
 	elsif($w eq 'text' or $w eq 'format_number' or $w eq 'format_date' or $w eq 'format_timestamp')
 	{
-		my $size = defined $warg->{size} ? $warg->{size} : ($w eq 'text' ? '60' : '20');		
-		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"$size\" VALUE=\"".$escval."\">";
+		my $size = defined $warg->{size} ? $warg->{size} : 20;
+		my $maxlength = defined $warg->{maxlength} ? " MAXLENGTH=\"$warg->{maxlength}\"" : '';
+		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"$size\"$maxlength VALUE=\"".$escval."\">";
 	}
 	elsif($w eq 'hidden') {
 		return "<INPUT TYPE=\"hidden\" NAME=\"$input_name\" VALUE=\"".$escval."\">";
@@ -2287,11 +2283,6 @@ sub GUI_WidgetWrite($$$$)
 		my $rows = defined $warg->{rows} ? $warg->{rows} : '4';
 		my $cols = defined $warg->{cols} ? $warg->{cols} : '60';
 		return "<TEXTAREA NAME=\"$input_name\" ROWS=\"$rows\" COLS=\"$cols\" WRAP=\"virtual\">".$value."</TEXTAREA>";
-	}
-	elsif($w eq 'varchar') {
-		my $size = defined $warg->{size} ? $warg->{size} : '20';
-		my $maxlength = defined $warg->{maxlength} ? $warg->{maxlength} : '100';
-		return "<INPUT TYPE=\"text\" NAME=\"$input_name\" SIZE=\"$size\" MAXLENGTH=\"$maxlength\" VALUE=\"$escval\">";
 	}
 	elsif($w eq 'checkbox') {
 		return "<INPUT TYPE=\"checkbox\" NAME=\"$input_name\" VALUE=\"1\"".($value ? 'CHECKED' : '').">";
