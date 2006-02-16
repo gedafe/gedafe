@@ -657,6 +657,8 @@ END
 			$type =~ s/^bigint$/integer/;
 			# timestamp xxxx -> timestamp
 			$type =~ s/^timestamp.*/timestamp/;
+			# time without time zone -> time
+			$type =~ s/^time without time zone/time/;
 			$fields{$table}{$field} = {
 				field      => $field,
 				order      => $attnum,
