@@ -4,8 +4,10 @@
 
 (arrows indicate actions that you should make when upgrading)
 
-1.4.0 (2004-xx-xx)
+1.4.0 (2006-xx-xx)
 ------------------------------------------------------------------------------
+  * Support for PostgreSQL >= 8.1
+ 
   * Bugfix: Gedafe Pearls didn't work with Konqueror and Safari.
 
   * Much improved search functionality. It is now possible to search on
@@ -25,7 +27,7 @@
 
   * Toggle for showing all entries from a table in list view.
 
-1.2.1 (2003-09-03)
+1.2.1 (2003-10-03)
 ------------------------------------------------------------------------------
   * New widget: combo (just the combo-box without text entry)
 
