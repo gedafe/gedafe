@@ -370,73 +370,130 @@ sub DB_ReadTableAcls($$)
 
 	my ($query, $sth, $data);
 
-	# users
-	my %db_users;
-	$query = 'SELECT usename, usesysid FROM pg_user';
-	$sth = $dbh->prepare($query) or die $dbh->errstr;
-	$sth->execute() or die $sth->errstr;
-	while ($data = $sth->fetchrow_arrayref()) {
-		$db_users{$data->[1]} = $data->[0];
-	}
-	$sth->finish;
-
-	# groups
-	my %db_groups;
-	$query = 'SELECT groname, grolist FROM pg_group';
-	$sth = $dbh->prepare($query) or die $dbh->errstr;
-	$sth->execute() or die $sth->errstr;
-	while ($data = $sth->fetchrow_arrayref()) {
-		my $group = $data->[1];
-		if(defined $group) {
-			$group =~ s/^{(.*)}$/$1/;
-			my @g = split /,/, $group;
-			$db_groups{$data->[0]} = [@db_users{@g}];
+        if ($g{db_database}{version} < 8.1){
+		# users
+		my %db_users;
+		$query = 'SELECT usename, usesysid FROM pg_user';
+		$sth = $dbh->prepare($query) or die $dbh->errstr;
+		$sth->execute() or die $sth->errstr;
+		while ($data = $sth->fetchrow_arrayref()) {
+			$db_users{$data->[1]} = $data->[0];
 		}
-		else {
-			$db_groups{$data->[0]} = [];
-		}
-	}
-	$sth->finish;
+		$sth->finish;
 
-	# acls
-	$query = "SELECT c.relname, c.relacl FROM pg_class c WHERE (c.relkind = 'r' OR c.relkind='v') AND relname !~ '^pg_'";
-	$sth = $dbh->prepare($query) or die $dbh->errstr;
-	$sth->execute() or die $sth->errstr;
-	while ($data = $sth->fetchrow_arrayref()) {
-		next unless defined $data->[0];
-		next unless defined $data->[1];
-		next unless defined $tables->{$data->[0]};
-		my $acldef = $data->[1];
-		# example: {ymca_root=arwdRxt/ymca_root,"group ymca_admin=arwdRxt/ymca_root","group ymca_user=r/ymca_root"}
-		$acldef =~ s/^{(.*)}$/$1/;
-		my @acldef = split(',', $acldef);
-		map { s/^"(.*)"$/$1/ } @acldef;
-		acl: for(@acldef) {
-			/(.*)=([^\/]+)/ or next;
-			my $who = $1; # user or group
-			my $what = $2; # permissions
-			if($who eq '') {
-				# PUBLIC: assign permissions to all db users
-				for(values %db_users) {
-					$tables->{$data->[0]}{acls}{$_} =
-						DB_MergeAcls($tables->{$data->[0]}{acls}{$_}, $what);
-				}
-			}
-			elsif($who =~ /^group (.*)$/) {
-				# group permissions: assign to all db groups
-				for(@{$db_groups{$1}}) {
-					$tables->{$data->[0]}{acls}{$_} =
-						DB_MergeAcls($tables->{$data->[0]}{acls}{$_}, $what);
-				}
+		# groups
+		my %db_groups;
+		$query = 'SELECT groname, grolist FROM pg_group';
+		$sth = $dbh->prepare($query) or die $dbh->errstr;
+		$sth->execute() or die $sth->errstr;
+		while ($data = $sth->fetchrow_arrayref()) {
+			my $group = $data->[1];
+			if(defined $group) {
+				$group =~ s/^{(.*)}$/$1/;
+				my @g = split /,/, $group;
+				$db_groups{$data->[0]} = [@db_users{@g}];
 			}
 			else {
-				# individual user: assign just to this db user
-				$tables->{$data->[0]}{acls}{$who} =
-					DB_MergeAcls($tables->{$data->[0]}{acls}{$who}, $what);
+				$db_groups{$data->[0]} = [];
 			}
 		}
-	}
+		$sth->finish;
 
+		# acls
+		$query = "SELECT c.relname, c.relacl FROM pg_class c WHERE (c.relkind = 'r' OR c.relkind='v') AND relname !~ '^pg_'";
+		$sth = $dbh->prepare($query) or die $dbh->errstr;
+		$sth->execute() or die $sth->errstr;
+		while ($data = $sth->fetchrow_arrayref()) {
+			next unless defined $data->[0];
+			next unless defined $data->[1];
+			next unless defined $tables->{$data->[0]};
+			my $acldef = $data->[1];
+			# example: {ymca_root=arwdRxt/ymca_root,"group ymca_admin=arwdRxt/ymca_root","group ymca_user=r/ymca_root"}
+			$acldef =~ s/^{(.*)}$/$1/;
+			my @acldef = split(',', $acldef);
+			map { s/^"(.*)"$/$1/ } @acldef;
+			acl: for(@acldef) {
+				/(.*)=([^\/]+)/ or next;
+				my $who = $1; # user or group
+				my $what = $2; # permissions
+				if($who eq '') {
+					# PUBLIC: assign permissions to all db users
+					for(values %db_users) {
+						$tables->{$data->[0]}{acls}{$_} =
+							DB_MergeAcls($tables->{$data->[0]}{acls}{$_}, $what);
+					}
+				}
+				elsif($who =~ /^group (.*)$/) {
+					# group permissions: assign to all db groups
+					for(@{$db_groups{$1}}) {
+						$tables->{$data->[0]}{acls}{$_} =
+							DB_MergeAcls($tables->{$data->[0]}{acls}{$_}, $what);
+					}
+				}
+				else {
+					# individual user: assign just to this db user
+					$tables->{$data->[0]}{acls}{$who} =
+						DB_MergeAcls($tables->{$data->[0]}{acls}{$who}, $what);
+				}
+			}
+		}
+	} else {
+		# roles
+                my %db_rolemembers;
+                $query = <<SQL;
+SELECT r.rolname,
+  ARRAY(SELECT b.rolname FROM pg_catalog.pg_auth_members m JOIN pg_catalog.pg_roles b ON (m.roleid = b.oid) WHERE m.member = r.oid) as "member_of"
+FROM pg_catalog.pg_roles r
+ORDER BY 1;
+SQL
+
+                $sth = $dbh->prepare($query) or die $dbh->errstr;
+       	        $sth->execute() or die $sth->errstr;
+               	while ($data = $sth->fetchrow_hashref()) {
+	               	push @{$db_rolemembers{$data->{rolname}}}, $data->{rolname};
+		       	if ($data->{member_of} and $data->{member_of} =~ /{(.+)}/){
+		     	       map { push @{$db_rolemembers{$_}}, $data->{rolname} } split /,/, $1;
+			}
+		}
+                $sth->finish;
+
+
+                # acls
+       	        $query = "SELECT c.relname, c.relacl FROM pg_class c WHERE (c.relkind = 'r' OR c.relkind='v') AND relname !~ '^pg_'";
+                $sth = $dbh->prepare($query) or die $dbh->errstr;
+               	$sth->execute() or die $sth->errstr;
+                while ($data = $sth->fetchrow_hashref()) {
+                       next unless defined $data->{relname};
+                       next unless defined $data->{relacl};
+                       next unless defined $tables->{$data->{relname}};
+                       my $acldef = $data->{relacl};
+                       # example: {ymca_root=arwdRxt/ymca_root,"ymca_admin=arwdRxt/ymca_root","ymca_user=r/ymca_root"}
+                       $acldef =~ s/^{(.*)}$/$1/;
+                       my @acldef = split(',', $acldef);
+                       map { s/^"(.*)"$/$1/ } @acldef;
+                       acl: for(@acldef) {
+                               /(.*)=([^\/]+)/ or next;
+                               my $who = $1; # user or group
+                               my $what = $2; # permissions
+                               if($who eq '') {
+                                       # PUBLIC: assign permissions to all db users
+                                       for(keys %db_rolemembers) {
+                                               $tables->{$data->{relname}}{acls}{$_} =
+                                                       DB_MergeAcls($tables->{$data->{relname}}{acls}{$_}, $what);
+					   #print "PUBLIC: rel $data->{relname} role $_ acl $what\n";
+                                       }
+                               }
+                               else {
+                                       # group permissions: assign to all db groups
+                                       for(@{$db_rolemembers{$1}}) {
+                                               $tables->{$data->{relname}}{acls}{$_} =
+                                                       DB_MergeAcls($tables->{$data->{relanme}}{acls}{$_}, $what);
+					   #print "rel $data->{relname} role $_ (from $1) acl $what\n";
+                                       }
+                               }
+                       }
+		}
+	}
 	$sth->finish;
 
 	return 1;
