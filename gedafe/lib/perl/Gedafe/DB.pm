@@ -467,28 +467,25 @@ SQL
                        next unless defined $data->{relacl};
                        next unless defined $tables->{$data->{relname}};
                        my $acldef = $data->{relacl};
+		       my $t = $tables->{$data->{relname}};
                        # example: {ymca_root=arwdRxt/ymca_root,"ymca_admin=arwdRxt/ymca_root","ymca_user=r/ymca_root"}
                        $acldef =~ s/^{(.*)}$/$1/;
                        my @acldef = split(',', $acldef);
                        map { s/^"(.*)"$/$1/ } @acldef;
-                       acl: for(@acldef) {
-                               /(.*)=([^\/]+)/ or next;
+                       acl: for my $acl (@acldef) {
+                               $acl =~ /(.*)=([^\/]+)/ or next;
                                my $who = $1; # user or group
                                my $what = $2; # permissions
                                if($who eq '') {
                                        # PUBLIC: assign permissions to all db users
                                        for(keys %db_rolemembers) {
-                                               $tables->{$data->{relname}}{acls}{$_} =
-                                                       DB_MergeAcls($tables->{$data->{relname}}{acls}{$_}, $what);
-					   #print "PUBLIC: rel $data->{relname} role $_ acl $what\n";
+                                               $t->{acls}{$_} = DB_MergeAcls($t->{acls}{$_}, $what);
                                        }
                                }
                                else {
                                        # group permissions: assign to all db groups
-                                       for(@{$db_rolemembers{$1}}) {
-                                               $tables->{$data->{relname}}{acls}{$_} =
-                                                       DB_MergeAcls($tables->{$data->{relanme}}{acls}{$_}, $what);
-					   #print "rel $data->{relname} role $_ (from $1) acl $what\n";
+                                       for my $member (@{$db_rolemembers{$who}}) {
+                                               $t->{acls}{$member} = DB_MergeAcls($t->{acls}{$member}, $what);
                                        }
                                }
                        }
