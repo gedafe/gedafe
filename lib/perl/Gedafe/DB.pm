@@ -457,6 +457,21 @@ SQL
 		}
                 $sth->finish;
 
+                # resolve all role-sub-memberships
+                my $continue;
+                do {
+                    $continue = 0;
+                    foreach my $role (sort keys %db_rolemembers){
+                         foreach my $member (sort @{$db_rolemembers{$role}}){
+                             foreach my $submember ( @{$db_rolemembers{$member}}){
+                                 unless (grep {$_ eq $submember} @{$db_rolemembers{$role}}){
+                                     push  @{$db_rolemembers{$role}}, $submember;
+                                     $continue = 1;
+                                 }
+                             }
+                         }                         
+                    }                      
+                } while ($continue);
 
                 # acls
        	        $query = "SELECT c.relname, c.relacl FROM pg_class c WHERE (c.relkind = 'r' OR c.relkind='v') AND relname !~ '^pg_'";
