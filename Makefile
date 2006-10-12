@@ -11,7 +11,7 @@ GNUTAR = gtar
 TARFILE = gedafe-$(VERSION).tar.gz
 
 tarball: doc
-	cvs2cl.pl
+	cvs2cl
 	shtool mkdir -p gedafe-$(VERSION)
 	$(GNUTAR) -T MANIFEST -cf - | (cd gedafe-$(VERSION) && $(GNUTAR) xf -)
 	$(GNUTAR) --mode=g-s -czvf pub/$(TARFILE) gedafe-$(VERSION)
