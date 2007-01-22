@@ -194,8 +194,10 @@ sub GUI_InitTemplateArgs($$)
 					  list_rows => $list_rows_def,
 					  });
 	} else {
+		# 999 is already about 60 pages. don't put an overly
+		# big value, because otherwise we might DoS the database
 		$args->{PRINT_TOGGLE_URL}=MakeURL($s->{url}, {
-                                          list_rows =>'99999',
+                                          list_rows =>'999',
 					  });
 	}
 	$args->{PRINT_TOGGLE_FLAG} = $list_rows_print_flag;
