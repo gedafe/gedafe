@@ -2018,7 +2018,7 @@ sub _DB_MN_DeleteRecord($$$){
 	   my $mntable = $wa->{mntable};
 	   my $left = $wa->{__mntable_left};
 	   $dbh->do(qq{DELETE FROM $mntable WHERE $left = ?},undef,$left_id);
-      	   if ($dbh->err){ $dbh->rollback(); $g{db_error} = $dbh->errstr; return undef };
+      	   if ($dbh->err){ $g{db_error} = $dbh->errstr; $dbh->rollback(); return undef };
        }
        return 1;
 };
@@ -2039,7 +2039,7 @@ sub _DB_MN_AddRecord($$$$)
 		foreach my $val ( @{$record->{$vfield}} ) {
                       my $query = _DB_MN_Insert($table, $vfield, $id, $val , $order++);
                       DB_ExecQuery($dbh,$table,$query,undef,[]) 
-          	          or do{ $dbh->rollback(); $g{db_error} = $dbh->errstr; return undef };
+          	          or do{ $g{db_error} = $dbh->errstr; $dbh->rollback(); return undef };
                }
        }
        return 1;
