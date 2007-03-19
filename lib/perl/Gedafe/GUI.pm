@@ -892,7 +892,7 @@ sub GUI_ListTable($$$)
 	# this table is a real table, not a report (view)
 	my $can_add = ($list->{acl} =~ /a/);
 	my $can_edit = ($list->{acl} =~ /w/ and !$list->{is_report});
-	my $can_delete = $can_edit;
+	my $can_delete = ($list->{acl} =~ /d/);
 
 	my %template_args = (
 		USER => $s->{user},
