@@ -11,7 +11,7 @@ GNUTAR = gtar
 TARFILE = gedafe-$(VERSION).tar.gz
 
 tarball: doc
-	cvs2cl
+	svn2cl
 	shtool mkdir -p gedafe-$(VERSION)
 	$(GNUTAR) -T MANIFEST -cf - | (cd gedafe-$(VERSION) && $(GNUTAR) xf -)
 	$(GNUTAR) --mode=g-s -czvf pub/$(TARFILE) gedafe-$(VERSION)
@@ -25,7 +25,9 @@ release-tag:
 release-tag-force:
 	cvs tag -F v$(MAJOR)_$(MINOR)_$(MMINOR)
 
-doc: doc/gedafe-sql.txt doc/gedafe-user.txt doc/cpptemplate.txt doc/gedafe-pearls.txt
+doc: doc/gedafe-sql.txt doc/gedafe-user.txt doc/cpptemplate.txt \
+     doc/gedafe-pearls.txt doc/gedafe-javascript.txt doc/gedafe-oysters.txt \
+     doc/gedafe-search.txt doc/gedafe-widgets.txt
 
 doc/cpptemplate.txt:
 	pod2man --release=0.3 --center=gedafe lib/perl/Text/CPPTemplate.pm >pod2txt.tmp
