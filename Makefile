@@ -11,8 +11,6 @@ GNUTAR = gtar
 TARFILE = gedafe-$(VERSION).tar.gz
 
 tarball: doc
-	svn up
-	svn2cl
 	shtool mkdir -p gedafe-$(VERSION)
 	$(GNUTAR) -T MANIFEST -cf - | (cd gedafe-$(VERSION) && $(GNUTAR) xf -)
 	$(GNUTAR) --mode=g-s -czvf pub/$(TARFILE) gedafe-$(VERSION)
