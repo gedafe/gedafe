@@ -151,10 +151,8 @@ sub DB_ReadDatabase($)
 	if($data->[0] =~ /^PostgreSQL (\d+\.\d+)/) {
 		$database{version} = $1;
 	}
-	else {
-		# we don't support versions older than 7.0
-		# if VERSION() doesn't exist, assume 7.0
-		$database{version} = '7.0';
+	if(not defined $database{version} or $database{version} < 7.3) {
+		die "ERROR: PostgreSQL must be at least version 7.3 (this is: $database{version})";
 	}
 
 	# database oid
@@ -185,35 +183,34 @@ sub DB_ReadSchemapath($$$){
 	my %visibleschema=();
 
 	# set schema search path. 
-	if( $dbversion >= 7.2) {
-		my $realpath;
-		if (defined  $conf->{schema}) {
-			if (defined $conf->{schema_search_path})   {
-			 	$realpath = $conf->{schema_search_path};
-				
-			} else { # Schema Search path set to default schema
-				$realpath ="'" . $conf->{schema} . "'" ;
-			}
-		} else {	# No default Schema defined	
-			$conf->{schema}='public';
-			$realpath .=" '\$user', 'public'";
-			if (defined $conf->{schema_search_path})   {
-				print STDERR "Gedafe: Warning: No schema ",
-					"parameter in call of Start()\n";
-				print STDERR "Gedafe: Warning: Schema search",
-					" path dropped\n"; 
-			}
+	my $realpath;
+	if (defined  $conf->{schema}) {
+		if (defined $conf->{schema_search_path})   {
+			$realpath = $conf->{schema_search_path};
+			
+		} else { # Schema Search path set to default schema
+			$realpath ="'" . $conf->{schema} . "'" ;
 		}
-		my $query = "SET SEARCH_PATH TO ". $realpath . ";\n"  ;
-		$conf->{schemapathquery}=$query;
-
-		my @REALPATH = split (/,/o , $realpath );
-		for my $p ( @REALPATH ) {
-			$p =~ s/\s//og; # trim whitespace
-			$p =~ s/\'//og; # dequote
-			$visibleschema{$p}=1;
+	} else {	# No default Schema defined	
+		$conf->{schema}='public';
+		$realpath .=" '\$user', 'public'";
+		if (defined $conf->{schema_search_path})   {
+			print STDERR "Gedafe: Warning: No schema ",
+				"parameter in call of Start()\n";
+			print STDERR "Gedafe: Warning: Schema search",
+				" path dropped\n"; 
 		}
 	}
+	my $query = "SET SEARCH_PATH TO ". $realpath . ";\n"  ;
+	$conf->{schemapathquery}=$query;
+
+	my @REALPATH = split (/,/o , $realpath );
+	for my $p ( @REALPATH ) {
+		$p =~ s/\s//og; # trim whitespace
+		$p =~ s/\'//og; # dequote
+		$visibleschema{$p}=1;
+	}
+
 	return \%visibleschema;
 }
 
@@ -230,7 +227,6 @@ sub DB_ReadTables($$)
 	# 7.1: views have relkind 'v'
 
 	# tables
-	if($database->{version} >= 7.3) {
 	$query = <<END;
 SELECT c.relname, n.nspname
 FROM pg_class c, pg_namespace n
@@ -239,15 +235,6 @@ AND   (c.relname !~ '^pg_')
 AND   (c.relnamespace = n.oid) 
 AND   (n.nspname != 'information_schema')
 END
-	} else { # no schema support before 7.3
-        $query = <<END;
-SELECT c.relname
-FROM pg_class c
-WHERE (c.relkind = 'r' OR c.relkind = 'v')
-AND   (c.relname !~ '^pg_')
-END
-
-	}
 	$sth = $dbh->prepare($query) or return undef;
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
@@ -255,22 +242,18 @@ END
 		if($data->[0] =~ /^meta|(_list|_combo)$/) {
 			$tables{$data->[0]}{hide} = 1;
 		}
-		if($database->{version} >= 7.2 ){
-		    # Save time to enumerate schemas . It is not nice
-		    # to write to $g here. But fast.
-		    # Enumerate only tables and schemas that are visible
-		    # per schema search path
-
-		    if (defined $g{conf}{visibleschema}{$data->[1]}) {
-		        if ( not $tables{$data->[0]}{hide} ){
-			    push (@{$g{tables_per_schema}{$data->[1]}}
-				,$data->[0])
-		        }
-		    } else { # inside of invisible schema
-			   $tables{$data->[0]}{hide} = 1;
-		    }
-	
-		} 
+		# Save time to enumerate schemas . It is not nice
+		# to write to $g here. But fast.
+		# Enumerate only tables and schemas that are visible
+		# per schema search path
+		if (defined $g{conf}{visibleschema}{$data->[1]}) {
+			if ( not $tables{$data->[0]}{hide} ){
+				push (@{$g{tables_per_schema}{$data->[1]}}
+						,$data->[0])
+			}
+		} else { # inside of invisible schema
+			$tables{$data->[0]}{hide} = 1;
+		}
 		if($data->[0] =~ /_rep$/) {
 			$tables{$data->[0]}{report} = 1;
 		}
@@ -278,23 +261,12 @@ END
 	$sth->finish;
 
 	# read table comments as descriptions
-	if($database->{version} >= 7.2) {
-		$query = <<'END';
+	$query = <<'END';
 SELECT c.relname, obj_description(c.oid, 'pg_class')
 FROM pg_class c
 WHERE (c.relkind = 'r' OR c.relkind = 'v')
 AND c.relname !~ '^pg_'
 END
-	}
-	else {
-		$query = <<'END';
-SELECT c.relname, d.description 
-FROM pg_class c, pg_description d
-WHERE (c.relkind = 'r' OR c.relkind = 'v')
-AND c.relname !~ '^pg_'
-AND c.oid = d.objoid
-END
-	}
 	$sth = $dbh->prepare($query) or return undef;
 	$sth->execute() or return undef;
 	while ($data = $sth->fetchrow_arrayref()) {
@@ -744,25 +716,13 @@ END
 	my %field_descs = ();
 
 	# read field comments as descriptions
-	if($database->{version} >= 7.2) {
-		$query = <<'END';
+	$query = <<'END';
 SELECT a.attname, col_description(a.attrelid, a.attnum)
 FROM pg_class c, pg_attribute a
 WHERE c.relname = ? AND a.attnum > 0
 AND a.attrelid = c.oid
 AND a.attname != ('........pg.dropped.' || a.attnum || '........')
 END
-	}
-	else {
-		$query = <<'END';
-SELECT a.attname, d.description
-FROM pg_class c, pg_attribute a, pg_description d
-WHERE c.relname = ? AND a.attnum > 0
-AND a.attrelid = c.oid
-AND a.oid = d.objoid
-AND a.attname != ('........pg.dropped.' || a.attnum || '........')
-END
-	}
 
 	$sth = $dbh->prepare($query);
 	for my $table (keys %$tables) {

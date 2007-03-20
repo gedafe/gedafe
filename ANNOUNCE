@@ -1,12 +1,11 @@
-Tobias Oetiker, David Schweikert, Fritz Zaucker, Adi Fairbank, and
-Freek Zindel are proud to announce:
-                _        __        _   ____    ___
-  __ _  ___  __| | __ _ / _| ___  / | |___ \  / _ \
- / _` |/ _ \/ _` |/ _` | |_ / _ \ | |   __) || | | |
-| (_| |  __/ (_| | (_| |  _|  __/ | |_ / __/ | |_| |
- \__, |\___|\__,_|\__,_|_|  \___| |_(_)_____(_)___/
- |___/
-          #### Gedafe (the Generic Database Front-End) 1.2.0 ####
+David Schweikert, Tobias Oetiker, Adi Fairbank, Johannes Poehlmann,
+and Freek Zindel are proud to announce:
+
+
+            ============================================
+            Gedafe (the Generic Database Frontend) 1.4.0
+            ============================================
+
 
 
 Introduction
@@ -41,46 +40,60 @@ Introduction
 Release Notes
 -------------
 
-  * PearlReports have been integrated with gedafe. It is now possible
-    to write perl modules (pearls) which will be picked up by gedafe
-    and presented in the "Entry" screen. The idea is to use this
-    facility for generating complex, structured (multi-level) reports.
-    Pearls have access to gedafes Webform generator as well a to the
-    database handle.
+  * Support for PostgreSQL >= 8.1
 
-  * More widgets: the 'widget' attribute of the meta_fields
-    can now specify more widgets and widgets can now have parameters.
-    For example with 'idcombo(combo=...)' another combo-box can be
-    selected instead of the one chosen by Gedafe.
+  * Dropped support for PostgreSQL <= 7.2
 
-  * Blobs (files) can now be inserted into bytea columns if you have
-    Postgresql >= 7.2
+  * Support for schemas
+ 
+  * Bugfix: Gedafe Pearls didn't work with Konqueror and Safari.
 
-  * Referencing large tables can now be done trough a java applet
-    instead of a html select widget. This makes large (>100 rows or a
-    few kb) tables more easy to use.
+  * Much improved search functionality. It is now possible to search on
+    multiple fields, on all fields at once and using special operators
 
-  * Dates can now be entered with a special 'date' widget.
+  * New widget: format_number, format_date, format_timestamp.
+    Just like normal text fields, but the values get converted with
+    PostgreSQL's to_char/to_number/to_timestamp/to_date formatting
+    functions.
 
-  * Data can now be scanned for tokens resembling web objects (e.g.
-    e-mail addresses, http urls), and automatically marked up to be
-    hyper links. Set the 'markup' attribute to 1 in meta_fields for the
-    desired column.
-  
-  * Gedafe can now count the total number of results returned from the
-    database.  This is helpful for seeing the number of items found by a
-    search, and in skipping to the beginning end or of a result set.
-  
-  * If you have the Text::CSV_XS Perl module installed (available from CPAN),
-    gedafe automatically detects it, and gives the option of exporting data
-    either in CSV format (comma-separated-values), or in tab-delimited format.
-    CSV format is useful for data with embedded newlines characters.
+  * New widget: file2fs lets you upload files which endup in a local
+    directory.
 
-  * The meta_fields attribute 'align' can be used to change the alignment
-    of a coulumn.
+  * New widget: mncombo for representing mn-relationships.
 
-  * The buttons in the list view (with the arrows for navigation and 'ADD' to
-    add a new record) can now also appear at the top before the list.
+  * New widget: radio - like idcombo but with radio buttons.
+
+  * Two column layout for Entry Page.
+
+  * "Print format" link to show all records on one page.
+
+  * Added 'clone' button to create a new record based on an old one.
+
+  * New meta_tables attribute "edit_show_id" to allow editing of the
+    primary key id in the edit mask.
+
+  * New meta_tables attribute "editmask" to specify a custom edit
+    template for a table.
+
+  * New meta_tables attribute "longcomment" to specify a description for
+    a table.
+
+  * New meta tables attribute "twocol" for two-columns edit forms.
+
+  * New configuration variable "edit_buttons_left" to put the
+    edit/clone/delete buttons on the left.
+
+  * New meta field on list tables: "meta_bgcolour" for setting
+    different background colors for each line in a list view.
+
+  * Automatically add links to referenced records in columns of a
+    list view (showref).
+
+  * Added "quicklinks": user-defined links put at the bottom of 
+    list views. See doc/gedafe-sql.pod
+
+  * Added experimental support for custom reporting forms ("Oysters")
+
 
 Availability
 ------------
