@@ -4,28 +4,60 @@
 
 (arrows indicate actions that you should make when upgrading)
 
-1.4.0 (2006-xx-xx)
+1.4.0 (2007-xx-xx)
 ------------------------------------------------------------------------------
   * Support for PostgreSQL >= 8.1
+
+  * Support for schemas
  
   * Bugfix: Gedafe Pearls didn't work with Konqueror and Safari.
 
   * Much improved search functionality. It is now possible to search on
     multiple fields, on all fields at once and using special operators
 
-  * New widgets 1: format_number, format_date, format_timestamp.
+  * New widget: format_number, format_date, format_timestamp.
     Just like normal text fields, but the values get converted with
-    PostgreSQL's to_char/to_number/to_timestamp/to_date formatting functions
+    PostgreSQL's to_char/to_number/to_timestamp/to_date formatting functions.
 
-  * New widgets 2: file2fs lets you upload files which endup in a local directory
+  * New widget: file2fs lets you upload files which endup in a local
+    directory.
 
-  * New widgets 3: mncombo for representing mn-relationships
+  * New widget: mncombo for representing mn-relationships.
+
+  * New widget: radio - like idcombo but with radio buttons.
 
   * New Incremental Search System.
 
   * Two column layout for Entry Page.
 
-  * Toggle for showing all entries from a table in list view.
+  * "Print format" link to show all records on one page.
+
+  * Added 'clone' button to create a new record based on an old one.
+
+  * New meta_tables attribute "edit_show_id" to allow editing of the primary
+    key id in the edit mask.
+
+  * New meta_tables attribute "editmask" to specify a custom edit template for
+    a table.
+
+  * New meta_tables attribute "longcomment" to specify a description for a
+    table.
+
+  * New meta tables attribute "twocol" for two-columns edit forms.
+
+  * New configuration variable "edit_buttons_left" to put the
+    edit/clone/delete buttons on the left.
+
+  * New meta field on list tables: "meta_bgcolour" for setting the different
+    background colors for each record in a list view.
+
+  * Automatically add links to referenced records in columns of a
+    list view (showref).
+
+  * Added "quicklinks": user-defined links put at the bottom of 
+    list views. See doc/gedafe-sql.pod
+
+  * Added experimental support for custom reporting forms ("Oysters")
 
 1.2.1 (2003-10-03)
 ------------------------------------------------------------------------------

@@ -1,19 +1,24 @@
 
 
         ============================================
-        Gedafe (the Generic Database Frontend) 1.2.0
+        Gedafe (the Generic Database Frontend) 1.4.0
         ============================================
 
 
 Documentation
 -------------
 
-    Gedafe comes with four main documentation files:
+    Gedafe comes with the following documentation files:
 
-    NEWS                  new features, upgrade notes
-    doc/gedafe-user.txt   explains how to install and use gedafe
-    doc/gedafe-sql.txt    explains how to setup a gedafe app in postgresql
-    doc/cpptemplate.txt   documentation for the templating system
+    NEWS                       new features, upgrade notes
+    doc/gedafe-user.txt        explains how to install and use gedafe
+    doc/gedafe-search.pod      searching expressions in Gedafe
+    doc/gedafe-sql.txt         explains how to setup a gedafe app in postgresql
+    doc/cpptemplate.txt        documentation for the templating system
+    doc/gedafe-javascript.txt  JavaScript security notes
+    doc/gedafe-pearls.pod      how to use "Pearl"-reports
+    doc/gedafe-oysters.txt     how to use "Oyster"-reports (experimental)
+    doc/gedafe-widgets.pod     plugin widgets (experimental)
 
 
 Examples
@@ -29,8 +34,8 @@ Versioning Scheme
     (major.minor.minorminor) and stable/unstable marked by the minor
     number being even (stable) or odd (unstable).
 
-    The file UPGRADE contains upgrade instructions that you should
-    carefully read before upgrading Gedafe (for minor version changes too).
+    The file NEWS contains upgrade instructions that you should carefully
+    read before upgrading Gedafe.
 
 
 Homepage
@@ -45,7 +50,7 @@ Mailing List
    Subscribe: send an e-mail to gedafe-request@list.ee.ethz.ch with
               subject "subscribe".
 
-   Archives:  http://www.ee.ethz.ch/~slist/gedafe/
+   Archives:  http://lists.ee.ethz.ch/gedafe/
 
 
 License
@@ -69,14 +74,11 @@ License
 Copyright
 ---------
 
-    Copyright (c) 2000-2003 ETH Zurich, All rights reserved.
+    Copyright (c) 2000-2007 ETH Zurich, All rights reserved.
 
 
 Authors
 -------
 
-    Tobias Oetiker <oetiker@ee.ethz.ch>,
-    David Schweikert <dws@ee.ethz.ch>,
-    Fritz Zaucker <zaucker@ee.ethz.ch>,
-    Adi Fairbank <adi@adiraj.org>, and
-    Freek Zindel <freek@zindel.nl>
+    David Schweikert, Tobias Oetiker, Adi Fairbank, Johannes
+    Poehlmann, and Freek Zindel
