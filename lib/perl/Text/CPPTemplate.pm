@@ -441,4 +441,4 @@ version 2.1 of the License, or (at your option) any later version.
 =head1 AUTHOR
 
 David Schweikert <dws@ee.ethz.ch>,
-Tobi Oetiker <oetiker@ee.ethz.ch>
+Tobi Oetiker <tobi@oetiker.ch>

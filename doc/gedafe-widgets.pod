@@ -141,4 +141,4 @@ S<Freek Zindel E<lt>freek@zindel.nlE<gt>>
 This module is based on a shameless copy of the 
 Gedafe::Pearls module by
 
-S<Tobias Oetiker E<lt>oetiker@ee.ethz.chE<gt>>
+S<Tobias Oetiker E<lt>tobi@oetiker.chE<gt>>

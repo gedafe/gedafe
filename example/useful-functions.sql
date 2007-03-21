@@ -2,7 +2,7 @@
 -- # Gedafe relies on application logic being implemented in PostgreSQL
 -- # here are some code fragments which may help
 -- #########################################################################
--- # Tobias Oetiker <oetiker@ee.ethz.ch>
+-- # Tobias Oetiker <tobi@oetiker.ch>
 -- #########################################################################
 
 -- Register PLPGSQL

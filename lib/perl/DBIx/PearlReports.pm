@@ -288,7 +288,7 @@ If you create cool aggregate functions please drop me a line.
 
 =head1 AUTHOR
 
-S<Tobias Oetiker E<lt>oetiker@ee.ethz.chE<gt>>
+S<Tobias Oetiker E<lt>tobi@oetiker.chE<gt>>
 
 =head1 COPYRIGHT
 
