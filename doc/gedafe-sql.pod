@@ -739,7 +739,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 =head1 AUTHOR
 
 S<Tobias Oetiker E<lt>tobi@oetiker.chE<gt>>,
-S<David Schweikert E<lt>dws@ee.ethz.chE<gt>>,
+S<David Schweikert E<lt>david_at_schweikert.chE<gt>>,
 S<Fritz Zaucker E<lt>fritz@zaucker.chE<gt>>,
 S<Adi Fairbank E<lt>adi@adiraj.orgE<gt>>,
 S<Freek Zindel E<lt>freek@zindel.nlE<gt>>
