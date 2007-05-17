@@ -1042,7 +1042,6 @@ sub GUI_ListTable($$$)
 							 $c->{field},
 							 $row->[0]);
 				if(defined $ref_id) {
-					if($ref_id)
 					my $refurl = MakeURL($s->{url}, {
 						table => $ref_table,
 						action => 'edit',
