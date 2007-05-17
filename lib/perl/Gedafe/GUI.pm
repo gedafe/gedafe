@@ -1041,12 +1041,15 @@ sub GUI_ListTable($$$)
 							 $list->{spec}{table},
 							 $c->{field},
 							 $row->[0]);
-				my $refurl = MakeURL($s->{url}, {
+				if(defined $ref_id) {
+					if($ref_id)
+					my $refurl = MakeURL($s->{url}, {
 						table => $ref_table,
 						action => 'edit',
 						id => $ref_id},['search_field','search_value','orderby','offset']);
-				$align = '"LEFT"';
-				$d = qq{<A HREF="$refurl">$d</A>};
+					$align = '"LEFT"';
+					$d = qq{<A HREF="$refurl">$d</A>};
+				}
 			}
 			
 			#if($c->{refcount}){
