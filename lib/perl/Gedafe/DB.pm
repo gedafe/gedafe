@@ -1998,7 +1998,6 @@ sub _DB_MN_AddRecord($$$$)
                 my $order = 0;
 		foreach my $val ( @{$record->{$vfield}} ) {
                       my $query = _DB_MN_Insert($table, $vfield, $id, $val , $order++);
-		      print "\nquery = $query\n";
                       DB_ExecQuery($dbh,$table,$query,undef,[]);
           	      if($g{db_error}) { $dbh->rollback(); return undef };
                }
