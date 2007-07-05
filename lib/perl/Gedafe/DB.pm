@@ -1389,7 +1389,7 @@ sub DB_ExecQuery($$$$$)
 		$datatypes{$_} = $g{db_fields}{$table}{$_}{type};
 	}
 	
-	#print "<!-- Executing: $query -->\n";
+#	print "<!-- Executing: $query -->\n";
 	my $sth = $dbh->prepare($query) or die $dbh->errstr;
 	my $paramnumber = 1;
 	for(@$fields){
@@ -1400,19 +1400,24 @@ sub DB_ExecQuery($$$$$)
 			$sth->bind_param($paramnumber,$$value,{ pg_type => DBD::Pg::PG_BYTEA });
 		}
 		else {
+#			print "<!-- $paramnumber - ".(defined $value ? "'$value'" : 'NULL')." -->\n";
 			$sth->bind_param($paramnumber,$value);
 		}
 		$paramnumber++;
 	}
 	delete $g{db_error};
-	my $res = $sth->execute() or do {
+	my $res;
+	$res = $sth->execute() or do {
 		# report nicely the error
-		$g{db_error}=$sth->errstr; return undef;
+		$g{db_error}=($sth->errstr||'unknown insert error')."($res)"; return undef;
 	};
-	if($res ne 1 and $res ne '0E0') {
+	if($res ne "1" and $res ne '0E0') {
 		die "Number of rows affected is not 1! ($res)";
 	}
-	return $sth->{'pg_oid_status'};
+	my $oid = $sth->{'pg_oid_status'};
+#	print "<!-- this table has probably no OID column defined, hence the pg_oid_status trick for figuring the latest inserted oid can not work. This breaks mntable support. -->\n"
+#		unless  $oid;
+	return $oid;
 }
 
 sub DB_AddRecord($$$)
@@ -1445,9 +1450,9 @@ sub DB_AddRecord($$$)
 	}
 	$query   .= ")";
 	$dbh->begin_work();
-	my $oid = DB_ExecQuery($dbh,$table,$query,\%dbdata,\@fields_list)
-	    or do { $dbh->rollback(); return undef };
-	_DB_MN_AddRecord($dbh, $table, $record, $oid);
+	my $oid = DB_ExecQuery($dbh,$table,$query,\%dbdata,\@fields_list);
+	if ($g{db_error}){ $dbh->rollback();return undef };
+	_DB_MN_AddRecord($dbh, $table, $record, $oid) or return undef;
         $dbh->commit();
         return 1;
 }
@@ -1988,7 +1993,13 @@ sub _DB_MN_AddRecord($$$$)
         my ($dbh, $table, $record, $oid) = @_;
 
 	my $mnfields_listref = $g{db_virtual_fields_list}{$table};
-	return 1 unless ref $mnfields_listref eq 'ARRAY';
+	return 1 unless ref $mnfields_listref eq 'ARRAY' and 0 < scalar @$mnfields_listref;
+
+      	if (!$oid){
+	    $g{db_error} = "ERROR: oid for inserted record unknown, can't update nm table. Make sure you create tables WITH OIDS when you inted to use mncombo. And yes, I don't know a way to add OIDS into a table that has been created without them except dumping everything, editing the table definition and restoring."; 
+	    $dbh->rollback();
+            return undef;
+	};
 
 	my $id = $record->{id} || _DB_OID2ID($dbh,$table,$oid);
 

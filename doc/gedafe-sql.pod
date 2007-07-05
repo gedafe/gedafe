@@ -46,10 +46,14 @@ Example:
    customer_address TEXT,
    timestamp        TIMESTAMP DEFAULT now(),  -- lax naming ok here
    meta_customer    integer 	-- WRONG, "meta_*" is reserved
- );
+ ) WITH OIDS;
 
 Using the table name + underscore prefix is nevertheless regarded 
 "good practice".
+
+The B<WITH OIDS> bit is only required if you plan on using mncombo widgets
+(see below). But since there seems no way of adding OIDS later on, having
+them might be good practice.
 
 =head2 Non Speaking Unique ID
 
@@ -622,7 +626,7 @@ The structure of the publauthor table must be:
   publauthor_author      INT NOT NULL REFERENCE author,
   publauthor_order       INT NOT NULL DEFAULT 0 -- optional,
   UNIQUE(publauthor_publication,publauthor_author),
-
+ 
 Note the B<ON DELETE CASCADE> bit, it makes sure all the entries in the
 publauthor table refering to a publication that gets deleted are removed
 along with it. Without this setting, you would first have to remove all the
@@ -630,6 +634,14 @@ authors from virtual combo before you could remove a publication. By NOT
 putting the same CASCADE on the _author field, we can ensure that no author
 gets removed from the database as long as he is listed as the author of a
 publication.
+
+If you use mncombo with postgresql 8.1 or higher, make sure you create the
+tables which are going to have virutal mncombo fields embeded with the
+B<WITH OIDS> create option since Gedafe relies on this for figuring out the
+id of newly inserted table rows. (Yes there is the RETURNING option for
+INSERT ommands which can give us the same functionality, but unfortunately
+they make the creation of RULES more complex, alas we stick with OIDS for
+now. Input welcome!). Before pg 8.1 this was the default.
 
 To tell gedafe about the virtual publication_authors field
 (represented by the mncombo widget) you would add the following to the
