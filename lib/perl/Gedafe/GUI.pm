@@ -479,7 +479,7 @@ sub GUI_Entry($$$)
 		$desc =~ s/ /&nbsp;/g;
 		$template_args{TABLE_DESC}=$desc;
 		$prevpart = $part;
-		$part = $entrycnt/($#entrytables) ;
+		$part = $entrycnt/($#entrytables+1);
 		# make sure we always fall on some sensible values
 		for (qw(0.25 0.33 0.5 .66 0.75)){
                   $part=$_ if $prevpart and $prevpart < $_ and $part > $_;
