@@ -557,6 +557,9 @@ sub DB_Widget($$)
 	elsif($f->{type} eq 'boolean') {
 		return 'checkbox';
 	}
+	elsif($f->{type} eq 'cidr') {
+		return 'text(size=20)';
+	}
 	elsif($f->{type} eq 'bytea') {
 		return 'file';
 	}
