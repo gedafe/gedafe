@@ -502,6 +502,8 @@ sub GUI_Entry($$$)
 	$template_args{ELEMENT}='entrytable_end';
 	print Template(\%template_args);
 
+       #### reports ###################################
+
 	$template_args{ELEMENT}='reports_list_header';
 	print Template(\%template_args);
 
@@ -539,6 +541,9 @@ sub GUI_Entry($$$)
 		$template_args{ELEMENT}='pearls_list_header';
 		print Template(\%template_args);
 
+               $template_args{ELEMENT}='entrytable_start';
+               print Template(\%template_args);
+
 		$template_args{ELEMENT}='entrytable';
 		foreach my $t (sort { (ref $g{pearls}{$a} and ref $g{pearls}{$b} ) ?
                                       ( ($g{pearls}{$a}->info)[0] cmp ($g{pearls}{$b}->info)[0] ) : 
@@ -564,12 +569,20 @@ sub GUI_Entry($$$)
 			}
 			print Template(\%template_args);
 		}
+
+               $template_args{ELEMENT}='entrytable_end';
+               print Template(\%template_args);
+
 	}
 
 	##### oysters ################################
+
 	if(defined $g{oysters} and scalar %{$g{oysters}}) {
 		$template_args{ELEMENT}='oyster_list_header';
 		print Template(\%template_args);
+
+               $template_args{ELEMENT}='entrytable_start';
+               print Template(\%template_args);
 
 		$template_args{ELEMENT}='entrytable';
 		foreach my $t (sort {$a cmp $b} keys %{$g{oysters}}) {
@@ -591,6 +604,10 @@ sub GUI_Entry($$$)
 			}
 
 		}
+
+               $template_args{ELEMENT}='entrytable_end';
+               print Template(\%template_args);
+
 	}
 
 	GUI_Footer(\%template_args);
