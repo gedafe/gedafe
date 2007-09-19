@@ -17,7 +17,7 @@ Start(
     list_rows      => 15,
     templates      => '/usr/local/gedafe/example/templates',
     schema	   => 'public',
-    schema_search_path => " 'public','test' ",     
+    schema_search_path => " 'public' ",     
     pearl_dir      => '/usr/local/gedafe/example/mypearls',
     widget_dir      => '/usr/local/gedafe/example/mywidgets',
     oyster_dir      => '/usr/local/gedafe/example/myoysters',
