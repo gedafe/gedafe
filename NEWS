@@ -178,3 +178,4 @@
   * all the templates have a new variable: DATABASE_DESC containing the
     comment set on the database. You thus can take the original
     example/template/header.html and use it for your application.
+
