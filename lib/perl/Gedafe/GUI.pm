@@ -247,11 +247,17 @@ sub GUI_Header($$)
 	$args->{ELEMENT}='header';
 
 	# lets see if we have to include the mncombo javascript
-	my $fields = $g{db_fields}{$args->{TABLE}};
-	if (ref $g{db_virtual_fields_list}{$args->{TABLE}} eq 'ARRAY' and @{$g{db_virtual_fields_list}{$args->{TABLE}}}){
-		$args->{HEAD_SCRIPT} =
-		    Template({PAGE => 'mncombo', ELEMENT=>'mncombo_javascript'});
-	}
+
+## is the next line used for anything??? 2009-04-12 Fritz
+#	my $fields = $g{db_fields}{$args->{TABLE}};
+
+        # get rid of warning message
+	if (defined $g{db_virtual_fields_list}{$args->{TABLE}}) {
+ 	    if (ref $g{db_virtual_fields_list}{$args->{TABLE}} eq 'ARRAY' and @{$g{db_virtual_fields_list}{$args->{TABLE}}}){
+	  	    $args->{HEAD_SCRIPT} =
+		        Template({PAGE => 'mncombo', ELEMENT=>'mncombo_javascript'});
+  	    }
+        }
 	print Template($args);
 
 	$args->{ELEMENT}='header_table';
