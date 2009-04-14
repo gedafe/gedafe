@@ -157,7 +157,15 @@ sub DB_ReadDatabase($)
 
 	# database oid
 	my $oid;
-	$query = "SELECT oid FROM pg_database WHERE datname = '$dbh->{Name}'";
+
+	# patch for DBD::Pg >= 2.0.0
+	# don't use $dbh->{pg_db} as this would break with DBD::Pg < 2.0.0
+	my $dbname = $dbh->{Name};
+	if ( $dbname =~ m/(?:dbname|db|database)=([^;]*)/ ) { # this comment to easy syntax highlighting /
+		$dbname = $1;
+	}
+	# extract just the database name and remove leading parameter name and trailing host and port settings
+	$query = "SELECT oid FROM pg_database WHERE datname = '$dbname'";
 	$sth = $dbh->prepare($query);
 	$sth->execute() or die $sth->errstr;
 	$data = $sth->fetchrow_arrayref() or die $sth->errstr;
@@ -169,7 +177,8 @@ sub DB_ReadDatabase($)
 	$sth = $dbh->prepare($query);
 	$sth->execute() or die $sth->errstr;
 	$data = $sth->fetchrow_arrayref();
-	$database{desc} = $data ? $data->[0] : $dbh->{Name};
+	# patch for DBD::PG >= 2.0.0, see above
+	$database{desc} = $data ? $data->[0] : $dbname;
 	$sth->finish;
 
 	return \%database;
@@ -409,7 +418,7 @@ sub DB_ReadTableAcls($$)
 				}
 			}
 		}
-	} else {
+	} else { # PostgreSQL >= 8.1
 		# roles
                 my %db_rolemembers;
                 $query = <<SQL;
@@ -423,8 +432,13 @@ SQL
        	        $sth->execute() or die $sth->errstr;
                	while ($data = $sth->fetchrow_hashref()) {
 	               	push @{$db_rolemembers{$data->{rolname}}}, $data->{rolname};
-		       	if ($data->{member_of} and $data->{member_of} =~ /{(.+)}/){
-		     	       map { push @{$db_rolemembers{$_}}, $data->{rolname} } split /,/, $1;
+			if (ref $data->{member_of} eq 'ARRAY') { # DBD::Pg >= 2.0.0 returns a real array
+		     	       		map { push @{$db_rolemembers{$_}}, $data->{rolname} } @{$data->{member_of}};
+			}
+			else {	                                 # whereas older version returned a flattened array as string
+	  	       		if ($data->{member_of} and $data->{member_of} =~ /{(.+)}/) {
+		     	       		map { push @{$db_rolemembers{$_}}, $data->{rolname} } split /,/, $1;
+				}
 			}
 		}
                 $sth->finish;
@@ -456,8 +470,14 @@ SQL
                        my $acldef = $data->{relacl};
 		       my $t = $tables->{$data->{relname}};
                        # example: {ymca_root=arwdRxt/ymca_root,"ymca_admin=arwdRxt/ymca_root","ymca_user=r/ymca_root"}
-                       $acldef =~ s/^{(.*)}$/$1/;
-                       my @acldef = split(',', $acldef);
+		       my @acldef;
+		       if (ref $acldef eq 'ARRAY') { # Real array in DBD::Pg >= 2.0.0 (see above)
+		               @acldef = @$acldef;
+		       }
+		       else {                        # flattened array in older versions
+	                       $acldef =~ s/^{(.*)}$/$1/;
+        	               @acldef = split(',', $acldef);
+		       }
                        map { s/^"(.*)"$/$1/ } @acldef;
                        acl: for my $acl (@acldef) {
                                $acl =~ /(.*)=([^\/]+)/ or next;
@@ -684,7 +704,9 @@ END
 			$tables->{$table}{meta_sort}=1;
 		}
 		else {
-			$type_formatted =~ m{^([^\(]+)(?:\((.*)\))?$} or
+# get rid of warning messages about data types with additional info after length (e.g. timestamp(3) with time zone)
+#			$type_formatted =~ m{^([^\(]+)(?:\((.*)\))?$} or
+			$type_formatted =~ m{^([^\(]+)(?:\((.*)\))?} or
 				warn "WARNING: can't parse type definition $type_formatted\n";
 			my ($type, $type_args) = ($1, $2);
 			# character varying -> character
@@ -790,19 +812,25 @@ END
 		}
 	}
 	$sth->finish;
+
 	# foreign-key constraints (REFERENCES)
-	$query = <<'END';
-SELECT tgargs from pg_trigger, pg_proc where pg_trigger.tgfoid=pg_proc.oid AND pg_trigger.tgname
-LIKE 'RI_ConstraintTrigger%' AND pg_proc.proname = 'RI_FKey_check_ins'
-END
-	$sth = $dbh->prepare($query) or die $dbh->errstr;
-	$sth->execute() or die $sth->errstr;
-	while ($data = $sth->fetchrow_arrayref()) {
-		my @d = split(/(?:\000|\\000)/,$$data[0]); # DBD::Pg 0.95: \\000, DBD::Pg 0.98: \000
-                #            table  field               remote table
-		$meta_fields{$d[1]}{$d[4]}{reference} = $d[2];
-	}
-	$sth->finish;
+ table: for my $table (keys %$tables) {
+            next table if $table =~ /^.*_(list|combo|rep)$/;
+            next table if $table =~ /^meta_.*$/;
+            # FIX ME: should namespace and schema be explicitely set?
+            my $namespace = undef;
+            my $schema    = undef;
+            my $fk_table  = undef;
+            $sth = $dbh->foreign_key_info($namespace, $schema, $table, 
+                                          $namespace, $schema, $fk_table);
+            next table if not defined $sth;
+            while (my $row = $sth->fetchrow_hashref()) {
+                my $remote_table  = $row->{FK_TABLE_NAME};
+                my $remote_column = $row->{FK_COLUMN_NAME};
+                $meta_fields{$remote_table}{$remote_column}{reference} = $table;
+            }
+            $sth->finish;
+        }
 
 	# if there is a HID field, then hide the ID field
 	for my $view (keys %$tables) {
