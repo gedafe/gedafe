@@ -1505,7 +1505,7 @@ sub GUI_WidgetRead($$$)
                         for ( split /\//, $warg->{'uploadpath'} ){
                                 next if $_ eq '..';
                                 $targetdir .= "/$_";
-                                next if -d "/$root.$targetdir";
+                                next if -d "/$root$targetdir";
                                 mkdir "/$root$targetdir" or die "mkdir $root$targetdir: $!\n";
                         };
                         $upload =~ s|^.*/||;
