@@ -37,7 +37,7 @@ sub run ($$){
     # defined in the url if there are any.
     $self->{param}={};
     for (@{$self->template()}) {
-	my ($field,$lable,$widget,$value,$test) = @$_;
+	my ($field,$label,$widget,$value,$test) = @$_;
 	$self->{param}{$field} = GUI_WidgetRead($s, "field_$field",$widget);
 	die "Pearl paramter $field='$self->{param}{$field}' does not match /^$test\$/".
 	    "<BR>You can use the back button to get back at your form\n"
