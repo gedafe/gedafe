@@ -905,7 +905,7 @@ sub DB_Connect($$$)
 	# Can we really do that ? DB operator MUST touch all gedafe-cgi
 	# scripts, after adding/changing schemas or evil things will happen. 
 	$dbh->do($g{conf}{schemapathquery}) or 
-		die "could not set search path";
+		die "could not set search path: ".$dbh->errstr();
 
 	return $dbh;
 }
