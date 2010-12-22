@@ -2026,7 +2026,7 @@ sub _DB_MN_AddRecord($$$$)
 	my $mnfields_listref = $g{db_virtual_fields_list}{$table};
 	return 1 unless ref $mnfields_listref eq 'ARRAY' and 0 < scalar @$mnfields_listref;
 
-      	if (!$oid){
+      	if (!$oid and !$record->{id}){
 	    $g{db_error} = "ERROR: oid for inserted record unknown, can't update nm table. Make sure you create tables WITH OIDS when you inted to use mncombo. And yes, I don't know a way to add OIDS into a table that has been created without them except dumping everything, editing the table definition and restoring."; 
 	    $dbh->rollback();
             return undef;
