@@ -77,7 +77,8 @@ sub DB_filenameSql($);
 sub DB_Init($$)
 {
 	my ($user, $pass) = @_;
-	my $dbh = DBI->connect_cached("$g{conf}{db_datasource}", $user, $pass,{AutoCommit=>1,ShowErrorStatement=>1}) or
+
+	my $dbh = DBI->connect_cached("$g{conf}{db_datasource}", $user, $pass,{AutoCommit=>1, ShowErrorStatement=>1, pg_enable_utf8=>$g{conf}{utf8}}) or
 		return undef;
 
 
@@ -892,7 +893,7 @@ sub DB_Connect($$$)
 {
 	my ($s, $user, $pass) = @_;
 
-	my $dbh = DBI->connect_cached("$g{conf}{db_datasource}", $user, $pass,{ShowErrorStatement=>1,AutoCommit=>1})
+	my $dbh = DBI->connect_cached("$g{conf}{db_datasource}", $user, $pass,{ShowErrorStatement=>1,AutoCommit=>1,pg_enable_utf8=>$g{conf}{utf8}})
 		or return undef;
 
 	if(not defined $g{db_meta_loaded}) {
@@ -1298,11 +1299,11 @@ sub DB_GetRecord($$$$)
 	$data = $sth->fetchrow_arrayref() or
 		die ($sth->err ? $sth->errstr : "Record not found ($query)\n");
 
-	# transorm raw data into record
+	# transform raw data into record
 	my $i=0;
 	for(@fields_list) {
-		$record->{$_} = $data->[$i];
-		$i++;
+            $record->{$_} = $data->[$i];
+            $i++;
 	}
 	
 	return 1;
@@ -1376,7 +1377,7 @@ sub DB_PrepareData($$)
        # correct decimal commas to decimal points. This is a hack 
        # that should be made configurable. Also 
        # remove blanks and other non-numeric characters 			
-       if ($type eq 'numeric' ){
+       if (defined $_ and $type eq 'numeric' ){
              s/[.,]([\d\s]+)$/p$1/;
              s/[,.]//g ;
              s/p/./;
@@ -1946,8 +1947,8 @@ sub DB_DumpJSITable($$$)
 }
 
 sub DB_filenameSql($){
-  my $column = shift;
-  return "decode(replace(replace(encode(substring($column,1,position(' '::bytea in $column)-1),'escape'), 'gedafe_PROTECTED_sPace'::text, ' '::text), 'gedafe_PROTECTED_hAsh'::text, '#'::text),'escape')";
+    my $column = shift;
+    return "decode(replace(replace(encode(substring($column,1,position(' '::bytea in $column)-1),'escape'), 'gedafe_PROTECTED_sPace'::text, ' '::text), 'gedafe_PROTECTED_hAsh'::text, '#'::text),'escape')";
 }
 
 my %DB_Format_functions = (

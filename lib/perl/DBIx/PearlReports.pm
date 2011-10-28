@@ -44,7 +44,7 @@ or
 PearlReports can also be used in an Object Oriented Context:
 
  #!/usr/sepp/bin/perl-5.8.0
- use lib qw( /usr/pack/postgresql-7.3.2-ds/lib/site_perl /usr/isgtc/lib/perl);
+ use lib qw( /usr/pack/postgresql-9.1.1-za/lib/site_perl /usr/isgtc/lib/perl);
  use DBIx::PearlReports;
  $r = DBIx::PearlReports::create ( ... );
  $r->group( ... );
@@ -116,8 +116,8 @@ function changes the group iterates. Each iteration of a group is
 enclosed by the apropriate header and footer.
 
 The B<$field{xxx}> variables refer to the columns of the query.
-The footer and the header (!) can contain agregation functions
-(rpmin, rpmax, rpbig, rpsmall, rpsum, rpavg). See the section below
+The footer and the header (!) can contain aggregation functions
+(rpmin, rpmax, rpbig, rpsmall, rpsum, rpavg). See the section below.
 
 Finally the actual data can get printed.
 
@@ -458,7 +458,7 @@ sub rpsum ($) {
     use warnings FATAL => qw(numeric);
     my $cnt = $aggmem->{counter}++;
     my $arr = \$aggmem->{array}->[$cnt];
-    $$arr += $_[0];
+    $$arr += ($_[0] || 0);
     return $$arr;
 }
 

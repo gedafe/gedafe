@@ -7,6 +7,8 @@
 package Gedafe::GUI;
 
 use strict;
+use POSIX;
+use Encode;
 
 use Gedafe::Global qw(%g);
 use Gedafe::DB qw(
@@ -50,8 +52,6 @@ use Gedafe::Util qw(
 );
 
 use Gedafe::StdoutBuffer;
-
-use POSIX;
 
 use vars qw(@ISA @EXPORT_OK);
 require Exporter;
@@ -293,7 +293,8 @@ sub GUI_Header($$)
 	delete $args->{TABLE_TOOLTIP};
 	delete $args->{TABLE_URL};
 
-        my $longcomment= $g{db_tables}{$save_table}{meta}{longcomment};
+        my $longcomment;
+	$longcomment = $g{db_tables}{$save_table}{meta}{longcomment} if defined $save_table;
         $args->{TABLE_LONGCOMMENT} = $longcomment;
 
 	$args->{TABLE} = $save_table;
@@ -701,7 +702,7 @@ sub GUI_ReadSearchSpec($)
     	        my $cnt = $1;
                 my $field = $q->url_param($param);
 		$field =~ s/^\s*//; $field =~ s/\s*$//;
-		my $value = $q->url_param('search_value'.$cnt) || '';
+		my $value = decode('latin1',$q->url_param('search_value'.$cnt) || '');
 		$value =~ s/^\s+//; $value =~ s/\s+$//;
 		$value or next;
 		my %search_element = ( cnt=>$cnt, field => $field, value => $value );
@@ -733,7 +734,7 @@ sub GUI_ReadSearchSpec($)
 			}
 
 			# some checks
-			if($op =~ /^is\s+(not\s+)?null\b/i) {
+			if(defined $op and $op =~ /^is\s+(not\s+)?null\b/i) {
 				$op = 'is null';
 				$neg = 1 if defined $1;
 			}
@@ -1394,7 +1395,7 @@ sub GUI_WidgetRead($$$)
 
 	my ($w, $warg) = DB_ParseWidget($widget,$q->url_param('table'));
 
-	my $value = $q->param($input_name);
+	my $value = decode('latin1', $q->param($input_name));
 	
 	$g{widget_error}=undef;
 	if(grep {/^$w$/} keys %{$g{widgets}}){

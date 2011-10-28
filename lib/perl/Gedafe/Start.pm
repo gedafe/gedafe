@@ -12,8 +12,6 @@ require Exporter;
 @ISA       = qw(Exporter);
 @EXPORT    = qw(Start);
 
-use CGI 2.00 qw(-compile :cgi);
-
 use Gedafe::Auth qw(AuthConnect);
 use Gedafe::Global qw(%g);
 use Gedafe::GUI qw(
@@ -48,11 +46,11 @@ use Gedafe::Util qw(
 	InitOysters
 );
 
-sub Start(%)
+sub Start($%)
 {
+        my $q = shift;
 	my %conf = @_;
 
-	my $q = new CGI;
 	my $user = '';
 	my $cookie;
 
@@ -69,16 +67,18 @@ sub Start(%)
 
 	# init global state if 'reload' in the url
 	if(defined $q->url_param('reload')) {
-	  %g = ();
+                %g = ();
 	}
 
 	# configuration
 	if(not exists $g{conf}) {
 		# defaults
 		$g{conf} = {
-			list_rows  => 10,
-			tickets_socket => '/tmp/.gedafed.sock',
-			gedafe_compat => '1.2',
+    		        list_rows        => 10,
+		        tickets_socket   => '/tmp/.gedafed.sock',
+		        gedafe_compat    => '1.2',
+		        utf8             => 0,
+		        allow_javascript => 0,
 		};
 
 		# init config
@@ -93,7 +93,7 @@ sub Start(%)
 				die "ERROR: '$m' named argument must be defined in Start.\n";
 		}
 	}
-
+	
 	# schema
         $s{schema} = $q->url_param('schema') || $g{conf}{schema};
 	
@@ -198,7 +198,6 @@ sub Start(%)
 		$dbh->disconnect;
 		return;
 	}
-
 
 	print $q->header(%headers);
 	$s{http_header_sent}=1;

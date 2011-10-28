@@ -454,6 +454,9 @@ sub DataUnTree($){
 }
 
 sub StripJavascript($){
+	if ($g{conf}{allow_javascript}) { # no stripping
+            return shift;
+        }
 	my $suspicious = shift;
 	$suspicious = '' if not defined $suspicious;
 	#remove all data-url things except images

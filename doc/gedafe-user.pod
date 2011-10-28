@@ -103,16 +103,20 @@ SYSV-init).
 
 Gedafe is actually a library. The application itself just calls the
 'Start' function of the library, providing the necessary configuration
-information as arguments. The application startup script should look
-as follows:
+information as arguments.
 
- #!/usr/sepp/bin/speedy -w
+Assuming you are using the CGI::Fast module, the application startup script
+(e.g. index.fcgi) should look as follows:
+
+ #!/usr/bin/perl -w
  
  use lib "/usr/local/gedafe/lib/perl";
- 
+ use strict;
+ use lib CGI::Fast 
  use Gedafe::Start;
- 
- Start(
+
+while (my $q = new CGI::Fast) {
+     Start(
  	db_datasource  => 'dbi:Pg:dbname=demo',
  	list_rows      => 15,
  	templates      => '/usr/local/gedafe/templates/demo',
@@ -124,7 +128,11 @@ as follows:
     	list_buttons   => 'both',
 	edit_buttons_left => 1,
         file2fs_dir     => '/var/gedafe/upload_dir',
+	utf             => 0,
+	allow_javascript => 0,
  );
+}
+
 
 Gedafe gathers information about the database structure when it is
 started.  This process can take a lot of time, it is therefor strongly
@@ -217,6 +225,14 @@ See F<gedafe-oysters.pod> for more information.
 If you use the file2fs widet for uploading files you have to specify the
 root directory for the uploads otherwhise uploads will be disabled. See the
 file2fs widget for more information.
+
+=item utf8
+
+Set to 1 if your PostgreSQL DB has Encoding UTF8 and to 0 otherwise.
+
+=item allow_javascript
+
+If set to 0 (the default) JS will be stripped.
 
 =item schema
 

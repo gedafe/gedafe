@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/sepp/bin/perl-5.14.2 -w
 
 use strict;
 use IO::Socket;
@@ -40,7 +40,7 @@ use IO::Socket;
 
 my $DEBUG=0;
 my $socket_path = '/tmp/.gedafed.sock';
-my $tickets_validity = 7200; # in seconds, delete ticket after that delay of non-use
+my $tickets_validity = 24*3600; # in seconds, delete ticket after that delay of non-use
 #my $tickets_validity = 10;
 
 my %tickets_cache = ();
