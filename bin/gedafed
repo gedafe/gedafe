@@ -1,4 +1,4 @@
-#!/usr/sepp/bin/perl-5.14.2 -w
+#!/usr/bin/perl -w
 
 use strict;
 use IO::Socket;
