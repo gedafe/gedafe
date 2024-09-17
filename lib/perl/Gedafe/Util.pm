@@ -168,10 +168,10 @@ sub MyURL($)
 	my $q = shift;
 	my $qs = $ENV{QUERY_STRING} || '';
 	if($qs =~ /^\s*$/) {
-		return $q->url();
+		return $ENV{'REQUEST_URI'}
 	}
 	else {
-		return $q->url().'?'.$qs;
+		return $ENV{'REQUEST_URI'}.'?'.$qs;
 	}
 }
 
