@@ -664,7 +664,7 @@ sub GUI_FilterFirst($$$$)
 	$template_args->{FILTERFIRST_FIELD_DESC}=$g{db_fields}{$view}{$ff_field}{desc};
 	$template_args->{FILTERFIRST_COMBO}=$ff_combo;
 	$template_args->{FILTERFIRST_HIDDEN}=$ff_hidden;
-	$template_args->{FILTERFIRST_ACTION}=$q->url;
+	$template_args->{FILTERFIRST_ACTION}=MyURL($q);
 	print Template($template_args);
 	delete $template_args->{ELEMENT};
 	delete $template_args->{FILTERFIRST_FIELD};
@@ -803,7 +803,7 @@ sub GUI_Search($$$){
 
 	$template_args->{PAGE} = 'search';
 	$template_args->{ELEMENT} = 'head';
-	$template_args->{SEARCH_ACTION} = $q->url;
+	$template_args->{SEARCH_ACTION} = MyURL($q);
 	print Template($template_args);
 	delete $template_args->{SEARCH_ACTION};
 
@@ -1861,7 +1861,7 @@ sub GUI_Pearl($)
 	GUI_Header($s, \%template_args);
 
 	# FORM
-	FormStart($s, $q->url); #-
+	FormStart($s, MyURL($q)); #-
 	print "<INPUT TYPE=\"hidden\" NAME=\"action\" VALUE=\"runpearl\">\n";
 	print "<INPUT TYPE=\"hidden\" NAME=\"pearl\" VALUE=\"$pearl\">\n";
 	print "<INPUT TYPE=\"hidden\" NAME=\"refresh\" VALUE=\"".NextRefresh()."\">\n";
